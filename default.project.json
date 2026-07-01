@@ -1,0 +1,50 @@
+{
+"name": "ModularFramework",
+"tree": {
+"$className": "DataModel",
+"ReplicatedFirst": {
+"$path": "src/ReplicatedFirst"
+},
+"ReplicatedStorage": {
+"Shared": {
+"$path": "src/Shared"
+}
+},
+"ServerScriptService": {
+"Server": {
+"$path": "src/Server"
+}
+},
+"StarterPlayer": {
+"StarterPlayerScripts": {
+"Client": {
+"$path": "src/Client"
+}
+}
+},
+"Workspace": {
+"$className": "Workspace",
+"$properties": {
+"FilteringEnabled": true
+},
+"Baseplate": {
+"$className": "Part",
+"$properties": {
+"Anchored": true,
+"Color": [0.3, 0.6, 0.3],
+"Material": "Grass",
+"Position": [0, -10, 0],
+"Size": [1000, 20, 1000]
+}
+},
+"SpawnLocation": {
+"$className": "SpawnLocation",
+"$properties": {
+"Anchored": true,
+"Position": [0, 1, 0],
+"Size": [12, 1, 12]
+}
+}
+}
+}
+}

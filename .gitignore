@@ -1,0 +1,7 @@
+.git/
+.rojo/
+sourcemap.json
+*.rbxl
+*.rbxlx
+build/
+out/
