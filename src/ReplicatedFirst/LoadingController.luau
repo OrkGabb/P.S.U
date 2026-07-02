@@ -105,7 +105,7 @@ function LoadingController.CreateAndAnimateHUD()
 	genreLabel.Position = UDim2.new(0.1, 0, 0.52, 0)
 	genreLabel.BackgroundTransparency = 1
 	genreLabel.TextColor3 = Color3.fromRGB(0, 255, 120) -- Neon green accent color
-	genreLabel.Font = Enum.Font.GothamSemibold
+	genreLabel.Font = Enum.Font.GothamMedium
 	genreLabel.TextSize = 16
 	genreLabel.TextXAlignment = Enum.TextXAlignment.Center
 	genreLabel.Parent = background
@@ -192,7 +192,7 @@ function LoadingController.CreateAndAnimateHUD()
 
 			if tempInstance then
 				task.spawn(function()
-					local success, _ = pcall(function()
+					local _success, _ = pcall(function()
 						ContentProvider:PreloadAsync({tempInstance :: Instance})
 					end)
 					

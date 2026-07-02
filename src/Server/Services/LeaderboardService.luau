@@ -12,9 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local DataService: any = require(ServerScriptService.Server.Services.DataService)
-local Shared: Folder = ReplicatedStorage:WaitForChild("Shared") :: Folder
-
-local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver"))
+local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
 local LeaderboardService = {}
 

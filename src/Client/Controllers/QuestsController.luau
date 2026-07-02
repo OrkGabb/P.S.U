@@ -22,8 +22,6 @@ local isAnimating = false
 local UI_Cache: {[string]: {ProgTxt: TextLabel, Desc: TextLabel, Bar: Frame, Btn: TextButton, CoinTxt: TextLabel, ExpTxt: TextLabel}} = {}
 local CurrentQuestData = { Progress = {}, Claimed = {} }
 local currentRebirths = 0
-local equippedItemKey = "None"
-local coinMasteryLvl = 0
 
 local function FormatNumber(n: number): string
     if not n or n ~= n then return "0" end
@@ -33,14 +31,14 @@ local function FormatNumber(n: number): string
         local exp = math.floor(math.log10(n))
         return string.format("%.1fe%d", n / (10 ^ exp), exp)
     end
-    local tiers = {
-        {1e18, "Qi"}, {1e15, "Qa"}, {1e12, "T"},
-        {1e9,  "B"},  {1e6,  "M"},  {1e3,  "K"},
+    local tiers: {{Value: number, Suffix: string}} = {
+        {Value = 1e18, Suffix = "Qi"}, {Value = 1e15, Suffix = "Qa"}, {Value = 1e12, Suffix = "T"},
+        {Value = 1e9,  Suffix = "B"},  {Value = 1e6,  Suffix = "M"},  {Value = 1e3,  Suffix = "K"},
     }
     for _, tier in ipairs(tiers) do
-        if n >= tier[1] then
-            local formatted = string.format("%.1f", n / tier[1]):gsub("%.0$", "")
-            return formatted .. tier[2]
+        if n >= tier.Value then
+            local formatted = string.format("%.1f", n / tier.Value):gsub("%.0$", "")
+            return formatted .. tier.Suffix
         end
     end
     return tostring(n)
@@ -55,6 +53,17 @@ local function WaitForLeaderstats(player: Player, timeout: number?): Folder?
     local deadline = os.clock() + (timeout or 15)
     repeat task.wait(0.1) until player:FindFirstChild("leaderstats") or os.clock() >= deadline
     return player:FindFirstChild("leaderstats") :: Folder?
+end
+
+-- Claim-button state stroke (created lazily, reused thereafter)
+local function GetButtonStroke(btn: TextButton): UIStroke
+    local existing = btn:FindFirstChild("UIStroke")
+    if existing and existing:IsA("UIStroke") then
+        return existing
+    end
+    local stroke = Instance.new("UIStroke")
+    stroke.Parent = btn
+    return stroke
 end
 
 local function RefreshUI()
@@ -88,13 +97,12 @@ local function RefreshUI()
             el.Btn.Text = "CLAIMED"
             el.Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
             el.Btn.TextColor3 = Color3.fromRGB(120, 120, 120)
-            local stroke = el.Btn:FindFirstChild("UIStroke")
-            if stroke then stroke.Enabled = false end
+            GetButtonStroke(el.Btn).Enabled = false
         elseif isComplete then
             el.Btn.Text = "CLAIM"
             el.Btn.BackgroundColor3 = Color3.fromRGB(0, 180, 70)
             el.Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            local stroke = el.Btn:FindFirstChild("UIStroke") or Instance.new("UIStroke", el.Btn)
+            local stroke = GetButtonStroke(el.Btn)
             stroke.Color = Color3.fromRGB(0, 255, 100)
             stroke.Thickness = 1.5
             stroke.Enabled = true
@@ -102,7 +110,7 @@ local function RefreshUI()
             el.Btn.Text = "IN PROGRESS"
             el.Btn.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
             el.Btn.TextColor3 = Color3.fromRGB(180, 100, 100)
-            local stroke = el.Btn:FindFirstChild("UIStroke") or Instance.new("UIStroke", el.Btn)
+            local stroke = GetButtonStroke(el.Btn)
             stroke.Color = Color3.fromRGB(90, 40, 40)
             stroke.Thickness = 1
             stroke.Enabled = true
@@ -145,7 +153,8 @@ function QuestsController.Start(): ()
     BgShield.AutoButtonColor = false
     BgShield.Visible = false
     BgShield.Active = true
-    BgShield.MouseButton1Up:Connect(closeQuestsMenu)
+    -- (click-to-close is connected below, once closeQuestsMenu exists — the
+    -- old forward reference silently connected nil and threw at startup)
 
     MainPanel = Instance.new("Frame")
     MainPanel.Size = UDim2.new(0, 460, 0, 420)
@@ -192,14 +201,13 @@ function QuestsController.Start(): ()
     local corner = Instance.new("UICorner", closeBtn)
     corner.CornerRadius = UDim.new(0, 8)
     
-    local stroke = Instance.new("UIStroke", closeBtn)
-    stroke.Color = Color3.fromRGB(120, 20, 20)
-    stroke.Thickness = 2
-    
+    local closeStroke = Instance.new("UIStroke", closeBtn)
+    closeStroke.Color = Color3.fromRGB(120, 20, 20)
+    closeStroke.Thickness = 2
+
     local cIcon = closeBtn:FindFirstChild("HD_Icon")
     if cIcon then cIcon:Destroy() end
 
-    local TweenService = game:GetService("TweenService")
     local clickTw = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     closeBtn.MouseEnter:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = Color3.fromRGB(255, 70, 70)}):Play() end)
     closeBtn.MouseLeave:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 30, 0, 30), BackgroundColor3 = Color3.fromRGB(220, 50, 50)}):Play() end)
@@ -222,6 +230,7 @@ function QuestsController.Start(): ()
     end
 
     closeBtn.MouseButton1Up:Connect(closeQuestsMenu)
+    BgShield.MouseButton1Up:Connect(closeQuestsMenu)
 
     local title = Instance.new("TextLabel", MainPanel)
     title.Text = "DAILY QUESTS"
@@ -290,7 +299,7 @@ function QuestsController.Start(): ()
         desc.Size = UDim2.new(0.6, 0, 0, 16)
         desc.Position = UDim2.new(0, 15, 0, 30)
         desc.TextColor3 = Color3.fromRGB(180, 180, 180)
-        desc.Font = Enum.Font.GothamSemibold
+        desc.Font = Enum.Font.GothamMedium
         desc.TextSize = 11
         desc.TextXAlignment = Enum.TextXAlignment.Left
         desc.BackgroundTransparency = 1
@@ -507,7 +516,6 @@ function QuestsController.Start(): ()
     local updateProfileData = remotes:WaitForChild("UpdateProfileData", 5)
     if updateProfileData then
         (updateProfileData :: RemoteEvent).OnClientEvent:Connect(function(data)
-            equippedItemKey = data.EquippedItem or data.EquippedAura or "None"
             currentRebirths = data.Rebirths or 0
             if isOpen then RefreshUI() end
         end)
@@ -515,8 +523,7 @@ function QuestsController.Start(): ()
 
     local updateUpgrades = remotes:WaitForChild("UpdateUpgrades", 5)
     if updateUpgrades then
-        (updateUpgrades :: RemoteEvent).OnClientEvent:Connect(function(upgrades)
-            coinMasteryLvl = upgrades["CoinMastery"] or 0
+        (updateUpgrades :: RemoteEvent).OnClientEvent:Connect(function()
             if isOpen then RefreshUI() end
         end)
     end

@@ -5,7 +5,6 @@
 -- src/Client/Controllers/DailyUIController.lua
 -- Daily reward UI Controller. Integrates HUD button registration and midnight boundary checks.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DailyUIController = {}

@@ -25,6 +25,9 @@ export type PotionDef = {
 	Duration: number,
 	Color: Color3,
 	IconId: string,
+	-- Optional sprite-sheet cell when IconId points at an atlas
+	-- (read by BuffHUDController)
+	ImageRectOffset: Vector2?,
 }
 
 local ItemRegistry = {

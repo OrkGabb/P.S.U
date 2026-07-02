@@ -132,7 +132,7 @@ DailyRegistry.Days[31] = { Day = 31, Coins = 0, IsMilestone = true,
 
 -- Rebase BaseCoins to normal scale using formula: math.floor(500 * day * (1 + day * 0.1))
 for day = 1, 31 do
-    local entry = DailyRegistry.Days[day] or { Day = day, Coins = 0, IsMilestone = false }
+    local entry: DailyEntry = DailyRegistry.Days[day] or { Day = day, Coins = 0, IsMilestone = false }
     entry.Coins = math.floor(500 * day * (1 + day * 0.1))
     DailyRegistry.Days[day] = entry
 end

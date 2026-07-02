@@ -6,10 +6,8 @@
 -- Server-side Visual Effects Service. Emits lightweight, compressed structural replication data.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
 
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
-local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
 local VFXService = {}
 

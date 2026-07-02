@@ -176,7 +176,7 @@ local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
                 benefits = {"[VIP] Chat Tag", "+25% Click Power", "VIP Daily Rewards Unlocked"},
             }
         elseif reward.Type == "Item" and reward.ItemId then
-            displayName = string.upper(string.gsub(reward.ItemId, "_", " "))
+            displayName = string.upper((string.gsub(reward.ItemId, "_", " ")))
         end
         (remotes:FindFirstChild("NotifyPurchase") :: RemoteEvent):FireClient(player, reward.Type, reward.Amount, displayName, extraData)
     end
@@ -305,7 +305,7 @@ function MonetizationService.Start(): ()
                 DataService:SyncFullState(player)
 
                 if notifyEvt then
-                    local displayName: string = string.upper(string.gsub(key, "_", " "))
+                    local displayName: string = string.upper((string.gsub(key, "_", " ")))
                     notifyEvt:FireClient(player, "Gamepass", 1, displayName)
                 end
 

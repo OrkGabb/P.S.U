@@ -36,8 +36,7 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Feature Resolution
 -- ═══════════════════════════════════════════════════════════════════════════════
-local Shared: Folder = ReplicatedStorage:WaitForChild("Shared") :: Folder
-local FeatureResolver: any = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver"))
+local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
 -- Exclusivity Check
 local activeGenres: {string} = FeatureResolver.GetActiveCategories()
@@ -54,20 +53,22 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Service Imports
 -- ═══════════════════════════════════════════════════════════════════════════════
-local Services: Folder = ServerScriptService.Server.Services :: Folder
+-- Server scripts are all present at server start — direct paths are safe
+-- and keep the requires statically resolvable for tooling.
+local Services = ServerScriptService.Server.Services
 
-local NetworkService: any      = require(Services:WaitForChild("NetworkService"))
-local DataService: any         = require(Services:WaitForChild("DataService"))
-local LeaderstatsService: any  = require(Services:WaitForChild("LeaderstatsService"))
-local EconomyService: any      = require(Services:WaitForChild("EconomyService"))
-local LevelService: any        = require(Services:WaitForChild("LevelService"))
-local UpgradeService: any      = require(Services:WaitForChild("UpgradeService"))
-local QuestService: any        = require(Services:WaitForChild("QuestService"))
-local MonetizationService: any = require(Services:WaitForChild("MonetizationService"))
-local AdminService: any        = require(Services:WaitForChild("AdminService"))
-local ChatTagService: any      = require(Services:WaitForChild("ChatTagService"))
-local AntiExploitService: any  = require(Services:WaitForChild("AntiExploitService"))
-local VFXService: any          = require(Services:WaitForChild("VFXService"))
+local NetworkService: any      = require(Services.NetworkService)
+local DataService: any         = require(Services.DataService)
+local LeaderstatsService: any  = require(Services.LeaderstatsService)
+local EconomyService: any      = require(Services.EconomyService)
+local LevelService: any        = require(Services.LevelService)
+local UpgradeService: any      = require(Services.UpgradeService)
+local QuestService: any        = require(Services.QuestService)
+local MonetizationService: any = require(Services.MonetizationService)
+local AdminService: any        = require(Services.AdminService)
+local ChatTagService: any      = require(Services.ChatTagService)
+local AntiExploitService: any  = require(Services.AntiExploitService)
+local VFXService: any          = require(Services.VFXService)
 
 -- Genre-gated services: FPS_Shooter
 local WeaponService:    any? = nil
