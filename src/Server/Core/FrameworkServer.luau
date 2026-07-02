@@ -68,6 +68,13 @@ local OPTIONAL_SERVICES: { ToggleEntry } = {
 		end,
 	},
 	{
+		toggleKey = "Clicker_Farm",
+		registerName = "GoldenDropService",
+		resolver  = function(): ModuleScript
+			return Services:WaitForChild("GoldenDropService") :: ModuleScript
+		end,
+	},
+	{
 		toggleKey = "FPS_Shooter",
 		registerName = "WeaponService",
 		resolver  = function(): ModuleScript

@@ -115,17 +115,18 @@ local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
         local ls: Folder? = player:FindFirstChild("leaderstats") :: any
         if ls then
             local primaryName: string = targetKey
-            local configPrimary: string? = FeatureResolver.GetConfigField("Currencies", "PrimaryName", nil)
-            if targetKey == "Primary" and configPrimary then
-                primaryName = configPrimary
+            if targetKey == "Primary" then
+                primaryName = FeatureResolver.GetCurrencyNames().Primary
+            elseif targetKey == "Secondary" then
+                primaryName = FeatureResolver.GetCurrencyNames().Secondary
             end
-            
+
             local primaryValObj: Instance? = ls:FindFirstChild(primaryName)
             if primaryValObj and (primaryValObj:IsA("IntValue") or primaryValObj:IsA("NumberValue")) then
                 (primaryValObj :: any).Value = profile.Data.Currencies[targetKey]
             end
         end
-        
+
     elseif reward.Type == "Item" and reward.ItemId then
         DataService:AddItem(player, reward.ItemId, reward.Amount)
 
@@ -150,13 +151,8 @@ local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
         if not profile.Data.VIPPendingDailyClaims then
             profile.Data.VIPPendingDailyClaims = 0
         end
-
-        -- Grant the exclusive VIP Effect through the standard effect pipeline.
-        local hasVipAura: boolean = profile.Data.Collection and profile.Data.Collection["VIP"] and profile.Data.Collection["VIP"] > 0
-        DataService:AddAura(player, "VIP", 1)
-        if hasVipAura then
-            DataService:RecycleMaxedAura(player, "VIP")
-        end
+        -- NOTE: cosmetic VIP perks (chat tag, genre cosmetics) are granted by
+        -- the systems that own them, keyed off VIPExpiry — core grants none.
     end
 
     -- 7. Mark as processed and force save (Master Sync)
@@ -262,11 +258,12 @@ function MonetizationService.Start(): ()
             local ls: Folder? = player:FindFirstChild("leaderstats") :: any
             if ls then
                 local primaryName: string = currencyKey
-                local configPrimary: string? = FeatureResolver.GetConfigField("Currencies", "PrimaryName", nil)
-                if currencyKey == "Primary" and configPrimary then
-                    primaryName = configPrimary
+                if currencyKey == "Primary" then
+                    primaryName = FeatureResolver.GetCurrencyNames().Primary
+                elseif currencyKey == "Secondary" then
+                    primaryName = FeatureResolver.GetCurrencyNames().Secondary
                 end
-                
+
                 local valObj: Instance? = ls:FindFirstChild(primaryName)
                 if valObj and (valObj:IsA("IntValue") or valObj:IsA("NumberValue")) then
                     (valObj :: any).Value = profile.Data.Currencies[currencyKey]

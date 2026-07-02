@@ -11,8 +11,6 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local QuestRegistry = require(ReplicatedStorage.Shared.Modules.QuestRegistry)
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
-local LootTable = require(ReplicatedStorage.Shared.Modules.LootTable)
-local UpgradeRegistry = require(ReplicatedStorage.Shared.Modules.UpgradeRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
 local QuestsController = {}

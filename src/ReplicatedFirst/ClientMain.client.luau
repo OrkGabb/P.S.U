@@ -46,6 +46,7 @@ local function start(): ()
 
 	-- Dynamic Category Resolution for Gating
 	local isClickerActive: boolean = FeatureResolver.IsCategoryActive("Clicker_Farm")
+	local isAuraActive: boolean = FeatureResolver.IsCategoryActive("Aura_Collector")
 	local isRPGActive: boolean = FeatureResolver.IsCategoryActive("RPG_Adventure")
 	local isPetActive: boolean = FeatureResolver.IsCategoryActive("Pet_Simulator")
 	local isFPSActive: boolean = FeatureResolver.IsCategoryActive("FPS_Shooter")
@@ -70,6 +71,11 @@ local function start(): ()
 	-- Clicker category
 	if not isClickerActive then
 		SKIP_CONTROLLERS["ClickController"] = true
+		SKIP_CONTROLLERS["GoldenDropController"] = true
+	end
+
+	-- Aura category (roll UI + collection index are Aura_Collector systems)
+	if not isAuraActive then
 		SKIP_CONTROLLERS["IndexController"] = true
 		SKIP_CONTROLLERS["MainUIController"] = true
 	end

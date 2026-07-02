@@ -12,6 +12,8 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local AudioController = require(script.Parent.AudioController)
+local UpgradeRegistry = require(ReplicatedStorage.Shared.Modules.UpgradeRegistry)
 
 local ClickController = {}
 
@@ -32,7 +34,6 @@ local poolIndex = 1
 local aliveCount = 0
 
 local lastClick      = 0
-local previousCoins  = 0
 local showFloatingText = true
 local cachedClickText = "+💰" -- Updated dynamically
 
@@ -41,8 +42,9 @@ local math_sin: (number) -> number = math.sin
 local math_max: (number, number) -> number = math.max
 local math_pi: number = math.pi
 
-local BATCH_INTERVAL: number = 0.25
-local CLIENT_CPS_LIMIT: number = 0.05 -- 20 CPS
+-- Tuning comes from the genre config (SSoT); these are safe fallbacks only.
+local BATCH_INTERVAL: number = FeatureResolver.GetConfigField("Clicker_Farm", "ClickBatchInterval", 0.25)
+local CLIENT_CPS_LIMIT: number = FeatureResolver.GetConfigField("Clicker_Farm", "ClientClickCooldown", 0.05)
 local pendingClicks: number = 0
 local lastSentBatch: number = 0
 local lastBatchFire: number = 0
@@ -71,11 +73,8 @@ local function GetLocalEvent(eventName: string): BindableEvent
 	return event :: BindableEvent
 end
 
-local clickSound: Sound
 local function PlayClickSound(): ()
-	if not clickSound then return end
-	clickSound.PlaybackSpeed = math.random(90, 115) / 100
-	clickSound:Play()
+	AudioController.PlaySFX("Click")
 end
 
 local function SpawnParticle(mouseLoc: Vector2): ()
@@ -161,13 +160,6 @@ function ClickController.Start(): ()
 	particleGui.DisplayOrder = 100
 	particleGui.Parent = LocalPlayer.PlayerGui
 
-	-- SETUP SOUND
-	clickSound = Instance.new("Sound")
-	clickSound.Name = "MainClickSound"
-	clickSound.SoundId = "rbxassetid://6895079853"
-	clickSound.Volume = 0.4
-	clickSound.Parent = particleGui
-
 	-- PRE-ALLOCATE POOL
 	for i = 1, TEXT_POOL_SIZE do
 		local label = Instance.new("TextLabel")
@@ -219,12 +211,14 @@ function ClickController.Start(): ()
 
 	RunService.Heartbeat:Connect(onHeartbeat)
 
-	-- ASYNC VALUE BINDINGS (Syncs floating text with the server's actual Earning Power)
+	-- ASYNC VALUE BINDINGS (floating text mirrors the server's click power;
+	-- both sides derive it from UpgradeRegistry.ComputeStat, so they agree)
 	task.spawn(function()
 		local updateData = remotes:WaitForChild("UpdateProfileData") :: RemoteEvent
 		updateData.OnClientEvent:Connect(function(data)
-			if data and data.Progression and data.Progression.EarningPower then
-				cachedClickText = "+" .. Format(math_max(1, data.Progression.EarningPower))
+			if data and type(data.Upgrades) == "table" then
+				local perClick = 1 + UpgradeRegistry.ComputeStat(data.Upgrades, "PerClick")
+				cachedClickText = "+" .. Format(math_max(1, perClick))
 			end
 		end)
 	end)
