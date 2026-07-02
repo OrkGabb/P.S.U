@@ -1,27 +1,77 @@
-ModularFramework Product Manual
+# P.S.U. — Project Script Universal
 
-ModularFramework is a fully functional, ready-to-publish Roblox game starter kit. By using simple configuration switches, you can configure this starter kit to act as a First-Person Shooter (FPS), a Clicker game, a Role-Playing Game (RPG), or a Pet Simulator.
+**One proven engine. Four complete games. Zero code required to switch.**
 
-Product Overview
+P.S.U. is a commercial, genre-agnostic Roblox game framework written in
+strictly-typed Luau. It ships as a single Rojo project containing a hardened
+core engine plus **four fully playable demo modes** that all run on that same
+core:
 
-Think of this framework as a television and its configuration files as a remote control. To turn a feature on or off, you do not need to rewrite the internal circuitry; you simply press a button on the remote. The framework handles the screen layout automatically. If a game module is set to false, its visual buttons, screens, and scripts never load, ensuring zero lag.
+| Mode | Genre pattern it proves | Highlights |
+|---|---|---|
+| **Clicker_Farm** | Idle/clicker economy | Click + passive income, milestone upgrade costs, cupcake secondary currency, golden-drop bonus events, anti-macro protection |
+| **FPS_Shooter** | Server-authoritative combat | Hitscan with accessory punch-through, 4 weapons (AR/pistol/shotgun/sniper), ADS + scope, sprint/slide/crouch movement, first-person viewmodels |
+| **Aura_Collector** | RNG collection (Sol's-RNG style) | Weighted rolls with visible odds, pity system, 12 rarity tiers, equippable aura VFX that work on any rig (R6/R15), collection index, auto-roll |
+| **Pet_Simulator** | Egg-hatching companions | Currency-gated eggs, visible hatch odds, pet inventory, equippable companions that follow the player |
 
-The Golden Rule (Support Isolation)
+Exactly **one** genre is active at a time — you pick it by flipping a single
+boolean in one config file. Buyers can ship any demo as-is, reskin it, or gut
+a demo and build their own genre on the same core.
 
-To receive customer support, you must strictly follow this rule:
+## The philosophy
 
-[CRITICAL] DO NOT EDIT CORE FRAMEWORK SCRIPTS.
+- **The core never changes.** Genre logic lives in swappable services,
+  controllers, and registries. Core files (data, networking, anti-exploit,
+  UI shell) contain zero genre-specific code — adding a fifth genre means
+  adding files and a config entry, not editing the engine.
+- **Config ≠ Logic ≠ Data ≠ UI.** Every number a designer might tune —
+  costs, drop rates, weapon damage, roll cooldowns — lives in exactly one
+  registry or config file. Services validate against the same registry the
+  UI displays, so what the player sees can never disagree with what the
+  server does.
+- **The server is the authority.** Clients send requests; the server
+  validates cooldowns, costs, hit registration, and RNG. An exploiter
+  editing their client cannot mint currency, skip cooldowns, or fake rolls.
+- **Strictly typed.** Every first-party file is `--!strict` Luau and the
+  repo analyzes clean with `luau-lsp` (the only vendored third-party module,
+  ProfileService, is wrapped behind a typed facade).
 
-This starter kit contains core engine code, including Server Services, Client Controllers, and Bootstrap managers. These core files are the internal machinery of the framework. You do not need to touch them to build your game.
+## What's in the box
 
-Editing, renaming, or deleting code inside the core folders immediately voids your technical support. If you modify core code and break your game, we cannot help you fix it. All modifications must be done inside the designated configuration files and registries.
+```
+PSU/
+├── default.project.json      Rojo project (builds the whole game)
+├── rokit.toml                Pins the Rojo toolchain version
+├── src/
+│   ├── Server/               Core services + genre services (PetService, AuraService, …)
+│   ├── Client/               Core controllers + genre controllers and UIs
+│   ├── Shared/
+│   │   ├── Config/           FeatureToggles, CommerceRegistry, AudioRegistry, …
+│   │   └── Modules/          Content registries (AuraRegistry, PetRegistry, …) + shared logic
+│   └── ReplicatedFirst/      Loading screen + client bootstrapper
+├── README.md                 You are here
+└── INSTRUCTIONS.md           Step-by-step setup, publishing, and customization
+```
 
-Dynamic Architecture
+Core systems included with every genre: ProfileService-backed persistence
+with schema reconciliation, session-locked data, leaderstats, leveling,
+quests, daily rewards, consumable buff items, monetization scaffolding
+(gamepasses/dev products via one registry), physical leaderboards, portals,
+an anti-exploit layer, a settings panel, and a procedural UI shell (sidebar,
+top bar, store, inventory) that genres plug into.
 
-ModularFramework is built on a 100% data-driven architecture. The core logic relies exclusively on FeatureResolver.luau as the Single Source of Truth.
+## Getting started
 
-Data-Driven Database: The DataService saves player data using abstract, generalized dictionaries (Currencies, Inventory, Progression). It does not hardcode specific game themes.
+Read **[INSTRUCTIONS.md](INSTRUCTIONS.md)**. It assumes you have never used
+Rojo or this codebase and walks through: installing the toolchain, building
+and opening the place, switching genres, replacing the placeholder
+monetization IDs and icons, adding your own content to the registries, and
+publishing to Roblox.
 
-Procedural User Interface: The UI is entirely generated by scripts at runtime. It reads metadata from content registries (such as UpgradeRegistry.luau).
+## License notes for resellers/buyers
 
-Adding new items, upgrades, or currencies only requires adding a new text block to a registry file. The framework will automatically clone the necessary UI panels, assign the text, hook up the purchase buttons, and map the save data structures without requiring a single line of manual interface coding."# P.S.U" 
+All code is original to this framework. Aura VFX are procedural and use only
+Roblox-engine-shipped particle textures; pet models are procedurally built at
+runtime. No third-party asset packs are included, and drop-in override slots
+exist for your own hand-made rigs (weapon viewmodels, aura VFX rigs, pet
+models) — see INSTRUCTIONS.md for the exact locations.
