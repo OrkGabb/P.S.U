@@ -1,109 +1,53 @@
 --!strict
---@author OrkGabb
---@module MainUIController.luau
---@version 1.0
--- src/Client/Controllers/MainUIController.lua
--- Adaptive composition controller that resolves and renders UI based on active features.
+-- @Author @OrkGabb
+-- src/Client/Controllers/MainUIController.luau
+-- Aura_Collector roll UI: roll button with escalating rarity feedback
+-- ("juice"), always-available odds panel, biome selector and the optional
+-- auto-roll toggle (Monetization-gated).
+--
+-- Everything data-driven from the shared registries:
+--   • AuraRegistry — biome pools, roll costs, rarity colors/feedback tiers,
+--     and the SAME roll engine the server uses (odds shown here can never
+--     disagree with server rolls)
+--   • AudioRegistry — roll-reveal stingers per feedback tier
+--   • FeatureToggles (via FeatureResolver) — roll pacing, currency names
+-- Cooldown mirroring: AuraService publishes the effective roll speed as the
+-- "RollSpeedMult" player attribute; this controller derives its local input
+-- gate from it instead of re-implementing mastery/gamepass math.
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
+local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
+
 local LocalPlayer = Players.LocalPlayer
 
-local LootTableModule = require(ReplicatedStorage.Shared.Modules.LootTable)
+local AuraRegistry = require(ReplicatedStorage.Shared.Modules.AuraRegistry)
+local AudioRegistry = require(ReplicatedStorage.Shared.Config.AudioRegistry)
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
--- Rarity configuration and feedback settings
-local RarityColorMap = {
-	COMMON      = Color3.fromRGB(120, 120, 120),
-	UNCOMMON    = Color3.fromRGB(80,  200, 120),
-	RARE        = Color3.fromRGB(45,  107, 228),
-	EPIC        = Color3.fromRGB(180,  50, 255),
-	LEGENDARY   = Color3.fromRGB(228, 167,  45),
-	MYTHIC      = Color3.fromRGB(228,  45,  45),
-	MUTANT      = Color3.fromRGB(255, 100, 220),
-	ABYSSAL     = Color3.fromRGB(120,   0, 180),
-	COSMIC      = Color3.fromRGB(0,   200, 255),
-	SINGULARITY = Color3.fromRGB(255, 255, 255),
-	EXOTIC      = Color3.fromRGB(0,   255, 120),
-	OMNI        = Color3.fromRGB(255, 255, 255),
-}
-local FALLBACK_COLOR = Color3.fromRGB(200, 200, 200)
+local GENRE_KEY = "Aura_Collector"
 
-local RarityFeedback = {
-	COMMON      = { tier = "none" },
-	UNCOMMON    = { tier = "none" },
-	RARE        = { tier = "subtle" },
-	EPIC        = { tier = "medium" },
-	LEGENDARY   = { tier = "impactful" },
-	MYTHIC      = { tier = "dramatic" },
-	MUTANT      = { tier = "dramatic" },
-	ABYSSAL     = { tier = "dramatic" },
-	COSMIC      = { tier = "dramatic" },
-	SINGULARITY = { tier = "cinematic" },
-	EXOTIC      = { tier = "cinematic" },
-	OMNI        = { tier = "cinematic" },
+-- FeedbackTier → named AudioRegistry stinger
+local TIER_SOUNDS: {[string]: string} = {
+	subtle    = "RollSubtle",
+	medium    = "RollMedium",
+	impactful = "RollImpactful",
+	dramatic  = "RollDramatic",
+	cinematic = "RollCinematic",
 }
-
-local SoundTierMap = {
-	COMMON      = { tier = "none" },
-	UNCOMMON    = { tier = "none" },
-	RARE        = { tier = "subtle" },
-	EPIC        = { tier = "medium" },
-	LEGENDARY   = { tier = "impactful" },
-	MYTHIC      = { tier = "dramatic" },
-	MUTANT      = { tier = "dramatic" },
-	ABYSSAL     = { tier = "dramatic" },
-	COSMIC      = { tier = "dramatic" },
-	SINGULARITY = { tier = "cinematic" },
-	EXOTIC      = { tier = "cinematic" },
-	OMNI        = { tier = "cinematic" },
-}
-
-local AnticipationDelay = {
-	COMMON      = 0,
-	UNCOMMON    = 0,
-	RARE        = 0,
-	EPIC        = 0.1,
-	LEGENDARY   = 0.2,
-	MYTHIC      = 0.4,
-	MUTANT      = 0.4,
-	ABYSSAL     = 0.5,
-	COSMIC      = 0.5,
-	SINGULARITY = 0.8,
-	EXOTIC      = 0.8,
-	OMNI        = 1.2,
-}
-
-local function FormatSuffix(n: number): string
-	if not n or n < 1000 then return tostring(math.floor(n or 0)) end
-	local suffixes = {"", "K", "M", "B", "T", "Qa"}
-	local i = math.floor(math.log10(n) / 3)
-	local v = n / (10 ^ (i * 3))
-	return string.format("%.1f%s", v, suffixes[i + 1] or "Max")
-end
 
 local RollConfig = {
-	CurrencyName = "Coins",
 	TimeoutDuration = 5.0,
 	RevealDuration = 0.25,
-	Strings = {
-		Idle = "ROLL (%d)",
-		Success = " %s ",
-		AutoOff = "AUTO: OFF",
-		AutoOn = "AUTO: ON"
-	},
 	Theme = {
-		Idle = { Bg = Color3.fromRGB(0, 130, 255), Stroke = Color3.fromRGB(0, 70, 160) },
-		Hover = { Bg = Color3.fromRGB(20, 150, 255) },
-		Spinning = { Bg = Color3.fromRGB(220, 150, 0), Stroke = Color3.fromRGB(150, 80, 0) },
-		Success = { Bg = Color3.fromRGB(0, 180, 50), Stroke = Color3.fromRGB(0, 100, 20) },
-		AutoIdle = { Bg = Color3.fromRGB(25, 25, 30), Stroke = Color3.fromRGB(45, 45, 55), Text = Color3.fromRGB(150, 150, 150) },
-		AutoActive = { Bg = Color3.fromRGB(90, 20, 200), Stroke = Color3.fromRGB(140, 50, 255), Text = Color3.fromRGB(255, 255, 255) }
-	}
+		Idle     = { Bg = Color3.fromRGB(0, 130, 255),  Stroke = Color3.fromRGB(0, 70, 160) },
+		Hover    = { Bg = Color3.fromRGB(20, 150, 255) },
+		Spinning = { Bg = Color3.fromRGB(220, 150, 0),  Stroke = Color3.fromRGB(150, 80, 0) },
+		Success  = { Bg = Color3.fromRGB(0, 180, 50),   Stroke = Color3.fromRGB(0, 100, 20) },
+	},
 }
 
 local MainUIController = {}
@@ -113,76 +57,134 @@ local State = {
 	IsRevealing = false,
 	AutoRoll = false,
 	CurrentBiome = "Default",
-	RollSpeed = 1
+	UnlockedBiomes = { Default = true } :: {[string]: boolean},
+	Level = 1,
 }
 
 local _rollBtnTweenToken = 0
 local currentSpinId = 0
 
+-- ─── Small helpers ────────────────────────────────────────────────────────────
+
 local function GetLocalEvent(eventName: string): BindableEvent
-	local folder = ReplicatedStorage:FindFirstChild("LocalEvents") or Instance.new("Folder", ReplicatedStorage)
-	folder.Name = "LocalEvents"
-	
-	local evt = folder:FindFirstChild(eventName) or Instance.new("BindableEvent", folder)
+	local folder: Instance? = ReplicatedStorage:FindFirstChild("LocalEvents")
+	if not folder then
+		local newFolder = Instance.new("Folder")
+		newFolder.Name = "LocalEvents"
+		newFolder.Parent = ReplicatedStorage
+		folder = newFolder
+	end
+	local existing = (folder :: Instance):FindFirstChild(eventName)
+	if existing and existing:IsA("BindableEvent") then
+		return existing
+	end
+	local evt = Instance.new("BindableEvent")
 	evt.Name = eventName
-	
-	return evt :: BindableEvent
+	evt.Parent = folder
+	return evt
+end
+
+local function FormatSuffix(n: number): string
+	if not n or n ~= n then return "0" end
+	if n < 1000 then
+		if n < 10 and n % 1 ~= 0 then
+			return string.format("%.1f", n)
+		end
+		return tostring(math.floor(n))
+	end
+	local suffixes = {"", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp"}
+	local i = math.floor(math.log10(n) / 3)
+	local v = n / (10 ^ (i * 3))
+	local suffix = suffixes[i + 1]
+	if not suffix then
+		return string.format("%.0e", n)
+	end
+	return (string.format("%.1f%s", v, suffix):gsub("%.0(%a)", "%1"))
+end
+
+local function cfgNum(field: string, default: number): number
+	local value = FeatureResolver.GetConfigField(GENRE_KEY, field, default)
+	return if type(value) == "number" then value else default
 end
 
 local function GetCurrencyValue(): number
+	local names = FeatureResolver.GetCurrencyNames()
 	local stats = LocalPlayer:FindFirstChild("leaderstats")
 	if not stats then return 0 end
-	local currency = stats:FindFirstChild(RollConfig.CurrencyName) :: IntValue | NumberValue
-	return currency and currency.Value or 0
+	local currency = stats:FindFirstChild(names.Primary)
+	if currency and (currency:IsA("IntValue") or currency:IsA("NumberValue")) then
+		return (currency :: any).Value
+	end
+	return 0
+end
+
+local function GetCurrentBiome(): AuraRegistry.BiomeDef?
+	return AuraRegistry.GetBiome(State.CurrentBiome)
 end
 
 local function GetCurrentCost(): number
-	local biomeDef = LootTableModule.Biomes[State.CurrentBiome]
-	return biomeDef and biomeDef.Cost or 250
+	local biome = GetCurrentBiome()
+	return if biome then biome.RollCost else 0
 end
+
+-- Effective roll cooldown, mirrored from the server via RollSpeedMult
+local function GetCurrentCooldown(): number
+	local base = cfgNum("BaseRollCooldown", 3.5)
+	local speed = LocalPlayer:GetAttribute("RollSpeedMult")
+	local speedMult = if type(speed) == "number" then math.max(speed, 0.1) else 1
+	return base / speedMult
+end
+
+local function RollButtonIdleText(): string
+	return string.format("ROLL (%s)", FormatSuffix(GetCurrentCost()))
+end
+
+-- ─── Controller ───────────────────────────────────────────────────────────────
 
 function MainUIController.Init(): () end
 
 function MainUIController.Start(): ()
-	local showRoll = FeatureResolver.IsCategoryActive("Clicker_Farm")
-	local showAutoRoll = showRoll and FeatureResolver.IsCategoryActive("Monetization")
+	if not FeatureResolver.IsCategoryActive(GENRE_KEY) then
+		return
+	end
+	local showAutoRoll = FeatureResolver.IsCategoryActive("Monetization")
 
 	for _, child in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-		if child.Name == "GachaInterface" or child.Name == "ScreenshotGui" then 
-			child:Destroy() 
+		if child.Name == "GachaInterface" or child.Name == "ScreenshotGui" then
+			child:Destroy()
 		end
 	end
 
 	local mainInterface = Instance.new("ScreenGui")
 	mainInterface.Name = "GachaInterface"
 	mainInterface.ResetOnSpawn = false
-	mainInterface.Enabled = true
-	mainInterface.DisplayOrder = 10 
+	mainInterface.DisplayOrder = 10
 	mainInterface.Parent = LocalPlayer.PlayerGui
 
-	-- Screenshot UI Eye button setup
-	local screenshotGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+	-- ── HUD-hide (screenshot) toggle ──────────────────────────────────────────
+	local screenshotGui = Instance.new("ScreenGui")
 	screenshotGui.Name = "ScreenshotGui"
 	screenshotGui.ResetOnSpawn = false
-	screenshotGui.DisplayOrder = 1000 
+	screenshotGui.DisplayOrder = 1000
 	screenshotGui.IgnoreGuiInset = true
+	screenshotGui.Parent = LocalPlayer.PlayerGui
 
-	local eyeBtn = Instance.new("ImageButton", screenshotGui)
+	local eyeBtn = Instance.new("ImageButton")
 	eyeBtn.Name = "ToggleHUD"
 	eyeBtn.Size = UDim2.new(0, 32, 0, 32)
 	eyeBtn.Position = UDim2.new(0, 180, 0, 12)
 	eyeBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 	eyeBtn.Image = AssetRegistry.UI.HideUI
-	eyeBtn.BackgroundTransparency = 0
 	eyeBtn.AutoButtonColor = false
+	eyeBtn.Parent = screenshotGui
 	Instance.new("UICorner", eyeBtn).CornerRadius = UDim.new(0, 8)
-	
+
 	local eyeStroke = Instance.new("UIStroke", eyeBtn)
 	eyeStroke.Color = Color3.fromRGB(60, 60, 75)
 	eyeStroke.Thickness = 2
 
 	local isHudHidden = false
-	local hiddenGuisCache = {}
+	local hiddenGuisCache: {[ScreenGui]: boolean} = {}
 
 	eyeBtn.MouseEnter:Connect(function()
 		if not isHudHidden then TweenService:Create(eyeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(40, 40, 45)}):Play() end
@@ -190,19 +192,11 @@ function MainUIController.Start(): ()
 	eyeBtn.MouseLeave:Connect(function()
 		if not isHudHidden then TweenService:Create(eyeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play() end
 	end)
-	eyeBtn.MouseButton1Down:Connect(function()
-		TweenService:Create(eyeBtn, TweenInfo.new(0.05), {Size = UDim2.new(0, 28, 0, 28), Position = UDim2.new(0, 182, 0, 14)}):Play()
-	end)
-
-	eyeBtn.MouseButton1Up:Connect(function()
-		TweenService:Create(eyeBtn, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 32, 0, 32), Position = UDim2.new(0, 180, 0, 12)}):Play()
-		
+	eyeBtn.MouseButton1Click:Connect(function()
 		isHudHidden = not isHudHidden
-		
 		if isHudHidden then
 			eyeBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 			eyeStroke.Color = Color3.fromRGB(100, 20, 20)
-			
 			table.clear(hiddenGuisCache)
 			for _, child in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
 				if child:IsA("ScreenGui") and child ~= screenshotGui then
@@ -210,24 +204,21 @@ function MainUIController.Start(): ()
 					child.Enabled = false
 				end
 			end
-			
 			pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false) end)
 		else
 			eyeBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 			eyeStroke.Color = Color3.fromRGB(60, 60, 75)
-			
 			for gui, wasEnabled in pairs(hiddenGuisCache) do
 				if gui and gui.Parent then
 					gui.Enabled = wasEnabled
 				end
 			end
 			table.clear(hiddenGuisCache)
-			
 			pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true) end)
 		end
 	end)
 
-	-- Vignetting for rolls
+	-- ── Roll vignette ─────────────────────────────────────────────────────────
 	local vignetteGui = Instance.new("ScreenGui")
 	vignetteGui.Name = "JuiceVignetteGui"
 	vignetteGui.ResetOnSpawn = false
@@ -235,7 +226,7 @@ function MainUIController.Start(): ()
 	vignetteGui.IgnoreGuiInset = true
 	vignetteGui.Parent = LocalPlayer.PlayerGui
 
-	local vignetteFrame = Instance.new("Frame", vignetteGui)
+	local vignetteFrame = Instance.new("Frame")
 	vignetteFrame.Name = "RollVignette"
 	vignetteFrame.Size = UDim2.fromScale(1, 1)
 	vignetteFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -243,113 +234,275 @@ function MainUIController.Start(): ()
 	vignetteFrame.ZIndex = 10
 	vignetteFrame.Active = false
 	vignetteFrame.BorderSizePixel = 0
+	vignetteFrame.Parent = vignetteGui
 
-	-- Juice Sounds Setup
+	-- ── Roll-reveal stingers (AudioRegistry-driven) ───────────────────────────
 	local stale = SoundService:FindFirstChild("JuiceSounds")
 	if stale then stale:Destroy() end
-	local stale2 = LocalPlayer.PlayerGui:FindFirstChild("JuiceSounds")
-	if stale2 then stale2:Destroy() end
 	local juiceSoundsFolder = Instance.new("Folder")
 	juiceSoundsFolder.Name = "JuiceSounds"
-	juiceSoundsFolder.Parent = LocalPlayer.PlayerGui
+	juiceSoundsFolder.Parent = SoundService
 
-	local SoundDefs = {
-		subtle      = { Id = "rbxassetid://95154184427705",  Volume = 0.4, Pitch = 1.1  },
-		medium      = { Id = "rbxassetid://122136024332497", Volume = 0.6, Pitch = 1.0  },
-		impactful   = { Id = "rbxassetid://115447313733239", Volume = 0.8, Pitch = 0.95 },
-		dramatic    = { Id = "rbxassetid://79552398776329",  Volume = 0.9, Pitch = 0.85 },
-		cinematic   = { Id = "rbxassetid://95851961981936",  Volume = 1.0, Pitch = 0.8  },
-		omni_swell  = { Id = "rbxassetid://134160561050962", Volume = 0.8, Pitch = 0.8  },
-	}
-
-	local JuiceSounds = {}
-	for tierName, def in pairs(SoundDefs) do
+	local JuiceSounds: {[string]: Sound} = {}
+	local function buildSound(name: string): ()
+		local def = AudioRegistry.GetSFX(name)
+		if not def then return end
 		local snd = Instance.new("Sound")
-		snd.Name = tierName
-		snd.SoundId = def.Id
-		snd.Volume = def.Volume
-		snd.PlaybackSpeed = def.Pitch
-		snd.RollOffMode = Enum.RollOffMode.InverseTapered
-		snd.RollOffMinDistance = 0
-		snd.RollOffMaxDistance = 10000
+		snd.Name = name
+		snd.SoundId = def.SoundId
+		snd.Volume = def.Volume or 0.5
+		snd.PlaybackSpeed = def.PlaybackSpeed or 1
 		snd.Parent = juiceSoundsFolder
-		JuiceSounds[tierName] = snd
+		JuiceSounds[name] = snd
 	end
+	for _, sfxName in pairs(TIER_SOUNDS) do
+		buildSound(sfxName)
+	end
+	buildSound("RollOmniSwell")
 
-	-- Setup conditionally active clicker buttons
-	local rollButton: TextButton? = nil
-	local autoToggle: TextButton? = nil
-	local stroke: UIStroke? = nil
-	local scale: UIScale? = nil
-	local shadow: Frame? = nil
+	-- ── Roll button ───────────────────────────────────────────────────────────
+	local rollButton = Instance.new("TextButton")
+	rollButton.Name = "RollButton"
+	rollButton.Text = RollButtonIdleText()
+	rollButton.Size = UDim2.new(0, 240, 0, 65)
+	rollButton.AnchorPoint = Vector2.new(0.5, 1)
+	rollButton.Position = if showAutoRoll then UDim2.new(0.5, 30, 1, -30) else UDim2.new(0.5, 0, 1, -30)
+	rollButton.BackgroundColor3 = RollConfig.Theme.Idle.Bg
+	rollButton.Font = Enum.Font.GothamBlack
+	rollButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	rollButton.TextSize = 24
+	rollButton.AutoButtonColor = false
+	rollButton.Parent = mainInterface
+	Instance.new("UICorner", rollButton).CornerRadius = UDim.new(0, 12)
 
-	if showRoll then
-		rollButton = Instance.new("TextButton")
-		rollButton.Name = "RollButton"
-		rollButton.Text = string.format(RollConfig.Strings.Idle, GetCurrentCost())
-		rollButton.Size = UDim2.new(0, 240, 0, 65)
-		rollButton.AnchorPoint = Vector2.new(0.5, 1)
-		
-		if showAutoRoll then
-			rollButton.Position = UDim2.new(0.5, 30, 1, -30)
-		else
-			rollButton.Position = UDim2.new(0.5, 0, 1, -30)
+	local stroke = Instance.new("UIStroke", rollButton)
+	stroke.Color = RollConfig.Theme.Idle.Stroke
+	stroke.Thickness = 4.5
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+	local shadow = Instance.new("Frame", rollButton)
+	shadow.Size = UDim2.new(1, 0, 0.15, 0)
+	shadow.Position = UDim2.new(0, 0, 0.85, 0)
+	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.BackgroundTransparency = 0.75
+	shadow.BorderSizePixel = 0
+	Instance.new("UICorner", shadow).CornerRadius = UDim.new(0, 10)
+
+	local scale = Instance.new("UIScale", rollButton)
+	local rollButtonDefaultPos = rollButton.Position
+
+	-- ── Odds panel (visible odds — same engine the server rolls with) ────────
+	local oddsToggle = Instance.new("TextButton")
+	oddsToggle.Name = "OddsToggle"
+	oddsToggle.Size = UDim2.new(0, 70, 0, 30)
+	oddsToggle.AnchorPoint = Vector2.new(0.5, 1)
+	oddsToggle.Position = UDim2.new(0.5, 190, 1, -47)
+	oddsToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	oddsToggle.Font = Enum.Font.GothamBlack
+	oddsToggle.TextSize = 13
+	oddsToggle.TextColor3 = Color3.fromRGB(255, 215, 0)
+	oddsToggle.Text = "ODDS"
+	oddsToggle.AutoButtonColor = false
+	oddsToggle.Parent = mainInterface
+	Instance.new("UICorner", oddsToggle).CornerRadius = UDim.new(0, 8)
+	Instance.new("UIStroke", oddsToggle).Color = Color3.fromRGB(80, 70, 30)
+
+	local oddsPanel = Instance.new("Frame")
+	oddsPanel.Name = "OddsPanel"
+	oddsPanel.Size = UDim2.new(0, 250, 0, 320)
+	oddsPanel.AnchorPoint = Vector2.new(0.5, 1)
+	oddsPanel.Position = UDim2.new(0.5, 190, 1, -85)
+	oddsPanel.BackgroundColor3 = Color3.fromRGB(14, 11, 22)
+	oddsPanel.Visible = false
+	oddsPanel.Parent = mainInterface
+	Instance.new("UICorner", oddsPanel).CornerRadius = UDim.new(0, 12)
+	Instance.new("UIStroke", oddsPanel).Color = Color3.fromRGB(90, 60, 150)
+
+	local oddsTitle = Instance.new("TextLabel", oddsPanel)
+	oddsTitle.Size = UDim2.new(1, 0, 0, 30)
+	oddsTitle.BackgroundTransparency = 1
+	oddsTitle.Font = Enum.Font.GothamBlack
+	oddsTitle.TextSize = 14
+	oddsTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	oddsTitle.Text = "DROP ODDS"
+
+	local oddsList = Instance.new("ScrollingFrame", oddsPanel)
+	oddsList.Size = UDim2.new(1, -16, 1, -38)
+	oddsList.Position = UDim2.new(0, 8, 0, 32)
+	oddsList.BackgroundTransparency = 1
+	oddsList.ScrollBarThickness = 4
+	oddsList.CanvasSize = UDim2.new(0, 0, 0, 0)
+	oddsList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	oddsList.BorderSizePixel = 0
+
+	local oddsLayout = Instance.new("UIListLayout", oddsList)
+	oddsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	oddsLayout.Padding = UDim.new(0, 2)
+
+	local function RefreshOddsPanel(): ()
+		for _, child in ipairs(oddsList:GetChildren()) do
+			if child:IsA("Frame") then child:Destroy() end
 		end
-		
-		rollButton.BackgroundColor3 = RollConfig.Theme.Idle.Bg
-		rollButton.Font = Enum.Font.GothamBlack
-		rollButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-		rollButton.TextSize = 24
-		rollButton.AutoButtonColor = false 
-		
-		Instance.new("UICorner", rollButton).CornerRadius = UDim.new(0, 12)
-		
-		stroke = Instance.new("UIStroke", rollButton)
-		stroke.Color = RollConfig.Theme.Idle.Stroke
-		stroke.Thickness = 4.5
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		local biome = GetCurrentBiome()
+		local engine = AuraRegistry.GetEngine(State.CurrentBiome)
+		if not biome or not engine then return end
 
-		shadow = Instance.new("Frame", rollButton)
-		shadow.Size = UDim2.new(1, 0, 0.15, 0)
-		shadow.Position = UDim2.new(0, 0, 0.85, 0)
-		shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		shadow.BackgroundTransparency = 0.75
-		shadow.BorderSizePixel = 0
-		Instance.new("UICorner", shadow).CornerRadius = UDim.new(0, 10)
+		oddsTitle.Text = string.upper(biome.DisplayName) .. " — ODDS"
 
-		scale = Instance.new("UIScale", rollButton)
-		rollButton.Parent = mainInterface
+		-- GetProbabilities is rarest-first; show commons on top
+		local probabilities = engine:GetProbabilities()
+		local order = 1
+		for i = #probabilities, 1, -1 do
+			local entry = probabilities[i]
+			local rarity = AuraRegistry.GetRarity(entry.Def.RarityTag)
+
+			local row = Instance.new("Frame")
+			row.Size = UDim2.new(1, 0, 0, 22)
+			row.BackgroundTransparency = 1
+			row.LayoutOrder = order
+			order += 1
+
+			local nameLabel = Instance.new("TextLabel", row)
+			nameLabel.Size = UDim2.new(0.55, 0, 1, 0)
+			nameLabel.BackgroundTransparency = 1
+			nameLabel.Font = Enum.Font.GothamBold
+			nameLabel.TextSize = 12
+			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+			nameLabel.TextColor3 = rarity.Color
+			nameLabel.Text = entry.Def.DisplayName
+
+			local chanceLabel = Instance.new("TextLabel", row)
+			chanceLabel.Size = UDim2.new(0.45, 0, 1, 0)
+			chanceLabel.Position = UDim2.new(0.55, 0, 0, 0)
+			chanceLabel.BackgroundTransparency = 1
+			chanceLabel.Font = Enum.Font.Gotham
+			chanceLabel.TextSize = 12
+			chanceLabel.TextXAlignment = Enum.TextXAlignment.Right
+			chanceLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+			chanceLabel.Text = if entry.Chance > 0
+				then "1 in " .. FormatSuffix(1 / entry.Chance)
+				else "—"
+
+			row.Parent = oddsList
+		end
 	end
 
-	local juiceActive = false
-	local rollButtonDefaultPos = rollButton and rollButton.Position or UDim2.new(0.5, 0, 1, -30)
+	oddsToggle.MouseButton1Click:Connect(function()
+		oddsPanel.Visible = not oddsPanel.Visible
+		if oddsPanel.Visible then
+			RefreshOddsPanel()
+		end
+	end)
 
-	local function TweenButtonColor(color: Color3, duration: number)
-		if not rollButton then return end
+	-- ── Biome selector ────────────────────────────────────────────────────────
+	local biomeBar = Instance.new("Frame")
+	biomeBar.Name = "BiomeBar"
+	biomeBar.Size = UDim2.new(0, 0, 0, 30)
+	biomeBar.AutomaticSize = Enum.AutomaticSize.X
+	biomeBar.AnchorPoint = Vector2.new(0.5, 1)
+	biomeBar.Position = UDim2.new(0.5, 0, 1, -105)
+	biomeBar.BackgroundTransparency = 1
+	biomeBar.Parent = mainInterface
+
+	local biomeLayout = Instance.new("UIListLayout", biomeBar)
+	biomeLayout.FillDirection = Enum.FillDirection.Horizontal
+	biomeLayout.Padding = UDim.new(0, 6)
+	biomeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+	local biomeButtons: {[string]: TextButton} = {}
+
+	local function BiomeButtonText(biome: AuraRegistry.BiomeDef): string
+		if State.UnlockedBiomes[biome.Id] then
+			return string.upper(biome.DisplayName)
+		end
+		if State.Level < biome.LevelReq then
+			return string.format("%s (LV %d)", string.upper(biome.DisplayName), biome.LevelReq)
+		end
+		return string.format("%s (%s)", string.upper(biome.DisplayName), FormatSuffix(biome.UnlockCost or 0))
+	end
+
+	local function RefreshBiomeBar(): ()
+		for biomeId, btn in pairs(biomeButtons) do
+			local biome = AuraRegistry.GetBiome(biomeId)
+			if not biome then continue end
+			btn.Text = BiomeButtonText(biome)
+			local isActive = (biomeId == State.CurrentBiome)
+			local unlocked = State.UnlockedBiomes[biomeId] == true
+			btn.BackgroundColor3 = if isActive
+				then Color3.fromRGB(35, 28, 50)
+				elseif unlocked then Color3.fromRGB(25, 20, 35)
+				else Color3.fromRGB(18, 14, 24)
+			btn.TextColor3 = if unlocked
+				then (biome.Color or Color3.fromRGB(200, 180, 255))
+				else Color3.fromRGB(130, 120, 150)
+		end
+	end
+
+	do
+		-- Sort biomes by level requirement for a stable progression order
+		local sorted: {AuraRegistry.BiomeDef} = {}
+		for _, biome in pairs(AuraRegistry.Biomes) do
+			table.insert(sorted, biome)
+		end
+		table.sort(sorted, function(a, b)
+			if a.LevelReq ~= b.LevelReq then return a.LevelReq < b.LevelReq end
+			return a.Id < b.Id
+		end)
+
+		local remotes = ReplicatedStorage:WaitForChild("Remotes")
+		for i, biome in ipairs(sorted) do
+			local btn = Instance.new("TextButton")
+			btn.Name = "Biome_" .. biome.Id
+			btn.Size = UDim2.new(0, 0, 1, 0)
+			btn.AutomaticSize = Enum.AutomaticSize.X
+			btn.LayoutOrder = i
+			btn.Font = Enum.Font.GothamBlack
+			btn.TextSize = 12
+			btn.AutoButtonColor = false
+			btn.Parent = biomeBar
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+			local pad = Instance.new("UIPadding", btn)
+			pad.PaddingLeft = UDim.new(0, 10)
+			pad.PaddingRight = UDim.new(0, 10)
+
+			btn.MouseButton1Click:Connect(function()
+				if biome.Id == State.CurrentBiome then return end
+				if State.IsSpinning or State.IsRevealing or State.AutoRoll then return end
+				-- Server validates level/cost; locked clicks are a purchase attempt
+				;(remotes:WaitForChild("SetBiomeRequest") :: RemoteEvent):FireServer(biome.Id)
+			end)
+
+			biomeButtons[biome.Id] = btn
+		end
+	end
+
+	-- ── Juice (rarity feedback) ───────────────────────────────────────────────
+	local juiceActive = false
+
+	local function TweenButtonColor(color: Color3, duration: number): ()
 		rollButton.BackgroundColor3 = color
 		local revert = TweenService:Create(rollButton, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundColor3 = RollConfig.Theme.Success.Bg
+			BackgroundColor3 = RollConfig.Theme.Success.Bg,
 		})
 		revert:Play()
 		revert.Completed:Wait()
 	end
 
-	local function TweenVignette(targetAlpha: number, duration: number, hold: number)
+	local function TweenVignette(targetAlpha: number, duration: number, hold: number): ()
 		local fadeIn = TweenService:Create(vignetteFrame, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundTransparency = targetAlpha
+			BackgroundTransparency = targetAlpha,
 		})
 		fadeIn:Play()
 		fadeIn.Completed:Wait()
 		if hold > 0 then task.wait(hold) end
 		local fadeOut = TweenService:Create(vignetteFrame, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			BackgroundTransparency = 1.0
+			BackgroundTransparency = 1.0,
 		})
 		fadeOut:Play()
 		fadeOut.Completed:Wait()
 	end
 
-	local function TweenButtonBounce(duration: number)
-		if not scale then return end
+	local function TweenButtonBounce(duration: number): ()
 		task.wait(0.1)
 		local half = duration / 2
 		local up = TweenService:Create(scale, TweenInfo.new(half, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.23 })
@@ -360,16 +513,15 @@ function MainUIController.Start(): ()
 		down.Completed:Wait()
 	end
 
-	local function ShakeRollButton(offset: number, duration: number)
-		if not rollButton then return end
+	local function ShakeRollButton(offset: number, duration: number): ()
 		local origPos = rollButtonDefaultPos
 		local shakeCount = 6
 		local interval = duration / shakeCount
 		for i = 1, shakeCount do
-			local dx = (i % 2 == 0) and offset or -offset
-			local dy = (i % 3 == 0) and offset or -offset
+			local dx = if (i % 2 == 0) then offset else -offset
+			local dy = if (i % 3 == 0) then offset else -offset
 			local t = TweenService:Create(rollButton, TweenInfo.new(interval, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Position = UDim2.new(origPos.X.Scale, origPos.X.Offset + dx, origPos.Y.Scale, origPos.Y.Offset + dy)
+				Position = UDim2.new(origPos.X.Scale, origPos.X.Offset + dx, origPos.Y.Scale, origPos.Y.Offset + dy),
 			})
 			t:Play()
 			t.Completed:Wait()
@@ -377,89 +529,77 @@ function MainUIController.Start(): ()
 		rollButton.Position = origPos
 	end
 
-	local function PlayJuice(rarityTag: string)
+	local function PlayJuice(rarityTag: string): ()
+		local rarity = AuraRegistry.GetRarity(rarityTag)
+		local tier = rarity.FeedbackTier
 		local reduceEffects = LocalPlayer:GetAttribute("ReduceEffects") == true
-		local entry = RarityFeedback[rarityTag]
-		local tier = entry and entry.tier or "none"
-		local color = RarityColorMap[rarityTag] or FALLBACK_COLOR
 
 		if reduceEffects then
-			if tier ~= "none" and rollButton then
-				TweenService:Create(rollButton, TweenInfo.new(0.15), { BackgroundColor3 = color }):Play()
+			if tier ~= "none" then
+				TweenService:Create(rollButton, TweenInfo.new(0.15), { BackgroundColor3 = rarity.Color }):Play()
 			end
 			return
 		end
 
-		if tier == "none" then return end
-		if juiceActive then return end
+		if tier == "none" or juiceActive then return end
 		juiceActive = true
 
 		task.spawn(function()
-			local ok, err = pcall(function()
-				TweenButtonColor(color, 0.1)
-
+			local ok, err = pcall((function()
+				TweenButtonColor(rarity.Color, 0.1)
 				if tier == "subtle" then return end
 
 				task.spawn(function() TweenVignette(0.7, 0.2, 0) end)
-
 				if tier == "medium" then return end
 
 				task.spawn(function() TweenButtonBounce(0.3) end)
-
 				if tier == "impactful" then return end
 
 				task.spawn(function() ShakeRollButton(3, 0.2) end)
-
 				if rarityTag == "ABYSSAL" or rarityTag == "COSMIC" then
 					task.spawn(function() TweenVignette(0.7, 0.2, 0.3) end)
 				end
-
 				if tier == "dramatic" then return end
 
 				task.spawn(function() TweenVignette(0.6, 0.3, 0.5) end)
-
-				if rarityTag == "OMNI" and rollButton then
+				if rarityTag == "OMNI" then
 					rollButton.Active = false
-					rollButton.AutoButtonColor = false
 					task.wait(1.0)
 					rollButton.Active = true
 				end
-			end)
-
-			if not ok then warn("[JuiceSystem] Error:", err) end
+			end) :: any)
+			if not ok then warn("[MainUIController] Juice error:", err) end
 			task.wait(0.1)
 			juiceActive = false
 		end)
 	end
 
-	local function PlayJuiceSound(rarityTag: string)
+	local function PlayJuiceSound(rarityTag: string): ()
 		if LocalPlayer:GetAttribute("ReduceEffects") == true then return end
-		local entry = SoundTierMap[rarityTag]
-		local tier = entry and entry.tier or "none"
-		if tier == "none" then return end
+		local tier = AuraRegistry.GetRarity(rarityTag).FeedbackTier
+		local soundName = TIER_SOUNDS[tier]
+		if not soundName then return end
 
-		task.spawn(function()
-			local snd = JuiceSounds[tier]
-			if snd then snd:Play() end
-		end)
+		local snd = JuiceSounds[soundName]
+		if snd then snd:Play() end
 
 		if rarityTag == "OMNI" then
 			task.delay(0.6, function()
-				local swell = JuiceSounds["omni_swell"]
+				local swell = JuiceSounds["RollOmniSwell"]
 				if swell then swell:Play() end
 			end)
 		end
 	end
 
-	local function PlayRollingAnimation(duration: number)
-		if not rollButton or duration <= 0 then
+	local function PlayRollingAnimation(duration: number): () -> ()
+		if duration <= 0 then
 			return function() end
 		end
 		local running = true
 		task.spawn(function()
 			local dots = { "ROLLING.", "ROLLING..", "ROLLING..." }
 			local idx = 1
-			while running and rollButton do
+			while running do
 				rollButton.Text = dots[idx]
 				idx = (idx % #dots) + 1
 				task.wait(0.1)
@@ -470,82 +610,202 @@ function MainUIController.Start(): ()
 		end
 	end
 
-	local function SetAutoRoll(isActive: boolean)
-		if not rollButton or not stroke then return end
+	-- ── Auto-roll toggle (Monetization-gated) ─────────────────────────────────
+	local autoToggle: TextButton? = nil
+
+	local function SetAutoRoll(isActive: boolean): ()
 		State.AutoRoll = isActive
 		_rollBtnTweenToken += 1
 		local token = _rollBtnTweenToken
 		if isActive then
-			rollButton.Text             = "AUTO-ROLLING..."
-			rollButton.TextColor3       = Color3.fromRGB(150, 150, 160)
+			rollButton.Text = "AUTO-ROLLING..."
+			rollButton.TextColor3 = Color3.fromRGB(150, 150, 160)
 			rollButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-			stroke.Color                = Color3.fromRGB(20, 20, 25)
+			stroke.Color = Color3.fromRGB(20, 20, 25)
 			rollButton:SetAttribute("IsLocked", true)
 		else
 			rollButton:SetAttribute("IsLocked", false)
-
 			if not State.IsSpinning and not State.IsRevealing then
-				task.delay(0, function()
-					if _rollBtnTweenToken ~= token or not rollButton or not stroke then return end
-					rollButton.Text             = string.format(RollConfig.Strings.Idle, GetCurrentCost())
-					rollButton.TextColor3       = Color3.new(1, 1, 1)
+				task.defer(function()
+					if _rollBtnTweenToken ~= token then return end
+					rollButton.Text = RollButtonIdleText()
+					rollButton.TextColor3 = Color3.new(1, 1, 1)
 					rollButton.BackgroundColor3 = RollConfig.Theme.Idle.Bg
-					stroke.Color               = RollConfig.Theme.Idle.Stroke
+					stroke.Color = RollConfig.Theme.Idle.Stroke
 				end)
 			end
 		end
 	end
 
-	if showRoll and showAutoRoll then
-		autoToggle = Instance.new("TextButton")
-		autoToggle.Name = "AutoRollToggle"
-		autoToggle.Size = UDim2.new(0, 50, 0, 50)
-		autoToggle.Position = UDim2.new(0.5, -100, 1, -30) 
-		autoToggle.AnchorPoint = Vector2.new(1, 0.5)
-		autoToggle.BackgroundTransparency = 1
-		autoToggle.Text = ""
-		autoToggle.AutoButtonColor = false
-		autoToggle.Parent = mainInterface
+	local remotes = ReplicatedStorage:WaitForChild("Remotes")
+	local rollReq = remotes:WaitForChild("RollRequest") :: RemoteEvent
+	local toggleAutoReq = remotes:WaitForChild("ToggleAutoRoll") :: RemoteEvent
+	local updateClient = remotes:WaitForChild("UpdateClient") :: RemoteEvent
+	local updateBiome = remotes:WaitForChild("UpdateBiome") :: RemoteEvent
 
-		autoToggle:GetPropertyChangedSignal("Text"):Connect(function()
-			if autoToggle.Text ~= "" then autoToggle.Text = "" end
-		end)
+	if showAutoRoll then
+		local toggleBtn = Instance.new("TextButton")
+		toggleBtn.Name = "AutoRollToggle"
+		toggleBtn.Size = UDim2.new(0, 50, 0, 50)
+		toggleBtn.Position = UDim2.new(0.5, -100, 1, -30)
+		toggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+		toggleBtn.BackgroundTransparency = 1
+		toggleBtn.Text = ""
+		toggleBtn.AutoButtonColor = false
+		toggleBtn.Parent = mainInterface
+		autoToggle = toggleBtn
 
-		local aIcon = Instance.new("ImageLabel", autoToggle)
+		local aIcon = Instance.new("ImageLabel", toggleBtn)
 		aIcon.Name = "AutoIcon"
 		aIcon.Size = UDim2.fromScale(1, 1)
-		aIcon.Position = UDim2.fromScale(0, 0)
 		aIcon.BackgroundTransparency = 1
 		aIcon.Image = AssetRegistry.UI.AutoRollOffIcon
 		aIcon.ScaleType = Enum.ScaleType.Fit
 
-		autoToggle.MouseButton1Click:Connect(function()
+		toggleBtn.MouseButton1Click:Connect(function()
 			local now = os.clock()
-			if now - (autoToggle:GetAttribute("LastClick") or 0) < 1.0 then return end
-			autoToggle:SetAttribute("LastClick", now)
+			local lastClick = toggleBtn:GetAttribute("LastClick")
+			if now - (if type(lastClick) == "number" then lastClick else 0) < 1.0 then return end
+			toggleBtn:SetAttribute("LastClick", now)
 
-			local isAuto = (autoToggle:GetAttribute("IsAuto") == true)
-			isAuto = not isAuto
-			autoToggle:SetAttribute("IsAuto", isAuto)
-			
-			aIcon.Image = isAuto and AssetRegistry.UI.AutoRollOnIcon or AssetRegistry.UI.AutoRollOffIcon
-			
+			local isAuto = not (toggleBtn:GetAttribute("IsAuto") == true)
+			toggleBtn:SetAttribute("IsAuto", isAuto)
+			aIcon.Image = if isAuto then AssetRegistry.UI.AutoRollOnIcon else AssetRegistry.UI.AutoRollOffIcon
 			SetAutoRoll(isAuto)
-			
-			TweenService:Create(autoToggle, TweenInfo.new(0.1, Enum.EasingStyle.Bounce), {Size = UDim2.new(0, 55, 0, 55)}):Play()
+
+			TweenService:Create(toggleBtn, TweenInfo.new(0.1, Enum.EasingStyle.Bounce), {Size = UDim2.new(0, 55, 0, 55)}):Play()
 			task.delay(0.1, function()
-				if autoToggle then
-					TweenService:Create(autoToggle, TweenInfo.new(0.1), {Size = UDim2.new(0, 50, 0, 50)}):Play()
-				end
+				TweenService:Create(toggleBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 50, 0, 50)}):Play()
 			end)
-			
-			local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-			if remotes and remotes:FindFirstChild("ToggleAutoRoll") then
-				remotes.ToggleAutoRoll:FireServer(isAuto)
-			end
+
+			toggleAutoReq:FireServer(isAuto)
 		end)
 	end
 
+	local function ForceAutoOff(): ()
+		SetAutoRoll(false)
+		local toggleBtn = autoToggle
+		if toggleBtn then
+			toggleBtn:SetAttribute("IsAuto", false)
+			local aIcon = toggleBtn:FindFirstChild("AutoIcon") :: ImageLabel?
+			if aIcon then aIcon.Image = AssetRegistry.UI.AutoRollOffIcon end
+		end
+	end
+
+	local forceDisableRemote = remotes:WaitForChild("ForceDisableAutoRoll", 5) :: RemoteEvent?
+	if forceDisableRemote then
+		forceDisableRemote.OnClientEvent:Connect(function()
+			ForceAutoOff()
+			toggleAutoReq:FireServer(false)
+
+			-- "Requires premium" toast
+			local alertGui = Instance.new("ScreenGui")
+			alertGui.Name = "AlertGui"
+			alertGui.DisplayOrder = 1000
+			alertGui.Parent = LocalPlayer.PlayerGui
+
+			local popup = Instance.new("TextLabel", alertGui)
+			popup.Size = UDim2.new(0, 350, 0, 40)
+			popup.AnchorPoint = Vector2.new(0.5, 0)
+			popup.Position = UDim2.new(0.5, 0, 0, 0)
+			popup.BackgroundTransparency = 1
+			popup.Font = Enum.Font.GothamBlack
+			popup.Text = "AUTO-ROLL REQUIRES THE AUTO-ROLL PASS"
+			popup.TextColor3 = Color3.fromRGB(255, 100, 100)
+			popup.TextSize = 14
+
+			local popStroke = Instance.new("UIStroke", popup)
+			popStroke.Color = Color3.fromRGB(80, 20, 20)
+			popStroke.Thickness = 2
+
+			TweenService:Create(popup, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 0, 120)}):Play()
+			task.delay(3.5, function()
+				local fade = TweenService:Create(popup, TweenInfo.new(0.4), {TextTransparency = 1, Position = UDim2.new(0.5, 0, 0, 80)})
+				TweenService:Create(popStroke, TweenInfo.new(0.4), {Transparency = 1}):Play()
+				fade:Play()
+				fade.Completed:Connect(function() alertGui:Destroy() end)
+			end)
+		end)
+	end
+
+	toggleAutoReq.OnClientEvent:Connect(function(serverState: boolean)
+		if serverState == false then
+			ForceAutoOff()
+		else
+			SetAutoRoll(serverState == true)
+		end
+	end)
+
+	-- ── Roll input ────────────────────────────────────────────────────────────
+	rollButton.MouseEnter:Connect(function()
+		if not State.IsSpinning and not State.IsRevealing and not State.AutoRoll then
+			TweenService:Create(scale, TweenInfo.new(0.1), {Scale = 1.05}):Play()
+			TweenService:Create(rollButton, TweenInfo.new(0.1), {BackgroundColor3 = RollConfig.Theme.Hover.Bg}):Play()
+		end
+	end)
+	rollButton.MouseLeave:Connect(function()
+		if not State.IsRevealing and not State.AutoRoll then
+			TweenService:Create(scale, TweenInfo.new(0.15), {Scale = 1}):Play()
+			if not State.IsSpinning then
+				TweenService:Create(rollButton, TweenInfo.new(0.15), {BackgroundColor3 = RollConfig.Theme.Idle.Bg}):Play()
+			end
+		end
+	end)
+	rollButton.MouseButton1Down:Connect(function()
+		if not State.IsRevealing and not State.AutoRoll then
+			TweenService:Create(scale, TweenInfo.new(0.05), {Scale = 0.92}):Play()
+		end
+	end)
+	rollButton.MouseButton1Up:Connect(function()
+		if not State.IsRevealing and not State.AutoRoll then
+			TweenService:Create(scale, TweenInfo.new(0.1), {Scale = 1.05}):Play()
+		end
+	end)
+
+	rollButton.MouseButton1Click:Connect(function()
+		if rollButton:GetAttribute("IsLocked") == true then return end
+		if State.AutoRoll or State.IsSpinning or State.IsRevealing then return end
+		if GetCurrencyValue() < GetCurrentCost() then return end
+
+		local currentCooldown = GetCurrentCooldown()
+		local now = os.clock()
+		local lastReq = rollButton:GetAttribute("LastRollReq")
+		if now - (if type(lastReq) == "number" then lastReq else 0) < currentCooldown then return end
+		rollButton:SetAttribute("LastRollReq", now)
+
+		currentSpinId += 1
+		local mySpinId = currentSpinId
+
+		State.IsSpinning = true
+		rollReq:FireServer(State.CurrentBiome, mySpinId)
+
+		rollButton.BackgroundColor3 = RollConfig.Theme.Spinning.Bg
+		stroke.Color = RollConfig.Theme.Spinning.Stroke
+		rollButton.TextTransparency = 0.5
+
+		-- Failsafe: unstick the button if the server rejects the roll
+		task.delay(RollConfig.TimeoutDuration, function()
+			if State.IsSpinning and currentSpinId == mySpinId then
+				State.IsSpinning = false
+				rollButton.BackgroundColor3 = RollConfig.Theme.Idle.Bg
+				stroke.Color = RollConfig.Theme.Idle.Stroke
+				rollButton.TextTransparency = 0
+				rollButton.Text = RollButtonIdleText()
+			end
+		end)
+
+		-- Name flicker while spinning
+		task.spawn(function()
+			local biome = GetCurrentBiome()
+			local pool = if biome then biome.Auras else nil
+			while State.IsSpinning and pool and #pool > 0 do
+				rollButton.Text = pool[math.random(1, #pool)].DisplayName
+				task.wait(0.1)
+			end
+		end)
+	end)
+
+	-- ── External toggles / server events ──────────────────────────────────────
 	GetLocalEvent("ToggleGachaButton").Event:Connect(function(isVisible: boolean)
 		if isHudHidden then
 			hiddenGuisCache[mainInterface] = isVisible
@@ -554,288 +814,139 @@ function MainUIController.Start(): ()
 		mainInterface.Enabled = isVisible
 	end)
 
-	if rollButton and scale and stroke then
-		rollButton.MouseEnter:Connect(function()
-			if not State.IsSpinning and not State.IsRevealing and not State.AutoRoll and rollButton and scale then
-				TweenService:Create(scale, TweenInfo.new(0.1), {Scale = 1.05}):Play()
-				TweenService:Create(rollButton, TweenInfo.new(0.1), {BackgroundColor3 = RollConfig.Theme.Hover.Bg}):Play()
-			end
-		end)
-		
-		rollButton.MouseLeave:Connect(function()
-			if not State.IsRevealing and not State.AutoRoll and scale and rollButton then
-				TweenService:Create(scale, TweenInfo.new(0.15), {Scale = 1}):Play()
-				if not State.IsSpinning then
-					TweenService:Create(rollButton, TweenInfo.new(0.15), {BackgroundColor3 = RollConfig.Theme.Idle.Bg}):Play()
-				end
-			end
-		end)
-		
-		rollButton.MouseButton1Down:Connect(function() 
-			if not State.IsRevealing and not State.AutoRoll and scale then TweenService:Create(scale, TweenInfo.new(0.05), {Scale = 0.92}):Play() end
-		end)
-		
-		rollButton.MouseButton1Up:Connect(function() 
-			if not State.IsRevealing and not State.AutoRoll and scale then TweenService:Create(scale, TweenInfo.new(0.1), {Scale = 1.05}):Play() end
-		end)
-	end
-
-	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local rollReq = remotes:WaitForChild("RollRequest") :: RemoteEvent
-	local toggleAutoReq = remotes:WaitForChild("ToggleAutoRoll") :: RemoteEvent
-	local updateClient = remotes:WaitForChild("UpdateClient") :: RemoteEvent
-	
-	local maxedRecycleReq = remotes:WaitForChild("MaxedRecycle") :: RemoteEvent
-	maxedRecycleReq.OnClientEvent:Connect(function(rolledName: string, expValue: number, coinValue: number, essenceName: string)
-		if State.AutoRoll then return end
-
-		local popup = Instance.new("TextLabel")
-		popup.Size = UDim2.new(0, 400, 0, 30)
-		popup.AnchorPoint = Vector2.new(0.5, 0.5)
-		popup.Position = UDim2.new(0.5, 0, 0.85, 0)
-		popup.BackgroundTransparency = 1
-		popup.Font = Enum.Font.GothamBlack
-
-		local essStr = essenceName and string.upper(essenceName) or "ESSENCE"
-		popup.Text = string.format(" TRANSMUTED! +1 %s", essStr)
-		popup.TextColor3 = Color3.fromRGB(200, 150, 255)
-		popup.TextSize = 14
-
-		local popStroke = Instance.new("UIStroke", popup)
-		popStroke.Color = Color3.fromRGB(30, 10, 40)
-		popStroke.Thickness = 2.5
-
-		popup.Parent = mainInterface
-
-		TweenService:Create(popup, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Position = UDim2.new(0.5, 0, 0.8, 0),
-			TextSize = 16
-		}):Play()
-
-		task.delay(1.0, function()
-			local fade = TweenService:Create(popup, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-				TextTransparency = 1,
-				Position = UDim2.new(0.5, 0, 0.82, 0)
-			})
-			TweenService:Create(popStroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
-			fade:Play()
-			fade.Completed:Connect(function() popup:Destroy() end)
-		end)
+	updateBiome.OnClientEvent:Connect(function(biomeId: any)
+		if type(biomeId) ~= "string" then return end
+		State.CurrentBiome = biomeId
+		State.UnlockedBiomes[biomeId] = true
+		if not State.IsSpinning and not State.IsRevealing and not State.AutoRoll then
+			rollButton.Text = RollButtonIdleText()
+		end
+		RefreshBiomeBar()
+		if oddsPanel.Visible then RefreshOddsPanel() end
 	end)
 
-	local forceDisableRemote = remotes:WaitForChild("ForceDisableAutoRoll", 5) :: RemoteEvent?
-	if forceDisableRemote and showAutoRoll and autoToggle then
-		forceDisableRemote.OnClientEvent:Connect(function()
-			local aIcon = autoToggle and autoToggle:FindFirstChild("AutoIcon") :: ImageLabel?
-			if autoToggle then autoToggle:SetAttribute("IsAuto", false) end
-			if aIcon then aIcon.Image = AssetRegistry.UI.AutoRollOffIcon end
-			SetAutoRoll(false)
-			toggleAutoReq:FireServer(false)
-			
-			local popup = Instance.new("TextLabel")
-			popup.Size = UDim2.new(0, 350, 0, 40)
-			popup.AnchorPoint = Vector2.new(0.5, 0)
-			popup.Position = UDim2.new(0.5, 0, 0, 0)
-			popup.BackgroundTransparency = 1
-			popup.Font = Enum.Font.GothamBlack
-			popup.Text = "️ AUTO-ROLL REQUIRES PREMIUM"
-			popup.TextColor3 = Color3.fromRGB(255, 100, 100)
-			popup.TextSize = 14
-			
-			local popStroke = Instance.new("UIStroke", popup)
-			popStroke.Color = Color3.fromRGB(80, 20, 20)
-			popStroke.Thickness = 2
-			
-			local alertGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
-			alertGui.Name = "AlertGui"
-			alertGui.DisplayOrder = 1000
-			popup.Parent = alertGui
-
-			TweenService:Create(popup, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 0, 120)}):Play()
-
-			task.delay(3.5, function()
-				local fade = TweenService:Create(popup, TweenInfo.new(0.4), {TextTransparency = 1, Position = UDim2.new(0.5, 0, 0, 80)})
-				TweenService:Create(popStroke, TweenInfo.new(0.4), {Transparency = 1}):Play()
-				fade:Play()
-				fade.Completed:Connect(function() 
-					popup:Destroy() 
-					alertGui:Destroy()
-				end)
-			end)
-		end)
-	end
-
-	toggleAutoReq.OnClientEvent:Connect(function(serverState: boolean)
-		SetAutoRoll(serverState)
-	end)
-
-	if rollButton then
-		rollButton.MouseButton1Click:Connect(function()
-			if not rollButton then return end
-			if rollButton:GetAttribute("IsLocked") == true then return end
-			if State.AutoRoll then return end 
-			if State.IsSpinning or State.IsRevealing then return end
-			if GetCurrencyValue() < GetCurrentCost() then return end
-
-			local speedMult = math.max(State.RollSpeed or 1, 0.1)
-			local currentCooldown = math.max(3.5 / speedMult, 1.75)
-			local now = os.clock()
-			
-			if now - (rollButton:GetAttribute("LastRollReq") or 0) < currentCooldown then return end
-			rollButton:SetAttribute("LastRollReq", now)
-
-			currentSpinId += 1
-			local mySpinId = currentSpinId
-
-			State.IsSpinning = true
-			rollReq:FireServer(State.CurrentBiome, mySpinId)
-			
-			if rollButton and stroke then
-				rollButton.BackgroundColor3 = RollConfig.Theme.Spinning.Bg
-				stroke.Color = RollConfig.Theme.Spinning.Stroke
-				rollButton.AutoButtonColor = false
-				rollButton.TextTransparency = 0.5
+	-- Full-state sync seeds biome/level state on join and after purchases
+	local updateProfileRemote = remotes:WaitForChild("UpdateProfileData", 5) :: RemoteEvent?
+	if updateProfileRemote then
+		updateProfileRemote.OnClientEvent:Connect(function(data: any)
+			if type(data) ~= "table" then return end
+			if type(data.Progression) == "table" and type(data.Progression.Level) == "number" then
+				State.Level = data.Progression.Level
 			end
-
-			task.delay(RollConfig.TimeoutDuration, function()
-				if State.IsSpinning and currentSpinId == mySpinId and rollButton and stroke then
-					State.IsSpinning = false
-					rollButton.BackgroundColor3 = RollConfig.Theme.Idle.Bg
-					stroke.Color = RollConfig.Theme.Idle.Stroke
-					rollButton.Text = string.format(RollConfig.Strings.Idle, GetCurrentCost())
+			local genreData = if type(data.GenreData) == "table" then data.GenreData[GENRE_KEY] else nil
+			if type(genreData) == "table" then
+				if type(genreData.CurrentBiome) == "string" then
+					State.CurrentBiome = genreData.CurrentBiome
 				end
-			end)
-
-			task.spawn(function()
-				local biomeDef = LootTableModule.Biomes[State.CurrentBiome]
-				local biomeAuras = biomeDef and biomeDef.Items or {}
-				while State.IsSpinning and #biomeAuras > 0 and rollButton do
-					rollButton.Text = biomeAuras[math.random(1, #biomeAuras)].name
-					task.wait(0.1)
+				if type(genreData.UnlockedBiomes) == "table" then
+					for biomeId, unlocked in pairs(genreData.UnlockedBiomes) do
+						if unlocked == true and type(biomeId) == "string" then
+							State.UnlockedBiomes[biomeId] = true
+						end
+					end
 				end
-			end)
+			end
+			if not State.IsSpinning and not State.IsRevealing and not State.AutoRoll then
+				rollButton.Text = RollButtonIdleText()
+			end
+			RefreshBiomeBar()
 		end)
 	end
 
-	local STOP_TIERS = {
-		["RAREST"]  = { MUTANT=true, SINGULARITY=true, EXOTIC=true, OMNI=true },
-		["MYTHIC+"] = { MYTHIC=true, MUTANT=true, ABYSSAL=true, COSMIC=true, SINGULARITY=true, EXOTIC=true, OMNI=true },
-		["NEVER"]   = {},
-	}
-	local function GetBreakTiers(): {[string]: boolean}
-		local key = LocalPlayer:GetAttribute("AutoRollStopTier") or "MYTHIC+"
-		return STOP_TIERS[key] or STOP_TIERS["MYTHIC+"]
+	-- Auto-roll pause tiers, keyed off rarity Order (SettingsController sets
+	-- the AutoRollStopTier attribute)
+	local function ShouldPauseAutoRoll(rarityTag: string): boolean
+		local key = LocalPlayer:GetAttribute("AutoRollStopTier")
+		local mode = if type(key) == "string" then key else "MYTHIC+"
+		if mode == "NEVER" then return false end
+		local order = AuraRegistry.GetRarity(rarityTag).Order
+		if mode == "RAREST" then return order >= 10 end
+		return order >= 6 -- "MYTHIC+"
 	end
 
-	updateClient.OnClientEvent:Connect(function(rolledName: string, equippedName: string, rolledBiomeId: string, spinId: number?)
+	-- ── Roll result / reveal ──────────────────────────────────────────────────
+	updateClient.OnClientEvent:Connect(function(rolledId: any, _equippedId: any, rolledBiomeId: any, spinId: any)
+		if type(rolledId) ~= "string" then return end
 		if rolledBiomeId ~= State.CurrentBiome then return end
-		if not rollButton or not stroke or not scale then return end
-		
-		if not State.AutoRoll and spinId ~= nil and spinId ~= currentSpinId then return end
-		
+		if not State.AutoRoll and type(spinId) == "number" and spinId ~= currentSpinId then return end
+
+		local def = AuraRegistry.GetAuraData(rolledId)
+		local rarity = AuraRegistry.GetRarity(def.RarityTag)
+
+		-- Hold the spin long enough to feel like a roll, even on low ping
 		local timeSinceClick = 0
 		if not State.AutoRoll then
-			timeSinceClick = os.clock() - (rollButton:GetAttribute("LastRollReq") or 0)
-			
-			local speedMult = math.max(State.RollSpeed or 1, 0.1)
-			local currentCooldown = math.max(3.5 / speedMult, 1.75)
-			
+			local lastReq = rollButton:GetAttribute("LastRollReq")
+			local reqAt = if type(lastReq) == "number" then lastReq else 0
+			timeSinceClick = os.clock() - reqAt
+			local currentCooldown = GetCurrentCooldown()
 			local minSpin = math.min(1.8, math.max(0.8, currentCooldown - 0.7))
-			
 			if timeSinceClick < minSpin then
 				task.wait(minSpin - timeSinceClick)
-				timeSinceClick = os.clock() - (rollButton:GetAttribute("LastRollReq") or 0)
+				timeSinceClick = os.clock() - reqAt
 			end
 		end
-		
+
 		State.IsSpinning = false
 		State.IsRevealing = true
+		rollButton.TextTransparency = 0
 
-		if rollButton then
-			rollButton.AutoButtonColor = true
-			rollButton.TextTransparency = 0
-		end
+		GetLocalEvent("EffectRolled"):Fire(rolledId)
 
-		GetLocalEvent("EffectRolled"):Fire(rolledName)
-
-		local itemData = LootTableModule.GetItemData(rolledName)
-
-		local anticipationDelay = AnticipationDelay[itemData.rarityTag] or 0
-		if not (LocalPlayer:GetAttribute("ReduceEffects") == true) and anticipationDelay > 0 and rollButton then
-			local stopRolling = PlayRollingAnimation(anticipationDelay)
-			task.wait(anticipationDelay)
+		if not (LocalPlayer:GetAttribute("ReduceEffects") == true) and rarity.AnticipationSecs > 0 then
+			local stopRolling = PlayRollingAnimation(rarity.AnticipationSecs)
+			task.wait(rarity.AnticipationSecs)
 			stopRolling()
 		end
 
-		if rollButton and stroke and scale then
-			rollButton.BackgroundColor3 = RollConfig.Theme.Success.Bg
-			stroke.Color = RollConfig.Theme.Success.Stroke
-			local rarityLabel = itemData.rarityTag and ("[" .. itemData.rarityTag:upper() .. "]") or ""
-			rollButton.Text = string.format(RollConfig.Strings.Success, rolledName:upper())
-				.. "\n" .. rarityLabel
-			TweenService:Create(scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.15}):Play()
-		end
+		rollButton.BackgroundColor3 = RollConfig.Theme.Success.Bg
+		stroke.Color = RollConfig.Theme.Success.Stroke
+		rollButton.Text = string.format(" %s \n[%s]", string.upper(def.DisplayName), def.RarityTag)
+		TweenService:Create(scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.15}):Play()
 
-		PlayJuice(itemData.rarityTag)
-
+		PlayJuice(def.RarityTag)
 		task.spawn(function()
-			local ok, err = pcall(PlayJuiceSound, itemData.rarityTag)
-			if not ok then warn("[SoundSystem] Error:", err) end
+			local ok, err = pcall(PlayJuiceSound :: any, def.RarityTag)
+			if not ok then warn("[MainUIController] Sound error:", err) end
 		end)
-		
-		local speedMult = math.max(State.RollSpeed or 1, 0.1)
-		local currentCooldown = math.max(3.5 / speedMult, 1.75)
-		
+
 		local dynamicRevealDuration = RollConfig.RevealDuration
 		if not State.AutoRoll then
-			dynamicRevealDuration = math.max(0.5, currentCooldown - timeSinceClick)
+			dynamicRevealDuration = math.max(0.5, GetCurrentCooldown() - timeSinceClick)
 		end
-		
-		local mySpinId = spinId or currentSpinId
-		if rollButton then
-			rollButton:SetAttribute("CurrentRevealId", mySpinId)
-		end
-		
-		if State.AutoRoll and GetBreakTiers()[itemData.rarityTag] then
-			SetAutoRoll(false)
+
+		local mySpinId = if type(spinId) == "number" then spinId else currentSpinId
+		rollButton:SetAttribute("CurrentRevealId", mySpinId)
+
+		if State.AutoRoll and ShouldPauseAutoRoll(def.RarityTag) then
+			ForceAutoOff()
 			toggleAutoReq:FireServer(false)
-			if showAutoRoll and autoToggle then
-				local aIcon = autoToggle:FindFirstChild("AutoIcon") :: ImageLabel?
-				autoToggle:SetAttribute("IsAuto", false)
-				if aIcon then aIcon.Image = AssetRegistry.UI.AutoRollOffIcon end
-			end
 
-			local frozenText  = rollButton and rollButton.Text or ""
-
+			local frozenText = rollButton.Text
 			task.delay(dynamicRevealDuration, function()
-				if not rollButton or not scale then return end
 				if rollButton:GetAttribute("CurrentRevealId") ~= mySpinId then return end
 				TweenService:Create(scale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1}):Play()
 				rollButton.Text = frozenText .. "\n⚠ AUTO-ROLL PAUSED"
 				State.IsRevealing = false
 			end)
-
 			task.delay(dynamicRevealDuration + 3.0, function()
-				if not rollButton or not stroke then return end
 				if rollButton:GetAttribute("CurrentRevealId") ~= mySpinId then return end
 				if not State.AutoRoll and not State.IsSpinning then
 					TweenService:Create(rollButton, TweenInfo.new(0.4), {BackgroundColor3 = RollConfig.Theme.Idle.Bg}):Play()
 					stroke.Color = RollConfig.Theme.Idle.Stroke
-					rollButton.Text = string.format(RollConfig.Strings.Idle, GetCurrentCost())
+					rollButton.Text = RollButtonIdleText()
 				end
 			end)
-
 			return
 		end
 
 		task.delay(dynamicRevealDuration, function()
-			if not rollButton or not scale or not stroke then return end
 			if rollButton:GetAttribute("CurrentRevealId") ~= mySpinId then return end
 			TweenService:Create(scale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1}):Play()
 			if not State.AutoRoll then
 				TweenService:Create(rollButton, TweenInfo.new(0.3), {BackgroundColor3 = RollConfig.Theme.Idle.Bg}):Play()
 				stroke.Color = RollConfig.Theme.Idle.Stroke
-				rollButton.Text = string.format(RollConfig.Strings.Idle, GetCurrentCost())
+				rollButton.Text = RollButtonIdleText()
 			else
 				SetAutoRoll(true)
 			end
@@ -843,18 +954,7 @@ function MainUIController.Start(): ()
 		end)
 	end)
 
-	local updateProfileRemote = remotes:FindFirstChild("UpdateProfileData") or remotes:WaitForChild("UpdateProfileData", 5)
-	if updateProfileRemote then
-		(updateProfileRemote :: RemoteEvent).OnClientEvent:Connect(function(data)
-			if data.RollSpeed then State.RollSpeed = data.RollSpeed end
-			if data.EXP and data.TotalEXP then
-				local expLabel = mainInterface:FindFirstChild("ExpTextLabel") :: TextLabel?
-				if expLabel then
-					expLabel.Text = FormatSuffix(data.EXP) .. " / " .. FormatSuffix(data.TotalEXP)
-				end
-			end
-		end)
-	end
+	RefreshBiomeBar()
 end
 
 return MainUIController

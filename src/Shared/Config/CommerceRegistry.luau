@@ -107,8 +107,74 @@ local Library: {[string]: GenreCommerce} = {
 	},
 
 	["Aura_Collector"] = {
-		Gamepasses = {},
-		DevProducts = {},
+		Gamepasses = {
+			["DoubleLuck"] = {
+				Id = 99000101,
+				Name = "Double Luck",
+				Description = "Permanently doubles your roll luck.",
+				Price = 249,
+				Color = Color3.fromRGB(0, 255, 120),
+				Effect = { Type = "LuckMultiplier", Value = 2 },
+			},
+			["DoubleSpeed"] = {
+				Id = 99000102,
+				Name = "Double Roll Speed",
+				Description = "Rolls twice as fast — and past the free-player speed cap.",
+				Price = 199,
+				Color = Color3.fromRGB(0, 150, 255),
+				Effect = { Type = "RollSpeedMultiplier", Value = 2 },
+			},
+			["AutoRoll"] = {
+				Id = 99000103,
+				Name = "Auto-Roll",
+				Description = "Rolls automatically at your full speed, even while idle.",
+				Price = 149,
+				Color = Color3.fromRGB(140, 50, 255),
+				Effect = { Type = "AutoRoll", Value = 1 },
+			},
+			["VIP"] = {
+				Id = 99000104,
+				Name = "VIP Collector",
+				Description = "2× idle income, the exclusive VIP aura and a golden chat badge.",
+				Price = 499,
+				Color = Color3.fromRGB(255, 215, 0),
+				Effect = { Type = "IncomeMultiplier", Value = 2 },
+			},
+		},
+		DevProducts = {
+			["CoinPouch"] = {
+				Id = 99000105,
+				Name = "Pouch of Coins",
+				Description = "Instantly grants 25,000 Coins.",
+				Price = 79,
+				Color = Color3.fromRGB(255, 200, 0),
+				Reward = { Type = "Currency", Amount = 25000, ItemId = "Primary" },
+			},
+			["CoinVault"] = {
+				Id = 99000106,
+				Name = "Vault of Coins",
+				Description = "Instantly grants 500,000 Coins.",
+				Price = 299,
+				Color = Color3.fromRGB(200, 160, 90),
+				Reward = { Type = "Currency", Amount = 500000, ItemId = "Primary" },
+			},
+			["LuckPotionPack"] = {
+				Id = 99000107,
+				Name = "Luck Potion ×3",
+				Description = "Three Luck Potions (+50% luck for 10 minutes each).",
+				Price = 49,
+				Color = Color3.fromRGB(0, 255, 100),
+				Reward = { Type = "Item", Amount = 3, ItemId = "LuckPotion_1" },
+			},
+			["SpeedPotionPack"] = {
+				Id = 99000108,
+				Name = "Roll Speed Potion ×3",
+				Description = "Three Roll Speed Potions (+50% roll speed for 10 minutes each).",
+				Price = 49,
+				Color = Color3.fromRGB(0, 150, 255),
+				Reward = { Type = "Item", Amount = 3, ItemId = "SpeedPotion_1" },
+			},
+		},
 	},
 
 	["Pet_Simulator"] = {

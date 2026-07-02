@@ -25,16 +25,6 @@ export type QuestDef = {
 local QuestLibrary: {[string]: {QuestDef}} = {
 	["Clicker_Farm"] = {
 		{
-			Id         = "Roll300",
-			QuestType  = "Daily",
-			ActionType = "Roll",
-			Target     = 300,
-			BaseCoins  = 1100,
-			BaseEXP    = 2000,
-			Title      = "Lucky Spinner",
-			Desc       = "Spin the Gacha 300 times.",
-		},
-		{
 			Id         = "Click1000",
 			QuestType  = "Daily",
 			ActionType = "Click",
@@ -45,14 +35,26 @@ local QuestLibrary: {[string]: {QuestDef}} = {
 			Desc       = "Click to generate coins 1,000 times.",
 		},
 		{
-			Id         = "Craft3",
+			Id         = "Potion2",
 			QuestType  = "Daily",
-			ActionType = "Craft",
-			Target     = 3,
-			BaseCoins  = 2000,
-			BaseEXP    = 2500,
-			Title      = "Alchemist Apprentice",
-			Desc       = "Craft 3 potions at the Alchemist table.",
+			ActionType = "UsePotion",
+			Target     = 2,
+			BaseCoins  = 650,
+			BaseEXP    = 1800,
+			Title      = "Potion Connoisseur",
+			Desc       = "Use 2 potions of any type.",
+		}
+	},
+	["Aura_Collector"] = {
+		{
+			Id         = "Roll300",
+			QuestType  = "Daily",
+			ActionType = "Roll",
+			Target     = 300,
+			BaseCoins  = 1100,
+			BaseEXP    = 2000,
+			Title      = "Lucky Spinner",
+			Desc       = "Roll for auras 300 times.",
 		},
 		{
 			Id         = "RollUncommon10",
@@ -62,7 +64,7 @@ local QuestLibrary: {[string]: {QuestDef}} = {
 			BaseCoins  = 1100,
 			BaseEXP    = 2000,
 			Title      = "Fortunate Finder",
-			Desc       = "Roll 10 Uncommon or higher items.",
+			Desc       = "Roll 10 Uncommon or higher auras.",
 		},
 		{
 			Id         = "Potion2",
@@ -161,16 +163,6 @@ local QuestLibrary: {[string]: {QuestDef}} = {
 			BaseEXP    = 18000,
 			Title      = "Mastery Progression",
 			Desc       = "Purchase 15 Mastery Upgrades this week.",
-		},
-		{
-			Id         = "Rebirth1",
-			QuestType  = "Weekly",
-			ActionType = "Rebirth",
-			Target     = 1,
-			BaseCoins  = 50000,
-			BaseEXP    = 50000,
-			Title      = "Cycle Rebirth",
-			Desc       = "Perform a Rebirth reset this week.",
 		}
 	}
 }

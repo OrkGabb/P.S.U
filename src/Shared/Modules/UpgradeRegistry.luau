@@ -131,28 +131,29 @@ local UpgradeLibrary: {[string]: UpgradeDefs} = {
 	end)(),
 
 	-- ── Aura_Collector ───────────────────────────────────────────────────────
-	-- Roll/luck masteries consumed by ProbabilityService when the aura genre
-	-- is active. Parked here (inactive category = not compiled) until the
-	-- Aura_Collector mode is enabled.
+	-- Roll/luck masteries consumed by AuraService. Priced in Essence
+	-- (Currencies.Secondary), which only duplicate rolls mint — the sink that
+	-- replaced the old transmutation system: rolls → dupes → Essence →
+	-- masteries → better rolls.
 	["Aura_Collector"] = {
 		["LuckMastery"] = {
 			Name = "Luck Mastery", MaxLevel = 100, Category = "Aura_Collector",
-			BaseCost = 500, CostMultiplier = 1.49,
+			BaseCost = 25, CostMultiplier = 1.35, CostCurrency = "Secondary",
 			Kind = "Mastery", Increment = 0.04,
 		},
 		["CoinMastery"] = {
 			Name = "Coin Mastery", MaxLevel = 100, Category = "Aura_Collector",
-			BaseCost = 500, CostMultiplier = 1.49,
+			BaseCost = 25, CostMultiplier = 1.35, CostCurrency = "Secondary",
 			Kind = "Mastery", Increment = 0.05,
 		},
 		["EXPMastery"] = {
 			Name = "EXP Mastery", MaxLevel = 100, Category = "Aura_Collector",
-			BaseCost = 500, CostMultiplier = 1.49,
+			BaseCost = 25, CostMultiplier = 1.35, CostCurrency = "Secondary",
 			Kind = "Mastery", Increment = 0.05,
 		},
 		["SpeedMastery"] = {
 			Name = "Roll Speed Mastery", MaxLevel = 30, Category = "Aura_Collector",
-			BaseCost = 25000, CostMultiplier = 3.0,
+			BaseCost = 100, CostMultiplier = 1.6, CostCurrency = "Secondary",
 			Kind = "Mastery", Increment = 0.01,
 		},
 	},

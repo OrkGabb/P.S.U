@@ -11,16 +11,24 @@ local Players             = game:GetService("Players")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local DataService -- Lazy-loaded in Start()
+local DataService: any = nil -- Lazy-loaded in Start()
+local MonetizationService: any = nil -- Lazy-loaded in Start()
 
 local ChatTagService = {}
 
---- Returns true if the player has an active VIP subscription (VIPExpiry > now).
+--- Returns true if the player is VIP: either a timed VIP subscription
+--- (VIPExpiry, granted by the VIP dev-product path) or the active genre's
+--- permanent "VIP" gamepass.
 function ChatTagService.IsVIP(player: Player): boolean
     if not DataService then return false end
-    local profile = DataService:GetProfile(player)
-    if not profile or not profile.Data then return false end
-    return (profile.Data.VIPExpiry or 0) > os.time()
+    local data = DataService:GetProfileData(player)
+    if data and (data.VIPExpiry or 0) > os.time() then
+        return true
+    end
+    if MonetizationService and MonetizationService.HasGamepass(player, "VIP") then
+        return true
+    end
+    return false
 end
 
 function ChatTagService.Init(): ()
@@ -34,6 +42,7 @@ end
 
 function ChatTagService.Start(): ()
     DataService = require(ServerScriptService.Server.Services.DataService)
+    MonetizationService = require(ServerScriptService.Server.Services.MonetizationService)
 
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
     local checkVIP = remotes:WaitForChild("CheckVIPStatus") :: RemoteFunction

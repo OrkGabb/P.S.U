@@ -17,7 +17,7 @@ local StoreRegistry: any = require(ReplicatedStorage:WaitForChild("Shared"):Wait
 
 local MonetizationService = {}
 
--- Gamepass cache for O(1) checks by ProbabilityService and DataService
+-- Gamepass cache for O(1) HasGamepass checks by genre services (e.g. AuraService)
 local OwnedGamepasses: {[Player]: {[string]: boolean}} = {}
 
 -- Load configuration from StoreRegistry

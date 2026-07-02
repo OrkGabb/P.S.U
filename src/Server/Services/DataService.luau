@@ -167,6 +167,22 @@ function DataService:AddItem(player: Player, itemId: string, amount: number): bo
     return true
 end
 
+-- Removes a stackable item from the abstract inventory (Consumables slot).
+-- Fails without side effects when the player owns fewer than `amount`.
+function DataService:ConsumeItem(player: Player, itemId: string, amount: number): boolean
+    local data: { [string]: any }? = DataService:GetProfileData(player)
+    if data == nil or type(data.Inventory) ~= "table" or type(data.Inventory.Consumables) ~= "table" then
+        return false
+    end
+    local current: number = data.Inventory.Consumables[itemId] or 0
+    if current < amount then
+        return false
+    end
+    local remaining: number = current - amount
+    data.Inventory.Consumables[itemId] = if remaining > 0 then remaining else nil
+    return true
+end
+
 function DataService:SyncFullState(player: Player): ()
     local profile = DataService.Profiles[player]
     if not profile then return end

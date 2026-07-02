@@ -5,7 +5,6 @@
 -- src/ReplicatedFirst/ClientMain.client.luau
 -- Client-side bootstrapper that dynamically loads and manages the lifecycle of controllers.
 
-local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui: StarterGui = game:GetService("StarterGui")
 local StarterPlayer = game:GetService("StarterPlayer")
@@ -48,8 +47,8 @@ local function start(): ()
 	local isMonetizationActive: boolean = FeatureResolver.IsCategoryActive("Monetization")
 	local isDailyActive: boolean = FeatureResolver.IsCategoryActive("Retention") or FeatureResolver.IsCategoryActive("Daily")
 	local isDashActive: boolean = FeatureResolver.IsCategoryActive("Dash") or FeatureResolver.IsCategoryActive("DashConfig")
-	local isForgeActive: boolean = FeatureResolver.IsCategoryActive("Forge")
-	local isInventoryActive: boolean = isRPGActive or isPetActive or FeatureResolver.IsCategoryActive("Inventory") or isForgeActive
+	-- Aura mode carries consumable potions, so it needs the inventory UI
+	local isInventoryActive: boolean = isRPGActive or isPetActive or isAuraActive or FeatureResolver.IsCategoryActive("Inventory")
 
 	-- Exclusivity Check
 	local activeGenres = FeatureResolver.GetActiveCategories()
@@ -69,20 +68,17 @@ local function start(): ()
 		SKIP_CONTROLLERS["GoldenDropController"] = true
 	end
 
-	-- Aura category (roll UI + collection index are Aura_Collector systems)
+	-- Aura category (roll UI, collection index and aura VFX are
+	-- Aura_Collector systems)
 	if not isAuraActive then
 		SKIP_CONTROLLERS["IndexController"] = true
 		SKIP_CONTROLLERS["MainUIController"] = true
+		SKIP_CONTROLLERS["AuraVFXController"] = true
 	end
 
 	-- RPG category
 	if not isRPGActive then
 		SKIP_CONTROLLERS["QuestsController"] = true
-	end
-
-	-- Forge category
-	if not isForgeActive then
-		SKIP_CONTROLLERS["ForgeController"] = true
 	end
 
 	-- RPG or FPS category
@@ -112,12 +108,12 @@ local function start(): ()
 	end
 
 	-- Onboarding
-	if not (isClickerActive or isRPGActive) then
+	if not (isClickerActive or isRPGActive or isAuraActive) then
 		SKIP_CONTROLLERS["OnboardingController"] = true
 	end
 
-	-- Skills category
-	local isSkillsActive: boolean = isClickerActive or isRPGActive or isFPSActive or isPetActive
+	-- Skills category (Aura masteries are bought through the Skills UI)
+	local isSkillsActive: boolean = isClickerActive or isRPGActive or isFPSActive or isPetActive or isAuraActive
 	if not isSkillsActive then
 		SKIP_CONTROLLERS["SkillsController"] = true
 	end

@@ -138,9 +138,9 @@ local function UpdateBoard(boardConfig: BoardConfig): ()
 	end
 
 	for _, player in ipairs(Players:GetPlayers()) do
-		local profile = DataService:GetProfile(player)
-		if profile and profile.Data then
-			local value: number = (profile.Data :: any)[boardConfig.DataField] or 0
+		local data = DataService:GetProfileData(player)
+		if data then
+			local value: number = (data :: any)[boardConfig.DataField] or 0
 			local intValue: number = math.floor(math.clamp(value, 0, 2^53))
 			if intValue > 0 then
 				pcall(function()

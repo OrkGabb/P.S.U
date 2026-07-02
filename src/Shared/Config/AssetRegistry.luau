@@ -37,6 +37,10 @@ export type UIAssetCategory = {
 	AutoRollOffIcon: string,
 	RebirthIcon: string,
 	EXPPotionIcon: string,
+	LuckPotionIcon: string,
+	CoinPotionIcon: string,
+	SpeedPotionIcon: string,
+	VIPPassIcon: string,
 	ProfileIcon: string,
 	SkillsIcon: string,
 	QuestsIcon: string,
@@ -111,6 +115,10 @@ local AssetRegistry: AssetRegistryType = {
 		AutoRollOffIcon  = "rbxassetid://15059633013", -- PLACEHOLDER (Aura_Collector roll UI)
 		RebirthIcon      = "rbxassetid://15059633013", -- PLACEHOLDER
 		EXPPotionIcon    = "rbxassetid://15059633013", -- PLACEHOLDER
+		LuckPotionIcon   = "rbxassetid://15059633013", -- PLACEHOLDER
+		CoinPotionIcon   = "rbxassetid://15059633013", -- PLACEHOLDER
+		SpeedPotionIcon  = "rbxassetid://15059633013", -- PLACEHOLDER
+		VIPPassIcon      = "rbxassetid://15059633013", -- PLACEHOLDER
 		ProfileIcon      = "rbxassetid://15059633013", -- PLACEHOLDER
 		SkillsIcon       = "rbxassetid://15059633013", -- PLACEHOLDER
 		QuestsIcon       = "rbxassetid://15059633013", -- PLACEHOLDER

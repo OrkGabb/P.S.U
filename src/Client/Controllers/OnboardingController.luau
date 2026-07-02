@@ -8,7 +8,6 @@
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
@@ -23,8 +22,31 @@ local currentState: "Idle" | "Clicking" | "Rolling" | "Shooting" | "Attacking" |
 local connection: RBXScriptConnection?
 local exploreTimer: number = 0
 
-local COST_TO_ROLL: number = 250 -- Synchronized with LootTable cost
 local math_sin: (number) -> number = math.sin
+
+-- Active genre's primary-currency leaderstat value (name is genre config)
+local function GetPrimaryCurrencyValue(): number
+	local ls = LocalPlayer:FindFirstChild("leaderstats")
+	if not ls then return 0 end
+	local names = FeatureResolver.GetCurrencyNames()
+	local value = ls:FindFirstChild(names.Primary)
+	if value and (value:IsA("IntValue") or value:IsA("NumberValue")) then
+		return (value :: any).Value
+	end
+	return 0
+end
+
+-- First roll cost for the Aura_Collector tutorial step (Default biome)
+local function GetRollCost(): number
+	local ok, AuraRegistry = pcall(function()
+		return require(ReplicatedStorage.Shared.Modules.AuraRegistry) :: any
+	end)
+	if ok and AuraRegistry then
+		local biome = AuraRegistry.GetBiome("Default")
+		if biome then return biome.RollCost end
+	end
+	return 250
+end
 
 local function CreatePointerUI(): ()
 	tutorialGui = Instance.new("ScreenGui")
@@ -72,7 +94,8 @@ local function onRenderStepped(dt: number): ()
 
 	if currentState == "Idle" or not pointerUI then return end
 
-	local bounceY: number = pointerUI:GetAttribute("BounceOffset") or 0
+	local bounceAttr = pointerUI:GetAttribute("BounceOffset")
+	local bounceY: number = if type(bounceAttr) == "number" then bounceAttr else 0
 
 	if currentState == "Clicking" then
 		textLbl.Text = "TAP SCREEN TO GET COINS!"
@@ -88,23 +111,20 @@ local function onRenderStepped(dt: number): ()
 			end
 		end
 		
-		local ls = LocalPlayer:FindFirstChild("leaderstats")
-		if ls then
-			local coins = ls:FindFirstChild("Coins") :: IntValue?
-			if coins and coins.Value >= COST_TO_ROLL then
-				currentState = "Rolling"
-				local snd = Instance.new("Sound", tutorialGui)
-				snd.SoundId = "rbxassetid://6895079853"
-				snd.Volume = 0.5
-				snd:Play()
-			end
+		-- First earnings arrived → tutorial done for tap-to-earn genres
+		if GetPrimaryCurrencyValue() > 0 then
+			currentState = "Finished"
 		end
 
 	elseif currentState == "Rolling" then
-		textLbl.Text = "SPIN THE GACHA!"
+		if GetPrimaryCurrencyValue() < GetRollCost() then
+			textLbl.Text = "EARN COINS TO ROLL!"
+		else
+			textLbl.Text = "ROLL FOR AN AURA!"
+		end
 		pointerUI.Visible = true
-		
-		local rngGui = LocalPlayer.PlayerGui:FindFirstChild("MainInterface") :: ScreenGui?
+
+		local rngGui = LocalPlayer.PlayerGui:FindFirstChild("GachaInterface") :: ScreenGui?
 		if rngGui then
 			local rollBtn = rngGui:FindFirstChild("RollButton") :: TextButton?
 			if rollBtn then
@@ -189,20 +209,22 @@ function OnboardingController.Start(): ()
 	local updateData = remotes:WaitForChild("UpdateProfileData") :: RemoteEvent
 
 	local hasLoaded = false
-	local isNewPlayer = false
-	local isClickerActive = FeatureResolver.IsCategoryActive("Clicker_Farm")
 
 	local initConn; initConn = updateData.OnClientEvent:Connect(function(data)
 		if not hasLoaded then
 			hasLoaded = true
-			-- Newcomer condition: Has no coins/kills and no rebirths
-			local currencyVal = data.TotalCoins or data.Coins or 0
-			if (currencyVal == 0) and ((data.Rebirths or 0) == 0) then
-				isNewPlayer = true
+			-- Newcomer condition: fresh abstract profile (no primary currency)
+			local currencyVal = 0
+			if type(data) == "table" and type(data.Currencies) == "table" then
+				currencyVal = data.Currencies.Primary or 0
+			end
+			if currencyVal == 0 then
 				CreatePointerUI()
-				
-				if isClickerActive then
+
+				if FeatureResolver.IsCategoryActive("Clicker_Farm") then
 					currentState = "Clicking"
+				elseif FeatureResolver.IsCategoryActive("Aura_Collector") then
+					currentState = "Rolling"
 				elseif FeatureResolver.IsCategoryActive("FPS_Shooter") then
 					currentState = "Shooting"
 				elseif FeatureResolver.IsCategoryActive("RPG_Adventure") then
