@@ -38,6 +38,14 @@ export type CurrencyNamesType = {
 	SecondaryName: string,
 }
 
+-- Which StatusHUD elements a genre wants. Data-driven so the core HUD
+-- controller never special-cases genre names.
+export type HUDFlagsType = {
+	ShowHealth: boolean,
+	ShowLevelXP: boolean,
+	ShowClickBonus: boolean,
+}
+
 export type PhysicalLeaderboardConfigType = {
 	Enabled: boolean,
 	Position: Vector3,
@@ -95,6 +103,7 @@ export type FPSWeaponConfig = {
 export type FPSConfigType = {
 	Enabled: boolean,
 	Currencies: CurrencyNamesType,
+	HUD: HUDFlagsType,
 	Weapons: {[string]: FPSWeaponConfig},
 	DefaultWeapon: string,
 	WeaponOrder: {string},
@@ -144,6 +153,7 @@ export type GoldenDropConfigType = {
 export type ClickerConfigType = {
 	Enabled: boolean,
 	Currencies: CurrencyNamesType,
+	HUD: HUDFlagsType,
 
 	-- Server-side anti-macro token bucket (authoritative click acceptance)
 	MaxClickBurst: number,   -- bucket size: max clicks accepted in one burst
@@ -321,6 +331,12 @@ local FeatureToggles: FeatureTogglesType = {
 				SecondaryName = "Kills",
 			},
 
+			HUD = {
+				ShowHealth     = true,
+				ShowLevelXP    = false,
+				ShowClickBonus = false,
+			},
+
 			-- ── Per-weapon registry (server-authoritative) ────────────────────
 			-- FireRate:            minimum seconds between shots (lower = faster)
 			-- BaseDamage:          damage at 0 studs, TORSO zone (SHOTGUN: unused, see PelletDamage)
@@ -486,6 +502,12 @@ local FeatureToggles: FeatureTogglesType = {
 			Currencies = {
 				PrimaryName   = "Sugar",
 				SecondaryName = "Cupcakes",
+			},
+
+			HUD = {
+				ShowHealth     = false,
+				ShowLevelXP    = true,
+				ShowClickBonus = true,
 			},
 
 			-- ── Anti-macro click acceptance (server-authoritative) ────────────

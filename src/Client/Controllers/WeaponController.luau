@@ -42,7 +42,6 @@ local WeaponController = {}
 
 -- ── Config (sourced from FeatureResolver) ─────────────────────────────────────
 local fpsConfig:        any    = FeatureResolver.GetCategoryConfig("FPS_Shooter")
-local MAX_RAY_DISTANCE: number = 500
 -- Crosshair is slightly adjusted to match the aesthetic layout.
 local CROSSHAIR_SIZE:   number = 8
 local MOBILE_FIRE_BTN_SIZE:   number = 80
@@ -63,8 +62,6 @@ local COLOR_AMBER:       Color3 = Color3.new(1, 0.8, 0)
 local COLOR_CYAN:        Color3 = Color3.new(0, 1, 1)
 local COLOR_WHITE:       Color3 = Color3.new(1, 1, 1)
 local COLOR_DARK_BG:     Color3 = Color3.new(0, 0, 0)
-local COLOR_HEADER_BG:   Color3 = Color3.fromRGB(20, 20, 32)
-local COLOR_DIVIDER:     Color3 = Color3.fromRGB(255, 204, 0)
 
 local MEDAL_PREFIXES: { [number]: string } = {
 	[1] = "\xF0\x9F\xA5\x87 ",
@@ -72,11 +69,10 @@ local MEDAL_PREFIXES: { [number]: string } = {
 	[3] = "\xF0\x9F\xA5\x89 ",
 }
 
--- BUG 8 FIX: authoritative fixed array — never derived from pairs() over the Weapons dict.
--- Luau does not guarantee iteration order over dictionaries; any code that called pairs()
--- over fpsConfig.Weapons to build this list would produce a non-deterministic weapon order.
--- This constant is the single source of truth for Q/E cycling AND default spawn equip.
-local WEAPON_ORDER: { string } = { "AR-GUN", "PISTOL", "SHOTGUN", "SNIPER" }
+-- Q/E cycle order. Sourced from the config's ordered WeaponOrder ARRAY (never
+-- from pairs() over the Weapons dict, whose iteration order is undefined).
+-- FeatureToggles.Genres.FPS_Shooter.WeaponOrder is the single source of truth.
+local WEAPON_ORDER: { string } = { "AR-GUN", "PISTOL", "SHOTGUN", "SNIPER" } -- fallback only
 local WEAPON_NAMES: { [string]: string } = {}  -- key -> DisplayName
 
 local BASE_WALK_SPEED:    number = 16
@@ -87,9 +83,6 @@ local SLIDE_COOLDOWN:     number = 1.2
 local DEFAULT_WEAPON_KEY: string = "AR-GUN"
 
 -- Sound IDs from config (resolved at module load)
-local currentFireSoundId:     number? = nil
-local currentReloadSoundId:   number? = nil
-local currentEquipSoundId:    number? = nil
 local scopeEnterSoundId:      number? = nil
 local scopeExitSoundId:       number? = nil
 local hitConfirmSoundId:      number? = nil
@@ -101,9 +94,20 @@ local currentViewmodelRotation: Vector3? = nil
 
 -- Resolve config fields safely at module load time
 if type(fpsConfig) == "table" then
-	-- WEAPON_ORDER is intentionally NOT overwritten from fpsConfig.WeaponOrder.
-	-- The hardcoded constant above is the SSoT; config provides supplemental data only.
-	-- This prevents any non-deterministic dictionary-iteration from corrupting cycle order.
+	-- WeaponOrder is an ordered array in config — deterministic by construction.
+	local orderRaw: any = fpsConfig.WeaponOrder
+	if type(orderRaw) == "table" and #orderRaw > 0 then
+		local validated: { string } = {}
+		for _, key in ipairs(orderRaw) do
+			if type(key) == "string" then
+				table.insert(validated, key)
+			end
+		end
+		if #validated > 0 then
+			WEAPON_ORDER = validated
+		end
+	end
+
 	local weaponsRaw: any = fpsConfig.Weapons
 	if type(weaponsRaw) == "table" then
 		for key: string, wData: any in pairs(weaponsRaw) do
@@ -166,6 +170,7 @@ local currentWeaponIndex: number = 1
 local currentWeaponKey:   string = DEFAULT_WEAPON_KEY
 local currentFireRate:    number = 0.1
 local currentScopeFOV:    number = 20
+local currentReloadTime:  number = 2.0
 
 -- Sprint
 local isSprinting: boolean = false
@@ -185,7 +190,6 @@ local slideRemote:   RemoteEvent?  = nil
 local sprintRemote:  RemoteEvent?  = nil
 
 -- UI references
-local fpsScreenGui:     ScreenGui? = nil
 local crosshairUI:      Frame?     = nil
 local ammoUI:           TextLabel? = nil
 local weaponLabel:      TextLabel? = nil
@@ -240,18 +244,16 @@ function WeaponController.Init(): ()
 	if type(fpsConfig) == "table" and type(fpsConfig.Weapons) == "table" then
 		local wCfg: any = fpsConfig.Weapons[DEFAULT_WEAPON_KEY]
 		if type(wCfg) == "table" then
-			currentFireRate  = type(wCfg.FireRate)  == "number" and wCfg.FireRate  or 0.1
-			currentScopeFOV  = type(wCfg.ScopeFOV)  == "number" and wCfg.ScopeFOV  or 20
-			maxAmmo          = type(wCfg.MaxAmmo)   == "number" and wCfg.MaxAmmo   or 30
-			currentAmmo      = maxAmmo
+			currentFireRate   = type(wCfg.FireRate)   == "number" and wCfg.FireRate   or 0.1
+			currentScopeFOV   = type(wCfg.ScopeFOV)   == "number" and wCfg.ScopeFOV   or 20
+			currentReloadTime = type(wCfg.ReloadTime) == "number" and wCfg.ReloadTime or 2.0
+			maxAmmo           = type(wCfg.MaxAmmo)    == "number" and wCfg.MaxAmmo    or 30
+			currentAmmo       = maxAmmo
 
-			-- Per-weapon sound/viewmodel
-			currentFireSoundId      = type(wCfg.FireSoundId)   == "number" and wCfg.FireSoundId   or nil
-			currentReloadSoundId    = type(wCfg.ReloadSoundId) == "number" and wCfg.ReloadSoundId or nil
-			currentEquipSoundId     = type(wCfg.EquipSoundId)  == "number" and wCfg.EquipSoundId  or nil
+			-- Per-weapon viewmodel transform (sounds come from weaponSoundsCache)
 			currentViewmodelOffset   = typeof(wCfg.ViewmodelOffset)   == "Vector3" and wCfg.ViewmodelOffset   or nil
 			currentViewmodelRotation = typeof(wCfg.ViewmodelRotation) == "Vector3" and wCfg.ViewmodelRotation or nil
-			
+
 			local allowedModes = (type(wCfg.AllowedFireModes) == "table" and #wCfg.AllowedFireModes > 0) and wCfg.AllowedFireModes or {FIRE_MODE_FULL_AUTO}
 			local modeAllowed = false
 			for _, mode in ipairs(allowedModes) do
@@ -364,11 +366,29 @@ local function ApplyCameraKick(): ()
 	TweenService:Create(humanoid, ti, { CameraOffset = Vector3.zero }):Play()
 end
 
--- ── Tracer VFX ────────────────────────────────────────────────────────────────
--- Debug visualization permanently disabled.
-local function RenderTrace(_origin: Vector3, _hitPos: Vector3): ()
-	-- Disabled: no debug ray renders during normal fire.
-	return
+-- ── Reload Trigger ────────────────────────────────────────────────────────────
+-- Failsafe generation token: if the server rejects a reload request (spam
+-- window) no ammo sync ever arrives, which used to leave the HUD stuck on
+-- "Reloading..." forever. After the weapon's ReloadTime + grace, clear the
+-- local flag — the authoritative ammo sync corrects the count either way.
+local _reloadGeneration: number = 0
+
+local function TriggerReload(): ()
+	if isReloading then return end
+	if currentAmmo >= maxAmmo then return end
+	isReloading = true
+	_reloadGeneration += 1
+	local myGeneration = _reloadGeneration
+	UpdateAmmoHUD()
+	PlaySound(reloadSoundInstance)
+	if reloadRemote then reloadRemote:FireServer() end
+
+	task.delay(currentReloadTime + 0.6, function(): ()
+		if isReloading and _reloadGeneration == myGeneration then
+			isReloading = false
+			UpdateAmmoHUD()
+		end
+	end)
 end
 
 -- ── Core Fire Logic ───────────────────────────────────────────────────────────
@@ -376,11 +396,8 @@ local function ExecuteOneFire(): ()
 	if not isCursorLocked then return end  -- cursor unlocked = menu open, don't fire
 	if isReloading then return end
 	if currentAmmo <= 0 then
-		if not isReloading and reloadRemote then
-			reloadRemote:FireServer()
-			isReloading = true
-			UpdateAmmoHUD()
-		end
+		-- Auto-reload on dry fire (goes through TriggerReload for the failsafe)
+		TriggerReload()
 		return
 	end
 
@@ -399,18 +416,6 @@ local function ExecuteOneFire(): ()
 
 	ApplyCameraKick()
 	PlaySound(fireSoundInstance)
-
-	-- Client-side visual trace (no debug part rendered; RenderTrace is a no-op)
-	local vp     = camera.ViewportSize
-	local camRay = camera:ViewportPointToRay(vp.X / 2, vp.Y / 2)
-	local char   = LocalPlayer.Character
-	local rayParams = RaycastParams.new()
-	rayParams.FilterType = Enum.RaycastFilterType.Exclude
-	if char then rayParams.FilterDescendantsInstances = { char } end
-	local result = workspace:Raycast(camRay.Origin, camRay.Direction * MAX_RAY_DISTANCE, rayParams)
-	local hitPos: Vector3 = result and result.Position
-		or camera.CFrame.Position + camera.CFrame.LookVector * MAX_RAY_DISTANCE
-	RenderTrace(camera.CFrame.Position, hitPos)
 
 	if fireRemote then
 		-- Send aim direction (unit Vector3). Server does its own authoritative raycast.
@@ -528,15 +533,6 @@ local function HandleScopeFKey(
 end
 
 -- ── Reload Handler ────────────────────────────────────────────────────────────
-local function TriggerReload(): ()
-	if isReloading then return end
-	if currentAmmo >= maxAmmo then return end
-	isReloading = true
-	UpdateAmmoHUD()
-	PlaySound(reloadSoundInstance)
-	if reloadRemote then reloadRemote:FireServer() end
-end
-
 local function HandleReload(
 	_: string, state: Enum.UserInputState, _2: InputObject
 ): Enum.ContextActionResult
@@ -738,14 +734,12 @@ local function SwitchToIndex(newIndex: number): ()
 	if type(fpsConfig) == "table" and type(fpsConfig.Weapons) == "table" then
 		local wCfg: any = fpsConfig.Weapons[currentWeaponKey]
 		if type(wCfg) == "table" then
-			currentFireRate  = type(wCfg.FireRate)  == "number" and wCfg.FireRate  or 0.1
-			currentScopeFOV  = type(wCfg.ScopeFOV)  == "number" and wCfg.ScopeFOV  or 20
-			maxAmmo          = type(wCfg.MaxAmmo)   == "number" and wCfg.MaxAmmo   or 30
+			currentFireRate   = type(wCfg.FireRate)   == "number" and wCfg.FireRate   or 0.1
+			currentScopeFOV   = type(wCfg.ScopeFOV)   == "number" and wCfg.ScopeFOV   or 20
+			currentReloadTime = type(wCfg.ReloadTime) == "number" and wCfg.ReloadTime or 2.0
+			maxAmmo           = type(wCfg.MaxAmmo)    == "number" and wCfg.MaxAmmo    or 30
 
-			-- Update per-weapon sound/viewmodel config
-			currentFireSoundId      = type(wCfg.FireSoundId)   == "number" and wCfg.FireSoundId   or nil
-			currentReloadSoundId    = type(wCfg.ReloadSoundId) == "number" and wCfg.ReloadSoundId or nil
-			currentEquipSoundId     = type(wCfg.EquipSoundId)  == "number" and wCfg.EquipSoundId  or nil
+			-- Update per-weapon viewmodel config (sounds come from weaponSoundsCache)
 			currentViewmodelOffset   = typeof(wCfg.ViewmodelOffset)   == "Vector3" and wCfg.ViewmodelOffset   or nil
 			currentViewmodelRotation = typeof(wCfg.ViewmodelRotation) == "Vector3" and wCfg.ViewmodelRotation or nil
 			currentScopeImageId      = type(wCfg.ScopeImageId) == "string" and wCfg.ScopeImageId or nil
@@ -1014,7 +1008,6 @@ local function SetupFPSUI(): ()
 	screen.DisplayOrder   = 100
 	screen.IgnoreGuiInset = true
 	screen.Parent         = pGui
-	fpsScreenGui          = screen
 
 	-- ── Crosshair ────────────────────────────────────────────────────────────
 
@@ -1421,37 +1414,13 @@ function WeaponController.Start(): ()
 		headshotConfirmInst  = MakeSound(headshotConfirmSoundId, camInst)
 	end)
 
-	local function cleanupCharacter(char: Model): ()
-		for _, desc in ipairs(char:GetDescendants()) do
-			if desc:IsA("SelectionBox") or desc:IsA("BoxHandleAdornment") or (desc:IsA("BillboardGui") and (desc.Name == "ZoneDebug" or desc.Name == "HitboxDebug")) then
-				desc:Destroy()
-			elseif desc:IsA("BasePart") and (desc.Name == "ZoneDebug" or desc.Name == "HitboxDebug" or string.find(desc.Name, "Visualizer")) then
-				desc:Destroy()
-			end
-		end
-	end
-
-	local function onPlayerAdded(player: Player): ()
-		player.CharacterAdded:Connect(cleanupCharacter)
-		if player.Character then
-			cleanupCharacter(player.Character)
-		end
-	end
-
-	-- Clean up debug markers for all players
-	for _, player in ipairs(Players:GetPlayers()) do
-		onPlayerAdded(player)
-	end
-	Players.PlayerAdded:Connect(onPlayerAdded)
-
 	-- Load initial viewmodel
 	task.spawn(function(): ()
 		ViewmodelController.LoadViewmodel(DEFAULT_WEAPON_KEY)
 	end)
 
-	-- Reload equipped weapon viewmodel on local player respawn and clean up markers
-	LocalPlayer.CharacterAdded:Connect(function(char: Model): ()
-		cleanupCharacter(char)
+	-- Reload equipped weapon viewmodel on local player respawn
+	LocalPlayer.CharacterAdded:Connect(function(_char: Model): ()
 		task.defer(function(): ()
 			ViewmodelController.LoadViewmodel(currentWeaponKey)
 		end)
@@ -1569,37 +1538,39 @@ function WeaponController.Start(): ()
 		swaySpring:shove(Vector3.new(md.Y, md.X, 0) * 0.05)
 		local sway = swaySpring:update(dt)
 
-		-- Build combined camera-relative CFrame for the viewmodel
-		local camcf = cam.CFrame
-		local offset   = currentViewmodelOffset   or Vector3.zero
-		local rotation = currentViewmodelRotation or Vector3.zero
+		-- SINGLE RENDER AUTHORITY: this is the only per-frame PivotTo on the
+		-- viewmodel. ViewmodelController provides the model + per-weapon
+		-- offsets; this pass composes hip/ADS offset, switch transition,
+		-- bob and sway into one final CFrame.
+		local vm: Model? = ViewmodelController.GetActiveViewmodel()
+		if vm and vm.PrimaryPart then
+			local rotation = currentViewmodelRotation or Vector3.zero
+			-- ADS: while scoped, settle onto the weapon's AimOffset and drop
+			-- bob so the sight picture stays steady; hip fire uses ViewmodelOffset.
+			local baseOffset: Vector3 = if isScoped
+				then ViewmodelController.GetAimOffset()
+				else (currentViewmodelOffset or Vector3.zero)
+			baseOffset += Vector3.new(0, ViewmodelController.GetTransitionOffset(), 0)
 
-		camcf = camcf * CFrame.new(offset)
-		camcf = camcf * CFrame.new(bobbingVector)
-		camcf = camcf * CFrame.Angles(
-			math.rad(rotation.X),
-			math.rad(rotation.Y),
-			math.rad(rotation.Z)
-		)
-		camcf = camcf * CFrame.new(0, 0, -4)
-		camcf = camcf * CFrame.Angles(
-			math.rad(-sway.X / 25),
-			math.rad(-sway.Y / 25),
-			0
-		)
-		camcf = camcf * CFrame.new(0, 0, 4)
-
-		-- ViewmodelController owns activeViewmodel; update it here via its own render connection.
-		-- (ViewmodelController's RenderStepped does the PivotTo from its AimOffset.
-		--  The sway/bob logic here is a secondary pass; override its result.)
-		-- Note: ViewmodelController's render loop uses AimOffset only.
-		-- The sway/bob transform overrides it by pivoting the model directly.
-		local activeVm: any = ViewmodelController
-		if type(activeVm.GetActiveViewmodel) == "function" then
-			local vm: Model? = activeVm.GetActiveViewmodel()
-			if vm and vm.PrimaryPart then
-				vm:PivotTo(camcf)
+			local camcf = cam.CFrame
+			camcf = camcf * CFrame.new(baseOffset)
+			if not isScoped then
+				camcf = camcf * CFrame.new(bobbingVector)
 			end
+			camcf = camcf * CFrame.Angles(
+				math.rad(rotation.X),
+				math.rad(rotation.Y),
+				math.rad(rotation.Z)
+			)
+			camcf = camcf * CFrame.new(0, 0, -4)
+			camcf = camcf * CFrame.Angles(
+				math.rad(-sway.X / 25),
+				math.rad(-sway.Y / 25),
+				0
+			)
+			camcf = camcf * CFrame.new(0, 0, 4)
+
+			vm:PivotTo(camcf)
 		end
 	end)
 

@@ -31,6 +31,20 @@ local BonusText: TextLabel?
 
 local currentIsVIP = false
 
+-- HUD element visibility comes from the active genre's config (HUD flags) —
+-- the controller itself never names a genre.
+local function GetHUDFlags(): (boolean, boolean, boolean)
+	local genre: string? = FeatureResolver.GetActiveGenre()
+	if not genre then
+		return false, false, false
+	end
+	local hud: any = FeatureResolver.GetConfigField(genre, "HUD", nil)
+	if type(hud) ~= "table" then
+		return false, false, false
+	end
+	return hud.ShowHealth == true, hud.ShowLevelXP == true, hud.ShowClickBonus == true
+end
+
 local function GetMaxExp(level: number): number
 	return math.floor(1000 * math.pow(1.3, math.max(0, level - 1)))
 end
@@ -79,9 +93,7 @@ function StatusHUDController.Init(): ()
 		if child.Name == "StatusHUD" then child:Destroy() end
 	end
 
-	local showHP = FeatureResolver.IsCategoryActive("FPS_Shooter") or FeatureResolver.IsCategoryActive("RPG_Adventure")
-	local showLevelXP = FeatureResolver.IsCategoryActive("Clicker_Farm") or FeatureResolver.IsCategoryActive("RPG_Adventure")
-	local showBonus = FeatureResolver.IsCategoryActive("Clicker_Farm")
+	local showHP, showLevelXP, showBonus = GetHUDFlags()
 
 	if not (showHP or showLevelXP) then
 		return
@@ -123,17 +135,18 @@ function StatusHUDController.Init(): ()
 		stroke.Thickness = 2
 		stroke.Parent = diamond
 		
-		LevelText = Instance.new("TextLabel")
-		LevelText.Size = UDim2.fromScale(1.4, 1.4) 
-		LevelText.AnchorPoint = Vector2.new(0.5, 0.5)
-		LevelText.Position = UDim2.fromScale(0.5, 0.5)
-		LevelText.Rotation = -45
-		LevelText.BackgroundTransparency = 1
-		LevelText.TextColor3 = Color3.fromRGB(255, 255, 255)
-		LevelText.Font = Enum.Font.FredokaOne 
-		LevelText.TextSize = 26 
-		LevelText.ZIndex = 4
-		LevelText.Parent = diamond
+		local levelText = Instance.new("TextLabel")
+		levelText.Size = UDim2.fromScale(1.4, 1.4)
+		levelText.AnchorPoint = Vector2.new(0.5, 0.5)
+		levelText.Position = UDim2.fromScale(0.5, 0.5)
+		levelText.Rotation = -45
+		levelText.BackgroundTransparency = 1
+		levelText.TextColor3 = Color3.fromRGB(255, 255, 255)
+		levelText.Font = Enum.Font.FredokaOne
+		levelText.TextSize = 26
+		levelText.ZIndex = 4
+		levelText.Parent = diamond
+		LevelText = levelText
 		diamond.Parent = container
 
 		local xpBg = Instance.new("Frame")
@@ -145,22 +158,24 @@ function StatusHUDController.Init(): ()
 		Instance.new("UICorner", xpBg).CornerRadius = UDim.new(0, 4)
 		xpBg.Parent = container
 
-		XP_Fill = Instance.new("Frame")
-		XP_Fill.Size = UDim2.fromScale(0, 1)
-		XP_Fill.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-		XP_Fill.BorderSizePixel = 0
-		XP_Fill.ZIndex = 2
-		Instance.new("UICorner", XP_Fill).CornerRadius = UDim.new(0, 4)
-		XP_Fill.Parent = xpBg
+		local xpFill = Instance.new("Frame")
+		xpFill.Size = UDim2.fromScale(0, 1)
+		xpFill.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+		xpFill.BorderSizePixel = 0
+		xpFill.ZIndex = 2
+		Instance.new("UICorner", xpFill).CornerRadius = UDim.new(0, 4)
+		xpFill.Parent = xpBg
+		XP_Fill = xpFill
 
-		XP_Text = Instance.new("TextLabel")
-		XP_Text.Size = UDim2.fromScale(1, 1)
-		XP_Text.BackgroundTransparency = 1
-		XP_Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-		XP_Text.Font = Enum.Font.GothamMedium
-		XP_Text.TextSize = 9
-		XP_Text.ZIndex = 3
-		XP_Text.Parent = xpBg
+		local xpText = Instance.new("TextLabel")
+		xpText.Size = UDim2.fromScale(1, 1)
+		xpText.BackgroundTransparency = 1
+		xpText.TextColor3 = Color3.fromRGB(255, 255, 255)
+		xpText.Font = Enum.Font.GothamMedium
+		xpText.TextSize = 9
+		xpText.ZIndex = 3
+		xpText.Parent = xpBg
+		XP_Text = xpText
 	end
 
 	if showHP then
@@ -173,34 +188,37 @@ function StatusHUDController.Init(): ()
 		Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 4)
 		hpBg.Parent = container
 
-		HP_Fill = Instance.new("Frame")
-		HP_Fill.Size = UDim2.fromScale(1, 1)
-		HP_Fill.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-		HP_Fill.BorderSizePixel = 0
-		HP_Fill.ZIndex = 2
-		Instance.new("UICorner", HP_Fill).CornerRadius = UDim.new(0, 4)
-		HP_Fill.Parent = hpBg
+		local hpFill = Instance.new("Frame")
+		hpFill.Size = UDim2.fromScale(1, 1)
+		hpFill.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+		hpFill.BorderSizePixel = 0
+		hpFill.ZIndex = 2
+		Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 4)
+		hpFill.Parent = hpBg
+		HP_Fill = hpFill
 
-		HP_Text = Instance.new("TextLabel")
-		HP_Text.Size = UDim2.fromScale(1, 1)
-		HP_Text.BackgroundTransparency = 1
-		HP_Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-		HP_Text.Font = Enum.Font.GothamMedium
-		HP_Text.TextSize = 10
-		HP_Text.ZIndex = 3
-		HP_Text.Parent = hpBg
+		local hpText = Instance.new("TextLabel")
+		hpText.Size = UDim2.fromScale(1, 1)
+		hpText.BackgroundTransparency = 1
+		hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
+		hpText.Font = Enum.Font.GothamMedium
+		hpText.TextSize = 10
+		hpText.ZIndex = 3
+		hpText.Parent = hpBg
+		HP_Text = hpText
 	end
 
 	if showBonus then
-		BonusText = Instance.new("TextLabel")
-		BonusText.Size = UDim2.new(0, 200, 0, 18)
-		BonusText.Position = UDim2.new(0, 0, 1, 5) 
-		BonusText.BackgroundTransparency = 1
-		BonusText.TextColor3 = Color3.fromRGB(255, 215, 0)
-		BonusText.Font = Enum.Font.GothamBold
-		BonusText.TextSize = 11
-		BonusText.TextXAlignment = Enum.TextXAlignment.Left
-		BonusText.Parent = container
+		local bonusText = Instance.new("TextLabel")
+		bonusText.Size = UDim2.new(0, 200, 0, 18)
+		bonusText.Position = UDim2.new(0, 0, 1, 5)
+		bonusText.BackgroundTransparency = 1
+		bonusText.TextColor3 = Color3.fromRGB(255, 215, 0)
+		bonusText.Font = Enum.Font.GothamBold
+		bonusText.TextSize = 11
+		bonusText.TextXAlignment = Enum.TextXAlignment.Left
+		bonusText.Parent = container
+		BonusText = bonusText
 	end
 end
 
@@ -211,8 +229,7 @@ local function WaitForLeaderstats(player: Player, timeout: number?): Folder?
 end
 
 function StatusHUDController.Start(): ()
-	local showHP = FeatureResolver.IsCategoryActive("FPS_Shooter") or FeatureResolver.IsCategoryActive("RPG_Adventure")
-	local showLevelXP = FeatureResolver.IsCategoryActive("Clicker_Farm") or FeatureResolver.IsCategoryActive("RPG_Adventure")
+	local showHP, showLevelXP = GetHUDFlags()
 
 	if not (showHP or showLevelXP) then return end
 

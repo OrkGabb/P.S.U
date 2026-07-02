@@ -75,7 +75,7 @@ function MatchStatsController.Start(): ()
 	if not isActive then return end
 
 	task.spawn(function(): ()
-		local remote: Instance = Remotes:WaitForChild(RemoteNames.MatchStatsSync, 10)
+		local remote: Instance? = Remotes:WaitForChild(RemoteNames.MatchStatsSync, 10)
 		if not (remote and remote:IsA("RemoteEvent")) then
 			warn("[MatchStatsController] MatchStatsSync remote not found after 10s.")
 			return
