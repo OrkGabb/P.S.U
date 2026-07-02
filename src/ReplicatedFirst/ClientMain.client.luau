@@ -47,8 +47,9 @@ local function start(): ()
 	local isMonetizationActive: boolean = FeatureResolver.IsCategoryActive("Monetization")
 	local isDailyActive: boolean = FeatureResolver.IsCategoryActive("Retention") or FeatureResolver.IsCategoryActive("Daily")
 	local isDashActive: boolean = FeatureResolver.IsCategoryActive("Dash") or FeatureResolver.IsCategoryActive("DashConfig")
-	-- Aura mode carries consumable potions, so it needs the inventory UI
-	local isInventoryActive: boolean = isRPGActive or isPetActive or isAuraActive or FeatureResolver.IsCategoryActive("Inventory")
+	-- Aura mode carries consumable potions, so it needs the inventory UI.
+	-- Pet mode does NOT: pets are cosmetic-only with their own Pets UI.
+	local isInventoryActive: boolean = isRPGActive or isAuraActive or FeatureResolver.IsCategoryActive("Inventory")
 
 	-- Exclusivity Check
 	local activeGenres = FeatureResolver.GetActiveCategories()
@@ -74,6 +75,12 @@ local function start(): ()
 		SKIP_CONTROLLERS["IndexController"] = true
 		SKIP_CONTROLLERS["MainUIController"] = true
 		SKIP_CONTROLLERS["AuraVFXController"] = true
+	end
+
+	-- Pet category (companion rendering + egg shop/inventory UI)
+	if not isPetActive then
+		SKIP_CONTROLLERS["PetController"] = true
+		SKIP_CONTROLLERS["PetsUIController"] = true
 	end
 
 	-- RPG category
@@ -112,8 +119,9 @@ local function start(): ()
 		SKIP_CONTROLLERS["OnboardingController"] = true
 	end
 
-	-- Skills category (Aura masteries are bought through the Skills UI)
-	local isSkillsActive: boolean = isClickerActive or isRPGActive or isFPSActive or isPetActive or isAuraActive
+	-- Skills category (Aura masteries are bought through the Skills UI).
+	-- Pet mode has no upgrades — cosmetic companions only.
+	local isSkillsActive: boolean = isClickerActive or isRPGActive or isFPSActive or isAuraActive
 	if not isSkillsActive then
 		SKIP_CONTROLLERS["SkillsController"] = true
 	end

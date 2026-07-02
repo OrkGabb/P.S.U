@@ -241,11 +241,35 @@ export type AuraConfigType = {
 	IncomeExpBase: number,
 }
 
+-- ─── Pet_Simulator genre config ──────────────────────────────────────────────
+
+export type PetConfigType = {
+	Enabled: boolean,
+	Currencies: CurrencyNamesType,
+	HUD: HUDFlagsType,
+
+	-- Server-side minimum seconds between hatches (anti-spam)
+	HatchCooldown: number,
+	-- Experience granted per hatch (drives LevelReq egg progression)
+	ExpPerHatch: number,
+
+	-- Idle income funding hatches (pets are cosmetic — income is flat,
+	-- never multiplied by pets)
+	IncomeInterval: number,
+	IncomeBase: number,
+
+	-- Companion follow tuning (client presentation, read by PetController)
+	FollowDistance: number,       -- studs beside the owner
+	FollowResponsiveness: number, -- lerp sharpness (higher = snappier)
+	HoverHeight: number,          -- studs above ground
+	BobAmplitude: number,         -- idle bob height (studs)
+}
+
 export type GenresType = {
 	FPS_Shooter: FPSConfigType,
 	Clicker_Farm: ClickerConfigType,
 	Aura_Collector: AuraConfigType,
-	Pet_Simulator: SystemConfigType,
+	Pet_Simulator: PetConfigType,
 	RPG_Adventure: SystemConfigType,
 }
 
@@ -595,6 +619,31 @@ local FeatureToggles: FeatureTogglesType = {
 		},
 		Pet_Simulator = {
 			Enabled = false,
+
+			Currencies = {
+				PrimaryName   = "Coins",
+				SecondaryName = "Gems",
+			},
+
+			HUD = {
+				ShowHealth     = false,
+				ShowLevelXP    = true,
+				ShowClickBonus = false,
+			},
+
+			-- ── Hatch pacing / progression ────────────────────────────────────
+			HatchCooldown = 1.0,
+			ExpPerHatch   = 25,
+
+			-- ── Idle income (funds hatches; flat — pets are cosmetic) ─────────
+			IncomeInterval = 1,
+			IncomeBase     = 12,
+
+			-- ── Companion follow tuning ───────────────────────────────────────
+			FollowDistance       = 4,
+			FollowResponsiveness = 8,
+			HoverHeight          = 2,
+			BobAmplitude         = 0.35,
 		},
 		RPG_Adventure = {
 			Enabled = false,
