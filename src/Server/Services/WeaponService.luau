@@ -50,6 +50,10 @@ type PlayerSession = {
 	isSliding:     boolean,
 	isCrouching:   boolean,
 	lastSlideTime: number,
+	-- Rig-correct standing HipHeight, captured from the live Humanoid before the
+	-- first crouch/slide mutation. Hardcoding a stand value breaks R6 (0) and
+	-- custom-scaled avatars, so we always restore what the rig came with.
+	standHipHeight: number?,
 }
 
 -- ── Hitbox Zone Classification ───────────────────────────────────────────────
@@ -80,32 +84,29 @@ local BASE_WALK_SPEED: number
 local SLIDE_COOLDOWN:  number
 local SLIDE_DURATION:  number
 local SLIDE_BOOST:     number
+local SLIDE_HIP_HEIGHT: number
 local SPRINT_MULT:     number
-local SCOPE_SLOW:      number
 local WEAPONS:  {[string]: WeaponConfig}
-local WEAPON_ORDER: {string}
 local DEFAULT_WEAPON: string
 
 if type(fpsConfig) == "table" then
-	BASE_WALK_SPEED = type(fpsConfig.WalkSpeed)           == "number" and fpsConfig.WalkSpeed           or 16
-	SPRINT_MULT     = type(fpsConfig.SprintMultiplier)    == "number" and fpsConfig.SprintMultiplier    or 1.75
-	SCOPE_SLOW      = type(fpsConfig.ScopeSlowMultiplier) == "number" and fpsConfig.ScopeSlowMultiplier or 0.4
-	SLIDE_BOOST     = type(fpsConfig.SlideSpeedBoost)     == "number" and fpsConfig.SlideSpeedBoost     or 28
-	SLIDE_DURATION  = type(fpsConfig.SlideDuration)       == "number" and fpsConfig.SlideDuration       or 0.85
-	SLIDE_COOLDOWN  = type(fpsConfig.SlideCooldown)       == "number" and fpsConfig.SlideCooldown       or 1.2
-	WEAPONS         = type(fpsConfig.Weapons)             == "table"  and fpsConfig.Weapons              or {}
-	WEAPON_ORDER    = type(fpsConfig.WeaponOrder)         == "table"  and fpsConfig.WeaponOrder          or {}
-	DEFAULT_WEAPON  = type(fpsConfig.DefaultWeapon)       == "string" and fpsConfig.DefaultWeapon        or "AR-GUN"
+	BASE_WALK_SPEED  = type(fpsConfig.WalkSpeed)        == "number" and fpsConfig.WalkSpeed        or 16
+	SPRINT_MULT      = type(fpsConfig.SprintMultiplier) == "number" and fpsConfig.SprintMultiplier or 1.75
+	SLIDE_BOOST      = type(fpsConfig.SlideSpeedBoost)  == "number" and fpsConfig.SlideSpeedBoost  or 28
+	SLIDE_DURATION   = type(fpsConfig.SlideDuration)    == "number" and fpsConfig.SlideDuration    or 0.85
+	SLIDE_COOLDOWN   = type(fpsConfig.SlideCooldown)    == "number" and fpsConfig.SlideCooldown    or 1.2
+	SLIDE_HIP_HEIGHT = type(fpsConfig.SlideHipHeight)   == "number" and fpsConfig.SlideHipHeight   or 0.5
+	WEAPONS          = type(fpsConfig.Weapons)          == "table"  and fpsConfig.Weapons           or {}
+	DEFAULT_WEAPON   = type(fpsConfig.DefaultWeapon)    == "string" and fpsConfig.DefaultWeapon     or "AR-GUN"
 else
-	BASE_WALK_SPEED = 16
-	SPRINT_MULT     = 1.75
-	SCOPE_SLOW      = 0.4
-	SLIDE_BOOST     = 28
-	SLIDE_DURATION  = 0.85
-	SLIDE_COOLDOWN  = 1.2
-	WEAPONS         = {}
-	WEAPON_ORDER    = {}
-	DEFAULT_WEAPON  = "AR-GUN"
+	BASE_WALK_SPEED  = 16
+	SPRINT_MULT      = 1.75
+	SLIDE_BOOST      = 28
+	SLIDE_DURATION   = 0.85
+	SLIDE_COOLDOWN   = 1.2
+	SLIDE_HIP_HEIGHT = 0.5
+	WEAPONS          = {}
+	DEFAULT_WEAPON   = "AR-GUN"
 end
 
 -- ── State ─────────────────────────────────────────────────────────────────────
@@ -189,7 +190,16 @@ local function InitSession(player: Player): ()
 		isSliding     = false,
 		isCrouching   = false,
 		lastSlideTime = 0,
+		standHipHeight = nil,
 	}
+end
+
+-- Captures (once per character) and returns the rig's true standing HipHeight.
+local function GetStandHipHeight(session: PlayerSession, humanoid: Humanoid): number
+	if session.standHipHeight == nil then
+		session.standHipHeight = humanoid.HipHeight
+	end
+	return session.standHipHeight :: number
 end
 
 local function ApplyWalkSpeed(player: Player): ()
@@ -272,14 +282,37 @@ end
 function WeaponService.Start(): ()
 	if not isActive then return end
 
-	-- Seed sessions for players already in server (Studio test)
-	for _, p in Players:GetPlayers() do
-		InitSession(p)
+	-- Fresh character = fresh loadout: full ammo, cleared movement state, and a
+	-- new HipHeight capture (avatar scale can change between spawns).
+	local function OnCharacterAdded(player: Player): ()
+		local session = _sessions[player]
+		if not session then return end
+		session.standHipHeight = nil
+		session.isSprinting    = false
+		session.isSliding      = false
+		session.isCrouching    = false
+		for key, ammo in pairs(session.weaponAmmo) do
+			local cfg = GetWeaponConfig(key)
+			ammo.current     = cfg and cfg.MaxAmmo or 30
+			ammo.isReloading = false
+			ammo.reloadId    += 1 -- invalidate any in-flight reload timer
+		end
+		SyncAmmo(player)
 	end
 
-	Players.PlayerAdded:Connect(function(player: Player): ()
+	local function OnPlayerAdded(player: Player): ()
 		InitSession(player)
-	end)
+		player.CharacterAdded:Connect(function(): ()
+			OnCharacterAdded(player)
+		end)
+	end
+
+	-- Seed sessions for players already in server (Studio test)
+	for _, p in Players:GetPlayers() do
+		OnPlayerAdded(p)
+	end
+
+	Players.PlayerAdded:Connect(OnPlayerAdded)
 
 	-- ── Fire Handler ────────────────────────────────────────────────────────────
 	-- The server performs its OWN raycast from the shooter's HumanoidRootPart.
@@ -338,27 +371,37 @@ function WeaponService.Start(): ()
 			activeAmmo.current -= 1
 			SyncAmmo(player)
 
-			-- RaycastParams: exclude shooter's own character and filter accessories
-			-- so hair/hats never block a headshot. We only want character body parts.
+			-- RaycastParams: exclude the shooter's own character entirely.
+			-- Accessories on TARGETS are handled inside FireOneRay by re-casting
+			-- through them — otherwise a hat/hair Handle absorbs the ray, gets
+			-- classified as LIMB by part name, and headshots on any accessorized
+			-- avatar become impossible.
 			local char = player.Character
-			local excludeList: {Instance} = {}
-			if char then
-				-- Collect all accessories/handles under the character to exclude them
-				for _, desc in ipairs(char:GetDescendants()) do
-					if desc:IsA("Accessory") or desc:IsA("Hat") then
-						table.insert(excludeList, desc)
-					end
-				end
-				table.insert(excludeList, char)
-			end
-
 			local rayParams = RaycastParams.new()
 			rayParams.FilterType = Enum.RaycastFilterType.Exclude
-			rayParams.FilterDescendantsInstances = excludeList
+			rayParams.FilterDescendantsInstances = if char then { char :: Instance } else {}
 
 			-- Inner function: cast one ray, classify zone, apply damage.
+			-- Re-casts through accessory parts (max 4 punch-throughs per ray)
+			-- so only real body parts decide the hit zone.
 			local function FireOneRay(dir: Vector3): ()
-				local hit = workspace:Raycast(origin, dir * MAX_RAY_DISTANCE, rayParams)
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				local exclude: {Instance} = table.clone(rayParams.FilterDescendantsInstances)
+				params.FilterDescendantsInstances = exclude
+
+				local hit: RaycastResult? = nil
+				for _ = 1, 5 do
+					hit = workspace:Raycast(origin, dir * MAX_RAY_DISTANCE, params)
+					if not hit or not hit.Instance then return end
+					if not hit.Instance:FindFirstAncestorOfClass("Accessory") then
+						break
+					end
+					-- Accessory part: make it transparent to this ray and re-cast
+					table.insert(exclude, hit.Instance)
+					params.FilterDescendantsInstances = exclude
+					hit = nil
+				end
 				if not hit or not hit.Instance then return end
 
 				local hitPart = hit.Instance
@@ -514,8 +557,8 @@ function WeaponService.Start(): ()
 			session.isSprinting   = false
 			session.lastSlideTime = now
 
-			local originalHipHeight: number = humanoid.HipHeight
-			humanoid.HipHeight = 0.5  -- crouch down
+			local standHeight: number = GetStandHipHeight(session, humanoid)
+			humanoid.HipHeight = SLIDE_HIP_HEIGHT
 
 			ApplyWalkSpeed(player)
 
@@ -526,7 +569,7 @@ function WeaponService.Start(): ()
 
 				local h: Humanoid? = GetHumanoid(player)
 				if h then
-					h.HipHeight = s.isCrouching and 0.5 or originalHipHeight
+					h.HipHeight = s.isCrouching and SLIDE_HIP_HEIGHT or standHeight
 				end
 				ApplyWalkSpeed(player)
 			end)
@@ -546,11 +589,8 @@ function WeaponService.Start(): ()
 
 			local humanoid: Humanoid? = GetHumanoid(player)
 			if humanoid then
-				if session.isCrouching then
-					humanoid.HipHeight = 0.5
-				else
-					humanoid.HipHeight = 2.0
-				end
+				local standHeight: number = GetStandHipHeight(session, humanoid)
+				humanoid.HipHeight = session.isCrouching and SLIDE_HIP_HEIGHT or standHeight
 			end
 			ApplyWalkSpeed(player)
 		end)

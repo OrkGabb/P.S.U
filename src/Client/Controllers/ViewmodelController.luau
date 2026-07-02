@@ -3,7 +3,14 @@
 --@module ViewmodelController.luau
 --@version 1.1
 -- src/Client/Controllers/ViewmodelController.luau
--- Manages the first-person viewmodel: clone, parent to camera, and animate each frame.
+-- Manages the first-person viewmodel: clone, parent to camera, expose state.
+--
+-- RENDER AUTHORITY: this module does NOT run its own RenderStepped loop.
+-- WeaponController owns the single per-frame PivotTo (composing viewmodel
+-- offset, sway, bob, ADS and switch-transition). Two competing render loops
+-- previously fought over the same model — whichever connection ran last won,
+-- and the winner changed after every weapon switch (the historical
+-- viewmodel-desync bug). This module only provides the model and offsets.
 --
 -- Equip is ATOMIC: a per-equip generation token ensures that if a new equip arrives
 -- before a previous clone completes, the stale clone is silently discarded.
@@ -22,8 +29,6 @@
 -- inside a single atomic block with the generation check immediately before parenting.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService        = game:GetService("RunService")
-local TweenService      = game:GetService("TweenService")
 
 local Shared          = ReplicatedStorage:WaitForChild("Shared") :: Folder
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
@@ -32,8 +37,7 @@ local ViewmodelController = {}
 
 -- ── State ─────────────────────────────────────────────────────────────────────
 
-local activeViewmodel:   Model?               = nil
-local renderConnection:  RBXScriptConnection? = nil
+local activeViewmodel: Model? = nil
 
 -- Generation token: incremented on every LoadViewmodel call.
 -- An async clone whose token no longer matches _equipGeneration is discarded.
@@ -76,6 +80,12 @@ function ViewmodelController.Start(): ()
 
 	local Players = game:GetService("Players")
 
+	-- Enforce true first person. Without this the camera stays default
+	-- third-person: the locally-hidden character plus a camera-parented
+	-- viewmodel looks broken from any zoomed-out distance, and the crosshair
+	-- no longer corresponds to the shot origin.
+	Players.LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+
 	Players.LocalPlayer.CharacterAdded:Connect(function(char: Model): ()
 		ViewmodelController.ClearViewmodel()
 		HideCharacter(char)
@@ -88,14 +98,10 @@ function ViewmodelController.Start(): ()
 end
 
 -- ── ClearViewmodel ────────────────────────────────────────────────────────────
--- Destroys any currently parented viewmodel and disconnects the render loop.
+-- Destroys any currently parented viewmodel.
 -- Always called before cloning a new model so two models never coexist.
 
 function ViewmodelController.ClearViewmodel(): ()
-	if renderConnection then
-		renderConnection:Disconnect()
-		renderConnection = nil
-	end
 	if activeViewmodel then
 		activeViewmodel:Destroy()
 		activeViewmodel = nil
@@ -217,16 +223,21 @@ function ViewmodelController.LoadViewmodel(weaponKey: string): ()
 
 	print("[ViewmodelController] Viewmodel loaded: " .. tostring(folderName))
 
-	-- Reset transition offset for new weapon
+	-- Reset transition offset for new weapon.
+	-- Per-frame positioning is owned by WeaponController (single render authority).
 	_transitionOffset = 0
+end
 
-	-- Start render loop
-	renderConnection = RunService.RenderStepped:Connect(function(_dt: number): ()
-		local cam = workspace.CurrentCamera
-		if not cam or not activeViewmodel or not activeViewmodel.PrimaryPart then return end
-		local baseOffset = currentAimOffset + Vector3.new(0, _transitionOffset, 0)
-		activeViewmodel:PivotTo(cam.CFrame * CFrame.new(baseOffset))
-	end)
+-- ── Offset accessors (consumed by WeaponController's render pass) ─────────────
+
+-- Per-weapon ADS offset from config (applied while scoped).
+function ViewmodelController.GetAimOffset(): Vector3
+	return currentAimOffset
+end
+
+-- Y drop applied during the weapon-switch lower/raise tween.
+function ViewmodelController.GetTransitionOffset(): number
+	return _transitionOffset
 end
 
 -- ── GetActiveViewmodel ─────────────────────────────────────────────────────────

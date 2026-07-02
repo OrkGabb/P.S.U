@@ -36,12 +36,7 @@ local function start(): ()
 	local startupOrder: { any } = {}
 
 	local SKIP_CONTROLLERS: { [string]: boolean } = {
-		AuraController = true,
-		AdminController = true,
-		PortalController = true,
-		LeaderboardController = true,
 		SidebarController = true, -- Consolidated into UIController
-		DynamicUIOrchestrator = true, -- Skip duplicate static crosshair and AmmoHUD
 	}
 
 	-- Dynamic Category Resolution for Gating
