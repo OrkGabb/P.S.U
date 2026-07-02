@@ -39,6 +39,9 @@ local AssetService = {
         Profile   = { SpriteOffset = Vector2.new(768, 512), Scale = Vector2.new(0.8925, 0.8925), PixelShift = Vector2.new(9,    10) } :: IconData,
         Skills    = { SpriteOffset = Vector2.new(256, 256), Scale = Vector2.new(0.8925, 0.8925), PixelShift = Vector2.new(-3,   5) } :: IconData,
         Index     = { SpriteOffset = Vector2.new(512, 0),   Scale = Vector2.new(0.966,  0.966),  PixelShift = Vector2.new(3,  0.1) } :: IconData,
+        -- PLACEHOLDER: reuses the Index sprite cell (Pet_Simulator sidebar);
+        -- point at a paw cell if the sprite sheet gains one
+        Pets      = { SpriteOffset = Vector2.new(512, 0),   Scale = Vector2.new(0.966,  0.966),  PixelShift = Vector2.new(3,  0.1) } :: IconData,
         Quests    = { SpriteOffset = Vector2.new(0,   256), Scale = Vector2.new(0.8925, 0.8925), PixelShift = Vector2.new(-11,  4) } :: IconData,
         Daily     = { SpriteOffset = Vector2.new(256, 0),   Scale = Vector2.new(0.8925, 0.8925), PixelShift = Vector2.new(-3,   1) } :: IconData,
         Store     = { SpriteOffset = Vector2.new(0,   512), Scale = Vector2.new(0.8925, 0.8925), PixelShift = Vector2.new(-11,  4) } :: IconData,
@@ -70,10 +73,13 @@ end
 function AssetService.ApplyIcon(guiObject: ImageLabel | ImageButton, iconName: string): ()
     local data: IconData? = AssetService.IconMap[iconName]
     assert(data, "[AssetService] Icon not found: " .. iconName)
-    guiObject.Image           = AssetService.UI.SidebarAssetID
-    guiObject.ImageRectOffset = data.SpriteOffset
-    guiObject.ImageRectSize   = AssetService.UI.SpriteMatrixSize
-    guiObject.Size            = UDim2.new(data.Scale.X, 0, data.Scale.Y, 0)
+    -- Both union members expose the image properties; cast so strict mode
+    -- accepts property assignment through the union
+    local img = guiObject :: ImageLabel
+    img.Image           = AssetService.UI.SidebarAssetID
+    img.ImageRectOffset = data.SpriteOffset
+    img.ImageRectSize   = AssetService.UI.SpriteMatrixSize
+    img.Size            = UDim2.new(data.Scale.X, 0, data.Scale.Y, 0)
 end
 
 -- Helper to load viewmodel assets safely

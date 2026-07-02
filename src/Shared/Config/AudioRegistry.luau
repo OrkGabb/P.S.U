@@ -71,7 +71,9 @@ local Library: {[string]: GenreAudio} = {
 	["Pet_Simulator"] = {
 		BGM = {},
 		BGMVolume = 0.3,
-		SFX = {},
+		SFX = {
+			["HatchReveal"] = { SoundId = "rbxassetid://3742927091", Volume = 0.6, RandomPitch = true },
+		},
 	},
 }
 

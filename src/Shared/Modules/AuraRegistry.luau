@@ -10,6 +10,9 @@
 -- GetProbabilities feeds the roll UI so displayed odds and server rolls can
 -- never disagree — both read the same engine.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RollEngineModule = require(ReplicatedStorage.Shared.Modules.RollEngine)
+
 export type AuraDef = {
 	Id: string,
 	DisplayName: string,
@@ -181,26 +184,23 @@ end
 local Engine = {}
 Engine.__index = Engine
 
--- Builds a weighted roll engine over a biome's aura pool.
--- Entries are sorted rarest-first; a cumulative-weight binary search keeps
--- rolls O(log N) (vital for auto-rollers).
+-- Builds a weighted roll engine over a biome's aura pool — a thin typed
+-- wrapper around the shared RollEngine core (also used by PetRegistry).
+-- Entries are sorted rarest-first so luck pushes toward the rare end.
 function AuraRegistry.NewEngine(auras: {AuraDef}): RollEngine
 	local sorted = table.clone(auras)
 	table.sort(sorted, function(a, b)
 		return a.Weight < b.Weight
 	end)
 
-	local cumulative: {number} = table.create(#sorted)
-	local total = 0
+	local weights: {number} = table.create(#sorted)
 	for i, def in ipairs(sorted) do
-		total += def.Weight
-		cumulative[i] = total
+		weights[i] = def.Weight
 	end
 
 	local self = setmetatable({
 		entries = sorted,
-		cumulativeWeights = cumulative,
-		totalWeight = total,
+		core = RollEngineModule.New(weights),
 	}, Engine)
 
 	return (self :: any) :: RollEngine
@@ -224,36 +224,15 @@ function AuraRegistry.GetEngine(biomeId: string): RollEngine?
 	return engine
 end
 
--- Luck shrinks the effective total weight, pushing the roll toward the start
--- of the array where the rarest (lowest-weight) entries live.
 function Engine.Roll(self: any, luckMultiplier: number?): AuraDef
-	local luck: number = math.max(1, luckMultiplier or 1)
-	local target: number = math.random() * (self.totalWeight / luck)
-
-	local low: number, high: number = 1, #self.cumulativeWeights
-	local bestIdx: number = #self.entries
-
-	while low <= high do
-		local mid = (low + high) // 2
-		if target <= self.cumulativeWeights[mid] then
-			bestIdx = mid
-			high = mid - 1
-		else
-			low = mid + 1
-		end
-	end
-
-	return self.entries[bestIdx]
+	return self.entries[self.core:Roll(luckMultiplier)]
 end
 
 -- Ordered (rarest-first) list of {Def, Chance} for odds display.
 function Engine.GetProbabilities(self: any): {{Def: AuraDef, Chance: number}}
 	local out: {{Def: AuraDef, Chance: number}} = {}
-	if self.totalWeight <= 0 then
-		return out
-	end
-	for _, def in ipairs(self.entries) do
-		table.insert(out, { Def = def, Chance = def.Weight / self.totalWeight })
+	for i, chance in ipairs(self.core:GetChances()) do
+		table.insert(out, { Def = self.entries[i], Chance = chance })
 	end
 	return out
 end
