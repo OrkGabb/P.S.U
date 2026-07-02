@@ -12,7 +12,12 @@ local QuestRegistry = require(ReplicatedStorage.Shared.Modules.QuestRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
 local QuestService = {}
-local MonetizationService
+
+-- Quests are a core capability: any genre that registers a quest set in
+-- QuestRegistry gets the system; genres without quests skip it entirely.
+local function QuestsAvailable(): boolean
+    return #QuestRegistry.Quests > 0
+end
 
 local function ValidateQuestData(profile: any)
     if type(profile.Data.Progression) ~= "table" then
@@ -30,7 +35,7 @@ local function ValidateQuestData(profile: any)
 end
 
 function QuestService.AddProgress(player: Player, actionType: string, amount: number)
-    if not FeatureResolver.IsCategoryActive("RPG_Adventure") then return end
+    if not QuestsAvailable() then return end
     local profile = DataService.Profiles[player]
     if not profile then return end
 
@@ -55,7 +60,7 @@ function QuestService.AddProgress(player: Player, actionType: string, amount: nu
 end
 
 local function OnClaimRequest(player: Player, questId: string)
-    if not FeatureResolver.IsCategoryActive("RPG_Adventure") then return end
+    if not QuestsAvailable() then return end
     local profile = DataService.Profiles[player]
     if not profile then return end
 
@@ -65,7 +70,7 @@ local function OnClaimRequest(player: Player, questId: string)
 
     local questDef = nil
     for _, q in ipairs(QuestRegistry.Quests) do
-        if q.Id == questId then questDef = q break end
+        if q.Id == questId then questDef = q; break end
     end
     if not questDef then return end
 
@@ -73,18 +78,28 @@ local function OnClaimRequest(player: Player, questId: string)
     if current >= questDef.Target then
         profile.Data.Progression.Quests.Claimed[questId] = true
         
-        local mult = QuestRegistry.GetMultiplier(profile.Data.Level or 1, profile.Data.Rebirths or 0)
+        local level: number = if type(profile.Data.Progression) == "table"
+            then (profile.Data.Progression.Level or 1)
+            else 1
+        local mult = QuestRegistry.GetMultiplier(level, 0)
         local finalCoins = questDef.BaseCoins * mult
         local finalEXP = questDef.BaseEXP * mult
-        
-        profile.Data.Coins += finalCoins
-        profile.Data.TotalCoins += finalCoins
-        
-        local ls = player:FindFirstChild("leaderstats")
-        if ls and ls:FindFirstChild("Coins") then
-            ls.Coins.Value = profile.Data.Coins
+
+        -- Abstract schema: rewards land in Currencies.Primary
+        if type(profile.Data.Currencies) ~= "table" then
+            profile.Data.Currencies = { Primary = 0, Secondary = 0, Premium = 0 }
         end
-        
+        profile.Data.Currencies.Primary = (profile.Data.Currencies.Primary or 0) + finalCoins
+
+        local ls = player:FindFirstChild("leaderstats")
+        if ls then
+            local primaryName: string = FeatureResolver.GetCurrencyNames().Primary
+            local currencyVal = ls:FindFirstChild(primaryName)
+            if currencyVal and (currencyVal:IsA("IntValue") or currencyVal:IsA("NumberValue")) then
+                (currencyVal :: any).Value = profile.Data.Currencies.Primary
+            end
+        end
+
         LevelService.AddExp(player, finalEXP)
 
         -- Sync full state to update HUD on client
@@ -97,7 +112,7 @@ local function OnClaimRequest(player: Player, questId: string)
 end
 
 function QuestService.Init(): ()
-    if not FeatureResolver.IsCategoryActive("RPG_Adventure") then return end
+    if not QuestsAvailable() then return end
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
     if not remotes:FindFirstChild("ClaimQuestRequest") then
         local event = Instance.new("RemoteEvent")
@@ -112,11 +127,14 @@ function QuestService.Init(): ()
 end
 
 function QuestService.Start(): ()
-    if not FeatureResolver.IsCategoryActive("RPG_Adventure") then return end
-    MonetizationService = require(ServerScriptService.Server.Services.MonetizationService)
+    if not QuestsAvailable() then return end
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
     local event = remotes:WaitForChild("ClaimQuestRequest") :: RemoteEvent
-    event.OnServerEvent:Connect(OnClaimRequest)
+    event.OnServerEvent:Connect(function(player: Player, questId: any)
+        if type(questId) == "string" then
+            OnClaimRequest(player, questId)
+        end
+    end)
 end
 
 return QuestService

@@ -12,7 +12,6 @@ local Lighting          = game:GetService("Lighting")
 local LocalPlayer       = Players.LocalPlayer
 
 local FeatureResolver   = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
-local AssetRegistry     = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("AssetRegistry"))
 local SettingsRegistry  = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("SettingsRegistry")) :: any
 
 local SettingsController = {}
@@ -70,7 +69,7 @@ local _materialOriginals: {[BasePart]: Enum.Material} = {}
 local _castShadowOriginals: {[BasePart]: boolean} = {}
 local _textureOriginals: {[Texture | Decal]: number} = {}
 local _trailBeamOriginals: {[any]: boolean} = {}
-local _lightingOriginals: {Diffuse: number, Specular: number, Softness: number} = {}
+local _lightingOriginals: {Diffuse: number?, Specular: number?, Softness: number?} = {}
 
 local EXPENSIVE_MATERIALS = {
 	[Enum.Material.Neon] = true,
@@ -168,10 +167,12 @@ local function ApplyLowEnd(on: boolean)
 		Lighting.EnvironmentSpecularScale = 0
 		Lighting.ShadowSoftness = 0
 	else
-		if _lightingOriginals.Diffuse then
-			Lighting.EnvironmentDiffuseScale = _lightingOriginals.Diffuse
-			Lighting.EnvironmentSpecularScale = _lightingOriginals.Specular
-			Lighting.ShadowSoftness = _lightingOriginals.Softness
+		local diffuse, specular, softness =
+			_lightingOriginals.Diffuse, _lightingOriginals.Specular, _lightingOriginals.Softness
+		if diffuse and specular and softness then
+			Lighting.EnvironmentDiffuseScale = diffuse
+			Lighting.EnvironmentSpecularScale = specular
+			Lighting.ShadowSoftness = softness
 		end
 	end
 
@@ -265,7 +266,7 @@ local function ApplyLowEnd(on: boolean)
 		end
 		table.clear(_castShadowOriginals)
 
-		for tex, trans in pairs(_textureOriginals) do
+		for tex, trans in pairs(_textureOriginals :: {[any]: number}) do
 			if tex and tex.Parent then
 				tex.Transparency = trans
 			end
@@ -407,11 +408,7 @@ function SettingsController.Start(): ()
 	BgShield.AutoButtonColor = false
 	BgShield.Visible = false
 	BgShield.Active = true
-	BgShield.MouseButton1Up:Connect(function()
-		if type(ClosePanel) == "function" then
-			ClosePanel()
-		end
-	end)
+	-- (click-to-close is connected below, once ClosePanel exists)
 
 	mainPanel                        = Instance.new("Frame")
 	mainPanel.Visible                = false
@@ -455,14 +452,13 @@ function SettingsController.Start(): ()
 	local corner = Instance.new("UICorner", closeBtn)
 	corner.CornerRadius = UDim.new(0, 8)
 	
-	local stroke = Instance.new("UIStroke", closeBtn)
-	stroke.Color = Color3.fromRGB(120, 20, 20)
-	stroke.Thickness = 2
-	
+	local closeStroke = Instance.new("UIStroke", closeBtn)
+	closeStroke.Color = Color3.fromRGB(120, 20, 20)
+	closeStroke.Thickness = 2
+
 	local cIcon = closeBtn:FindFirstChild("HD_Icon")
 	if cIcon then cIcon:Destroy() end
 
-	local TweenService = game:GetService("TweenService")
 	local clickTw = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	closeBtn.MouseEnter:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = Color3.fromRGB(255, 70, 70)}):Play() end)
 	closeBtn.MouseLeave:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 30, 0, 30), BackgroundColor3 = Color3.fromRGB(220, 50, 50)}):Play() end)
@@ -483,6 +479,7 @@ function SettingsController.Start(): ()
 	end
 
 	closeBtn.MouseButton1Up:Connect(ClosePanel)
+	BgShield.MouseButton1Up:Connect(ClosePanel)
 
 	local listFrame                       = Instance.new("ScrollingFrame", mainPanel)
 	listFrame.Size                        = UDim2.new(1, -30, 1, -70)
@@ -503,6 +500,10 @@ function SettingsController.Start(): ()
 
 	-- Render dynamically resolved settings from registry
 	for _, setting in ipairs(SettingsRegistry) do
+		-- Genre-gated rows only appear when their category is active
+		if setting.RequiresCategory and not FeatureResolver.IsCategoryActive(setting.RequiresCategory) then
+			continue
+		end
 		-- Initialize default state if nil
 		if SettingsState[setting.Id] == nil then
 			SettingsState[setting.Id] = setting.Default

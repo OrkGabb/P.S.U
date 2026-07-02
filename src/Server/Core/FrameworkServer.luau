@@ -75,6 +75,13 @@ local OPTIONAL_SERVICES: { ToggleEntry } = {
 		end,
 	},
 	{
+		toggleKey = "Aura_Collector",
+		registerName = "AuraService",
+		resolver  = function(): ModuleScript
+			return Services:WaitForChild("AuraService") :: ModuleScript
+		end,
+	},
+	{
 		toggleKey = "FPS_Shooter",
 		registerName = "WeaponService",
 		resolver  = function(): ModuleScript

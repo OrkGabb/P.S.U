@@ -97,11 +97,6 @@ function BagController.Refresh()
             icon.BackgroundTransparency = 1
             icon.Image = itemData.IconId
             icon.ScaleType = Enum.ScaleType.Fit
-
-            if itemData.ImageRectOffset then
-                icon.ImageRectOffset = itemData.ImageRectOffset
-                icon.ImageRectSize = itemData.ImageRectSize or Vector2.new(256, 256)
-            end
         else
             local blob = Instance.new("Frame", slot)
             blob.Size = UDim2.new(0.5, 0, 0.5, 0)
@@ -198,13 +193,8 @@ function BagController.UpdateDetailsPanel()
         local pIcon = dPreview:FindFirstChild("Icon") :: ImageLabel?
         if pIcon then
             pIcon.Image = itemData.IconId or ""
-            if itemData.ImageRectOffset then
-                pIcon.ImageRectOffset = itemData.ImageRectOffset
-                pIcon.ImageRectSize = itemData.ImageRectSize or Vector2.new(256, 256)
-            else
-                pIcon.ImageRectOffset = Vector2.new(0, 0)
-                pIcon.ImageRectSize = Vector2.new(0, 0)
-            end
+            pIcon.ImageRectOffset = Vector2.new(0, 0)
+            pIcon.ImageRectSize = Vector2.new(0, 0)
         end
         local pGlow = dPreview:FindFirstChild("Glow") :: Frame?
         if pGlow then
@@ -301,8 +291,8 @@ function BagController.Start(): ()
     BgShield.Text = ""
     BgShield.AutoButtonColor = false
     BgShield.Visible = false
-    BgShield.Active = true 
-    BgShield.MouseButton1Up:Connect(closePanel)
+    BgShield.Active = true
+    -- (click-to-close is connected below, once closePanel exists)
 
     -- Main Panel
     MainPanel = Instance.new("Frame", gui)
@@ -358,11 +348,6 @@ function BagController.Start(): ()
             isAnimating = false
             if not isOpen then MainPanel.Visible = false end
         end)
-        
-        local forgeGui = LocalPlayer.PlayerGui:FindFirstChild("ForgeGui")
-        local isForgeOpen = forgeGui and forgeGui:FindFirstChild("InputSink") and forgeGui.InputSink.Visible
-
-        -- MainInterface remains active to allow menu toggling
     end
 
     local closeBtn = Instance.new("TextButton", MainPanel)
@@ -389,6 +374,7 @@ function BagController.Start(): ()
     end)
     
     closeBtn.MouseButton1Up:Connect(closePanel)
+    BgShield.MouseButton1Up:Connect(closePanel)
 
     local panelTitle = Instance.new("TextLabel", MainPanel)
     panelTitle.Size = UDim2.new(1, 0, 0, 50)

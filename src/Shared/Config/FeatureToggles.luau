@@ -216,9 +216,35 @@ export type GlobalFlagsType = {
 	AntiExploit: AntiExploitConfigType,
 }
 
+-- ─── Aura_Collector genre config ─────────────────────────────────────────────
+
+export type AuraConfigType = {
+	Enabled: boolean,
+	Currencies: CurrencyNamesType,
+	HUD: HUDFlagsType,
+
+	-- Roll pacing (seconds). Speed masteries / gamepasses divide the base;
+	-- free players are floored at MinRollCooldown.
+	BaseRollCooldown: number,
+	MinRollCooldown: number,
+
+	-- Rolls without a drop rarer than PityWeightThreshold increment the pity
+	-- counter; at HardPityLimit the next roll gets a massive luck boost.
+	HardPityLimit: number,
+	PityWeightThreshold: number,
+
+	-- Idle income: every IncomeInterval seconds grant
+	-- IncomeBase × equippedAura.CoinMult to Currencies.Primary and
+	-- IncomeExpBase × equippedAura.ExpMult as Experience.
+	IncomeInterval: number,
+	IncomeBase: number,
+	IncomeExpBase: number,
+}
+
 export type GenresType = {
 	FPS_Shooter: FPSConfigType,
 	Clicker_Farm: ClickerConfigType,
+	Aura_Collector: AuraConfigType,
 	Pet_Simulator: SystemConfigType,
 	RPG_Adventure: SystemConfigType,
 }
@@ -497,7 +523,7 @@ local FeatureToggles: FeatureTogglesType = {
 			HeadshotConfirmSoundId = nil,
 		},
 		Clicker_Farm = {
-			Enabled = true,
+			Enabled = false,
 
 			Currencies = {
 				PrimaryName   = "Sugar",
@@ -539,6 +565,33 @@ local FeatureToggles: FeatureTogglesType = {
 					{ Name = "Jackpot",  Weight = 2,  CpsSeconds = 1800, Floor = 500 },
 				},
 			},
+		},
+		Aura_Collector = {
+			Enabled = true,
+
+			Currencies = {
+				PrimaryName   = "Coins",
+				SecondaryName = "Essence",
+			},
+
+			HUD = {
+				ShowHealth     = false,
+				ShowLevelXP    = true,
+				ShowClickBonus = false,
+			},
+
+			-- ── Roll pacing ────────────────────────────────────────────────────
+			BaseRollCooldown = 3.5,
+			MinRollCooldown  = 1.75,
+
+			-- ── Pity system ────────────────────────────────────────────────────
+			HardPityLimit       = 100,
+			PityWeightThreshold = 20,
+
+			-- ── Idle income (funds rolls; scales with equipped aura) ──────────
+			IncomeInterval = 1,
+			IncomeBase     = 10,
+			IncomeExpBase  = 2,
 		},
 		Pet_Simulator = {
 			Enabled = false,

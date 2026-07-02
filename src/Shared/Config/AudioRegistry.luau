@@ -57,7 +57,15 @@ local Library: {[string]: GenreAudio} = {
 	["Aura_Collector"] = {
 		BGM = {},
 		BGMVolume = 0.3,
-		SFX = {},
+		-- Roll-reveal stingers, escalating with AuraRegistry FeedbackTier.
+		SFX = {
+			["RollSubtle"]    = { SoundId = "rbxassetid://95154184427705",  Volume = 0.4, PlaybackSpeed = 1.1 },
+			["RollMedium"]    = { SoundId = "rbxassetid://122136024332497", Volume = 0.6, PlaybackSpeed = 1.0 },
+			["RollImpactful"] = { SoundId = "rbxassetid://115447313733239", Volume = 0.8, PlaybackSpeed = 0.95 },
+			["RollDramatic"]  = { SoundId = "rbxassetid://79552398776329",  Volume = 0.9, PlaybackSpeed = 0.85 },
+			["RollCinematic"] = { SoundId = "rbxassetid://95851961981936",  Volume = 1.0, PlaybackSpeed = 0.8 },
+			["RollOmniSwell"] = { SoundId = "rbxassetid://134160561050962", Volume = 0.8, PlaybackSpeed = 0.8 },
+		},
 	},
 
 	["Pet_Simulator"] = {

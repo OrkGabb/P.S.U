@@ -11,7 +11,6 @@ local Players: Players = game:GetService("Players")
 local MarketplaceService: MarketplaceService = game:GetService("MarketplaceService")
 local LocalPlayer: Player = Players.LocalPlayer
 
-local AssetRegistry: any = require(ReplicatedStorage.Shared.Config.AssetRegistry)
 local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 local StoreRegistry: any = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("StoreRegistry"))
 
@@ -90,15 +89,21 @@ local function InitializeCatalog(): ()
 end
 
 local function GetLocalEvent(eventName: string): BindableEvent
-	local folder = ReplicatedStorage:FindFirstChild("LocalEvents") or Instance.new("Folder")
-	folder.Name = "LocalEvents"
-	folder.Parent = ReplicatedStorage
-	
-	local evt = folder:FindFirstChild(eventName) or Instance.new("BindableEvent")
+	local folder: Instance? = ReplicatedStorage:FindFirstChild("LocalEvents")
+	if not folder then
+		local newFolder = Instance.new("Folder")
+		newFolder.Name = "LocalEvents"
+		newFolder.Parent = ReplicatedStorage
+		folder = newFolder
+	end
+	local existing = (folder :: Instance):FindFirstChild(eventName)
+	if existing and existing:IsA("BindableEvent") then
+		return existing
+	end
+	local evt = Instance.new("BindableEvent")
 	evt.Name = eventName
 	evt.Parent = folder
-	
-	return evt :: BindableEvent
+	return evt
 end
 
 local function PromptPurchase(item: StoreItem)
@@ -211,7 +216,7 @@ function StoreController.PlayPurchaseEffect(rewardType: string, amount: number, 
 	subtitleLbl.TextSize                = 11
 	subtitleLbl.TextColor3              = Color3.fromRGB(180, 180, 200)
 	subtitleLbl.TextWrapped             = true
-	subtitleLbl.TextYAlignment          = Enum.TextXAlignment.Left
+	subtitleLbl.TextYAlignment          = Enum.TextYAlignment.Top
 	subtitleLbl.ZIndex                  = 101
 
 	if lowerType == "gamepass" then
@@ -351,7 +356,7 @@ function StoreController.RenderCategory(categoryName: string)
 			end
 			
 			if item.Type == "Gamepass" then
-				local ownsSuccess, owns = pcall(function()
+				local _ownsSuccess, owns = pcall(function()
 					return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, item.Id)
 				end)
 				
@@ -398,7 +403,7 @@ function StoreController.RenderCategory(categoryName: string)
 			task.spawn(function()
 				if item.Type == "Gamepass" then
 					priceTxt.Text = "..."
-					local success, owns = pcall(function()
+					local _success, owns = pcall(function()
 						return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, item.Id)
 					end)
 					
@@ -457,7 +462,7 @@ function StoreController.Start(): ()
 	BgShield.AutoButtonColor        = false
 	BgShield.Visible                = false
 	BgShield.Active                 = true
-	BgShield.MouseButton1Up:Connect(closePanel)
+	-- (click-to-close is connected below, once closePanel exists)
 
 	MainPanel = Instance.new("Frame", gui)
 	MainPanel.Size             = UDim2.new(0, 620, 0, 420)
@@ -502,6 +507,7 @@ function StoreController.Start(): ()
 			if not isOpen then MainPanel.Visible = false end
 		end)
 	end
+	BgShield.MouseButton1Up:Connect(closePanel)
 
 	local closeBtn = Instance.new("TextButton", MainPanel)
 	closeBtn.Size             = UDim2.new(0, 30, 0, 30)

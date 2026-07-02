@@ -26,6 +26,9 @@ export type SettingDef = {
 	CycleOptions: {string}?,
 	CycleLabels: {[string]: string}?,
 	CycleColors: {[string]: Color3}?,
+	-- Only show this row when the named FeatureToggles category is active
+	-- (SettingsController filters via FeatureResolver); nil = always shown.
+	RequiresCategory: string?,
 }
 
 -- ── Master SoundGroup helper ──────────────────────────────────────────────────
@@ -37,10 +40,6 @@ export type SettingDef = {
 --
 -- We use SoundService.Volume (the global master volume) because it applies to
 -- every Sound regardless of whether it is parented to a SoundGroup.
-local function GetMasterVolume(): number
-	return game:GetService("SoundService").Volume
-end
-
 local function SetMasterVolume(vol: number): ()
 	game:GetService("SoundService").Volume = vol
 end
@@ -78,6 +77,47 @@ local SettingsRegistry: {SettingDef} = {
 		Callback = function(value: any)
 			local on: boolean = (value == true)
 			game:GetService("Lighting").GlobalShadows = not on
+		end,
+	},
+	{
+		Id = "ReduceEffects",
+		Title = "Reduce Screen Effects",
+		Type = "Toggle",
+		Default = false,
+		-- Accessibility: consumers (e.g. the Aura roll UI's shake/vignette
+		-- "juice") read the mirrored LocalPlayer attribute rather than this
+		-- registry, so any controller can honor it without a dependency here.
+		Callback = function(value: any)
+			local player = game:GetService("Players").LocalPlayer
+			if player then
+				player:SetAttribute("ReduceEffects", value == true)
+			end
+		end,
+	},
+	{
+		Id = "AutoRollStopTier",
+		Title = "Auto-Roll Stops At",
+		Type = "Cycle",
+		Default = "MYTHIC+",
+		RequiresCategory = "Aura_Collector",
+		CycleOptions = { "MYTHIC+", "RAREST", "NEVER" },
+		CycleLabels = {
+			["MYTHIC+"] = "MYTHIC OR BETTER",
+			["RAREST"]  = "SINGULARITY+",
+			["NEVER"]   = "NEVER STOP",
+		},
+		CycleColors = {
+			["MYTHIC+"] = Color3.fromRGB(228, 45, 45),
+			["RAREST"]  = Color3.fromRGB(200, 200, 255),
+			["NEVER"]   = Color3.fromRGB(100, 100, 110),
+		},
+		-- Mirrored to a LocalPlayer attribute; MainUIController's auto-roll
+		-- pause check reads it (defaults to MYTHIC+ when unset).
+		Callback = function(value: any)
+			local player = game:GetService("Players").LocalPlayer
+			if player and type(value) == "string" then
+				player:SetAttribute("AutoRollStopTier", value)
+			end
 		end,
 	},
 }

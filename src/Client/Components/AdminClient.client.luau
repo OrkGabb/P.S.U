@@ -14,7 +14,7 @@ local TweenService      = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 local ItemRegistry      = require(ReplicatedStorage.Shared.Modules.ItemRegistry)
-local LootTable         = require(ReplicatedStorage.Shared.Modules.LootTable)
+local AuraRegistry      = require(ReplicatedStorage.Shared.Modules.AuraRegistry)
 
 -- ========================================================================
 -- DESIGN TOKENS
@@ -456,7 +456,7 @@ local function SetupAutocomplete(textBox: TextBox, getSuggestions: () -> {string
 			btn.BackgroundTransparency = 1
 			btn.Text = name
 			btn.TextColor3 = C.TEXT
-			btn.Font = Enum.Font.GothamSemibold
+			btn.Font = Enum.Font.GothamMedium
 			btn.TextSize = 11
 			btn.TextXAlignment = Enum.TextXAlignment.Left
 			btn.AutoButtonColor = false
@@ -514,15 +514,8 @@ end
 
 local function getItemSuggestions(): {string}
 	local list = {}
-	if ItemRegistry.Potions then
-		for id, _ in pairs(ItemRegistry.Potions) do
-			table.insert(list, id)
-		end
-	end
-	if ItemRegistry.Essences then
-		for id, _ in pairs(ItemRegistry.Essences) do
-			table.insert(list, id)
-		end
+	for id, _ in pairs(ItemRegistry.Potions) do
+		table.insert(list, id)
 	end
 	table.sort(list)
 	return list
@@ -530,15 +523,12 @@ end
 
 local function getEffectSuggestions(): {string}
 	local list = {}
-	local seen = {}
-	for _, biome in pairs(LootTable.Biomes) do
-		if biome.Auras then
-			for _, aura in ipairs(biome.Auras) do
-				local canonicalName = aura.displayName or aura.name
-				if canonicalName and not seen[canonicalName] then
-					seen[canonicalName] = true
-					table.insert(list, canonicalName)
-				end
+	local seen: {[string]: boolean} = {}
+	for _, biome in pairs(AuraRegistry.Biomes) do
+		for _, aura in ipairs(biome.Auras) do
+			if not seen[aura.Id] then
+				seen[aura.Id] = true
+				table.insert(list, aura.Id)
 			end
 		end
 	end
