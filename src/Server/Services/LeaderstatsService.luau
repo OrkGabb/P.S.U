@@ -26,40 +26,11 @@ local function SetupLeaderstats(player: Player): ()
 	leaderstats.Name = "leaderstats"
 	leaderstats.Parent = player
 
-	-- Resolve dynamic currency display names using FeatureResolver
-	local primaryName: string = "Coins"
-	local secondaryName: string = "Secondary"
-	
-	local activeCategories: {string} = FeatureResolver.GetActiveCategories()
-	for _, category: string in ipairs(activeCategories) do
-		if category == "Clicker_Farm" then
-			primaryName = "Coins"
-			secondaryName = "AuraCoins"
-			break
-		elseif category == "FPS_Shooter" then
-			primaryName = "Cash"
-			secondaryName = "Kills"
-			break
-		elseif category == "Pet_Simulator" then
-			primaryName = "Coins"
-			secondaryName = "Diamonds"
-			break
-		elseif category == "RPG_Adventure" then
-			primaryName = "Gold"
-			secondaryName = "Gems"
-			break
-		end
-	end
-
-	local configPrimary: string? = FeatureResolver.GetConfigField("Currencies", "PrimaryName", nil)
-	local configSecondary: string? = FeatureResolver.GetConfigField("Currencies", "SecondaryName", nil)
-	
-	if configPrimary then
-		primaryName = configPrimary
-	end
-	if configSecondary then
-		secondaryName = configSecondary
-	end
+	-- Currency display names come from the active genre's config (SSoT) —
+	-- no genre special-casing in core.
+	local currencyNames = FeatureResolver.GetCurrencyNames()
+	local primaryName: string = currencyNames.Primary
+	local secondaryName: string = currencyNames.Secondary
 
 	local primaryValue: IntValue = Instance.new("IntValue")
 	primaryValue.Name = primaryName

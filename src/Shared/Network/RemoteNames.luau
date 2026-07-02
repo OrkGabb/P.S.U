@@ -25,6 +25,7 @@ export type RemoteNames = {
 	HitConfirm:        string,
 	HeadshotConfirm:   string,
 	CrouchRequest:     string,
+	GoldenDropSpawn:   string,
 }
 
 local RemoteNames: RemoteNames = {
@@ -50,6 +51,7 @@ local RemoteNames: RemoteNames = {
 	HitConfirm         = "HitConfirm",        -- FPS: server -> attacker (hit feedback with zone)
 	HeadshotConfirm    = "HeadshotConfirm",   -- FPS: server -> attacker (headshot ping)
 	CrouchRequest      = "CrouchRequest",     -- FPS: client -> server (crouch C key)
+	GoldenDropSpawn    = "GoldenDropSpawn",   -- Clicker: server -> client (golden drop event, GUID)
 }
 
 return RemoteNames

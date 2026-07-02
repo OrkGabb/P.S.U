@@ -3,7 +3,8 @@
 --@module TopBarController.luau
 --@version 1.0
 -- src/Client/Controllers/TopBarController.lua
--- Sleek premium top-right HUD displaying Coins and AuraCoins.
+-- Sleek premium top-right HUD displaying the active genre's two currencies.
+-- Currency names resolve from the genre config (FeatureResolver.GetCurrencyNames).
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -15,7 +16,7 @@ local FeatureResolver = require(ReplicatedStorage:WaitForChild("Shared"):WaitFor
 
 local TopBarController = {}
 local CoinLabel: TextLabel
-local AuraCoinLabel: TextLabel
+local SecondaryLabel: TextLabel? = nil
 local Container: Frame
 
 -- Handles all scales. No "inf"/"Max" fallback — very large numbers use scientific notation.
@@ -29,14 +30,14 @@ local function FormatNumber(n: number): string
         local exp = math.floor(math.log10(n))
         return string.format("%.1fe%d", n / (10 ^ exp), exp)
     end
-    local tiers = {
-        {1e18, "Qi"}, {1e15, "Qa"}, {1e12, "T"},
-        {1e9,  "B"},  {1e6,  "M"},  {1e3,  "K"},
+    local tiers: { {Threshold: number, Suffix: string} } = {
+        {Threshold = 1e18, Suffix = "Qi"}, {Threshold = 1e15, Suffix = "Qa"}, {Threshold = 1e12, Suffix = "T"},
+        {Threshold = 1e9,  Suffix = "B"},  {Threshold = 1e6,  Suffix = "M"},  {Threshold = 1e3,  Suffix = "K"},
     }
     for _, tier in ipairs(tiers) do
-        if n >= tier[1] then
-            local formatted = string.format("%.1f", n / tier[1]):gsub("%.0$", "")
-            return formatted .. tier[2]
+        if n >= tier.Threshold then
+            local formatted = string.format("%.1f", n / tier.Threshold):gsub("%.0$", "")
+            return formatted .. tier.Suffix
         end
     end
     return tostring(n)
@@ -68,11 +69,17 @@ local function TweenCoins(targetVal: number)
 
     local thisTween = TweenService:Create(coinsValObj, TweenInfo.new(0.5, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out), {Value = targetVal})
     coinsTween = thisTween
-    coinsTween:Play()
-    coinsTween.Completed:Connect(function(playbackState)
+    thisTween:Play()
+    thisTween.Completed:Connect(function(playbackState)
         if coinsTween == thisTween then
-            if coinsValObj then coinsValObj:Destroy() coinsValObj = nil end
-            if coinsTweenConnection then coinsTweenConnection:Disconnect() coinsTweenConnection = nil end
+            if coinsValObj then
+                coinsValObj:Destroy()
+                coinsValObj = nil
+            end
+            if coinsTweenConnection then
+                coinsTweenConnection:Disconnect()
+                coinsTweenConnection = nil
+            end
             coinsTween = nil
             if playbackState == Enum.PlaybackState.Completed then
                 CoinLabel.Text = FormatNumber(targetVal)
@@ -84,21 +91,41 @@ end
 
 local function UpdateProfile(data: any)
     if not data then return end
-    if data.Coins ~= nil then
-        TweenCoins(data.Coins)
+    if type(data.Currencies) == "table" then
+        if type(data.Currencies.Primary) == "number" then
+            TweenCoins(data.Currencies.Primary)
+        end
+        if SecondaryLabel and type(data.Currencies.Secondary) == "number" then
+            SecondaryLabel.Text = FormatNumber(data.Currencies.Secondary)
+        end
     end
 end
 
 local function InitHUDFromLeaderstats()
+    local currencyNames = FeatureResolver.GetCurrencyNames()
     local ls = LocalPlayer:WaitForChild("leaderstats", 15)
-    if ls then
-        local coins = ls:WaitForChild("Coins", 10) :: NumberValue?
-        if coins then
-            TweenCoins(coins.Value)
-            coins.Changed:Connect(function(newVal)
-                TweenCoins(newVal)
-            end)
+    if not ls then return end
+
+    local primary = ls:WaitForChild(currencyNames.Primary, 10)
+    if primary and (primary:IsA("IntValue") or primary:IsA("NumberValue")) then
+        local primaryValue = primary :: IntValue
+        TweenCoins(primaryValue.Value)
+        primaryValue.Changed:Connect(function(newVal)
+            TweenCoins(newVal)
+        end)
+    end
+
+    local secondary = ls:FindFirstChild(currencyNames.Secondary)
+    if secondary and (secondary:IsA("IntValue") or secondary:IsA("NumberValue")) then
+        local secondaryValue = secondary :: IntValue
+        if SecondaryLabel then
+            SecondaryLabel.Text = FormatNumber(secondaryValue.Value)
         end
+        secondaryValue.Changed:Connect(function(newVal)
+            if SecondaryLabel then
+                SecondaryLabel.Text = FormatNumber(newVal)
+            end
+        end)
     end
 end
 
@@ -128,7 +155,7 @@ function TopBarController.Start(): ()
     -- Sleek Premium dark glassmorphism Container
     Container = Instance.new("Frame")
     Container.Name = "HUDDisplay"
-    Container.Size = UDim2.new(0, 126, 0, 28)
+    Container.Size = UDim2.new(0, 126, 0, 52)
     Container.Position = UDim2.new(1, -14, 0, 10)
     Container.AnchorPoint = Vector2.new(1, 0)
     Container.BackgroundColor3 = Color3.fromRGB(15, 10, 25)
@@ -188,6 +215,38 @@ function TopBarController.Start(): ()
     CoinLabel.TextXAlignment = Enum.TextXAlignment.Left
     CoinLabel.TextYAlignment = Enum.TextYAlignment.Center
     CoinLabel.Parent = coinRow
+
+    -- --- Secondary Currency Row ---
+    local secondaryRow = Instance.new("Frame")
+    secondaryRow.Name = "SecondaryRow"
+    secondaryRow.Size = UDim2.new(1, 0, 0, 20)
+    secondaryRow.BackgroundTransparency = 1
+    secondaryRow.LayoutOrder = 2
+    secondaryRow.Parent = Container
+
+    local secondaryIcon = Instance.new("ImageLabel")
+    secondaryIcon.Name = "SecondaryIcon"
+    secondaryIcon.Size = UDim2.new(0, 17, 0, 17)
+    secondaryIcon.Position = UDim2.new(0, 0, 0.5, -8)
+    secondaryIcon.BackgroundTransparency = 1
+    secondaryIcon.Image = AssetRegistry.UI.CoinIcon
+    secondaryIcon.ImageColor3 = Color3.fromRGB(255, 170, 220)
+    secondaryIcon.ScaleType = Enum.ScaleType.Fit
+    secondaryIcon.Parent = secondaryRow
+
+    local secondaryLabel = Instance.new("TextLabel")
+    secondaryLabel.Name = "SecondaryValue"
+    secondaryLabel.Size = UDim2.new(1, -21, 1, 0)
+    secondaryLabel.Position = UDim2.new(0, 21, 0, 0)
+    secondaryLabel.BackgroundTransparency = 1
+    secondaryLabel.Text = "0"
+    secondaryLabel.TextColor3 = Color3.fromRGB(255, 210, 240)
+    secondaryLabel.Font = Enum.Font.GothamBold
+    secondaryLabel.TextSize = 10
+    secondaryLabel.TextXAlignment = Enum.TextXAlignment.Left
+    secondaryLabel.TextYAlignment = Enum.TextYAlignment.Center
+    secondaryLabel.Parent = secondaryRow
+    SecondaryLabel = secondaryLabel
 
     -- Connect data sync events
     local remotes = ReplicatedStorage:WaitForChild("Remotes")

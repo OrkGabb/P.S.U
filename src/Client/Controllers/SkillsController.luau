@@ -50,32 +50,43 @@ local function GetLocalEvent(name: string): BindableEvent
 end
 
 local function RefreshUI()
-	if not isOpen then return end 
-	
+	if not isOpen then return end
+
+	local currencyNames = FeatureResolver.GetCurrencyNames()
 	local ls = LocalPlayer:FindFirstChild("leaderstats")
-	local currentCoins = ls and ls:FindFirstChild("Coins") and (ls.Coins :: NumberValue).Value or 0
+	local primaryStat = ls and (ls:FindFirstChild(currencyNames.Primary) or ls:FindFirstChild("Coins"))
+	local currentCoins = if primaryStat and (primaryStat:IsA("IntValue") or primaryStat:IsA("NumberValue"))
+		then (primaryStat :: IntValue).Value
+		else 0
 
 	for id, elements in pairs(UI_Cache) do
 		local level = CurrentUpgrades[id] or 0
-		local def = UpgradeRegistry[id]
-		local cost = math.floor(def.BaseCost * math.pow(def.CostMultiplier, level))
-		
+		local def = UpgradeRegistry.Defs[id]
+		if not def then continue end
+		local cost = UpgradeRegistry.GetCost(id, level)
+		local milestoneCost = UpgradeRegistry.GetMilestoneCost(id, level + 1)
+
 		elements.Lvl.Text = string.format("%d / %d", level, def.MaxLevel)
-		
+
 		TweenService:Create(elements.Bar, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 			Size = UDim2.fromScale(level / def.MaxLevel, 1)
 		}):Play()
 
-		if level >= def.MaxLevel then
+		if level >= def.MaxLevel or cost == nil then
 			elements.CostLabel.Text = "MAX LEVEL"
 			elements.CostLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
 			elements.Btn.BackgroundColor3 = Color3.fromRGB(40, 35, 45)
 			elements.Btn.Text = "MAXED"
 			if elements.BtnStroke then elements.BtnStroke.Color = Color3.fromRGB(60, 55, 65) end
 		else
-			elements.CostLabel.Text = Format(cost)
+			if milestoneCost > 0 then
+				-- Milestone purchase: show the secondary-currency gate alongside the base cost
+				elements.CostLabel.Text = string.format("%s + %d %s", Format(cost), milestoneCost, currencyNames.Secondary)
+			else
+				elements.CostLabel.Text = Format(cost)
+			end
 			elements.CostLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-			
+
 			if currentCoins >= cost then
 				elements.Btn.BackgroundColor3 = Color3.fromRGB(0, 160, 50)
 				elements.Btn.Text = "UPGRADE"
@@ -156,8 +167,7 @@ function SkillsController.Start(): ()
 	BgShield.AutoButtonColor = false
 	BgShield.Visible = false
 	BgShield.Active = true
-	local closeHandler = if typeof(closeSkillsMenu) == "function" then closeSkillsMenu else function() end
-	BgShield.MouseButton1Up:Connect(closeHandler)
+	-- (click-to-close is connected below, once closeSkillsMenu exists)
 
 	MainPanel = Instance.new("Frame")
 	MainPanel.Size = UDim2.new(0, 460, 0, 420)
@@ -196,7 +206,6 @@ function SkillsController.Start(): ()
 	local cIcon = closeBtn:FindFirstChild("HD_Icon")
 	if cIcon then cIcon:Destroy() end
 
-	local TweenService = game:GetService("TweenService")
 	local clickTw = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	closeBtn.MouseEnter:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = Color3.fromRGB(255, 70, 70)}):Play() end)
 	closeBtn.MouseLeave:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 30, 0, 30), BackgroundColor3 = Color3.fromRGB(220, 50, 50)}):Play() end)
@@ -236,6 +245,7 @@ function SkillsController.Start(): ()
 	end
 
 	closeBtn.MouseButton1Up:Connect(closeSkillsMenu)
+	BgShield.MouseButton1Up:Connect(closeSkillsMenu)
 
 	-- Header Title
 	local title = Instance.new("TextLabel", MainPanel)
@@ -270,7 +280,7 @@ function SkillsController.Start(): ()
 	local req = remotes:WaitForChild("UpgradeRequest") :: RemoteEvent
 
 	-- Build skill upgrade cards
-	for id, def in pairs(UpgradeRegistry) do
+	for id, def in pairs(UpgradeRegistry.Defs) do
 		if not FeatureResolver.IsCategoryActive(def.Category) then continue end
 		local card = Instance.new("Frame")
 		card.Size = UDim2.new(1, 0, 0, 100)
@@ -344,27 +354,13 @@ function SkillsController.Start(): ()
 			ColorSequenceKeypoint.new(1, Color3.fromRGB(22, 18, 8)),
 		})
 
-		local AssetFrame: any = AssetRegistry.UI
-		local hasCoinIcon = false
-		if AssetFrame then
-			if typeof(AssetFrame) == "Instance" then
-				if AssetFrame:FindFirstChild("CoinIcon") then
-					hasCoinIcon = true
-				end
-			elseif AssetFrame.CoinIcon then
-				hasCoinIcon = true
-			end
-		end
-
-		if hasCoinIcon then
-			local coinIcon = Instance.new("ImageLabel", costBadge)
-			coinIcon.Size = UDim2.new(0, 14, 0, 14)
-			coinIcon.Position = UDim2.new(0, 6, 0.5, 0)
-			coinIcon.AnchorPoint = Vector2.new(0, 0.5)
-			coinIcon.BackgroundTransparency = 1
-			coinIcon.Image = if typeof(AssetFrame) == "Instance" then AssetFrame:FindFirstChild("CoinIcon").Image else AssetFrame.CoinIcon
-			coinIcon.ScaleType = Enum.ScaleType.Fit
-		end
+		local coinIcon = Instance.new("ImageLabel", costBadge)
+		coinIcon.Size = UDim2.new(0, 14, 0, 14)
+		coinIcon.Position = UDim2.new(0, 6, 0.5, 0)
+		coinIcon.AnchorPoint = Vector2.new(0, 0.5)
+		coinIcon.BackgroundTransparency = 1
+		coinIcon.Image = AssetRegistry.UI.CoinIcon
+		coinIcon.ScaleType = Enum.ScaleType.Fit
 
 		local cost = Instance.new("TextLabel", costBadge)
 		cost.Name = "CostLabel"
@@ -407,11 +403,12 @@ function SkillsController.Start(): ()
 	end)
 	
 	task.spawn(function()
+		local currencyNames = FeatureResolver.GetCurrencyNames()
 		local ls = LocalPlayer:WaitForChild("leaderstats", 5)
 		if ls then
-			local coins = ls:WaitForChild("Coins", 5)
-			if coins and coins:IsA("NumberValue") then
-				coins.Changed:Connect(RefreshUI)
+			local coins = ls:WaitForChild(currencyNames.Primary, 5) or ls:FindFirstChild("Coins")
+			if coins and (coins:IsA("IntValue") or coins:IsA("NumberValue")) then
+				(coins :: IntValue).Changed:Connect(RefreshUI)
 			end
 		end
 	end)

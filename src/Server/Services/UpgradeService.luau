@@ -1,9 +1,9 @@
 --!strict
---@author OrkGabb
---@module UpgradeService.luau
---@version 1.0
--- src/Server/Services/UpgradeService.lua
--- Character Upgrades Management Service. Handles character mastery and stats scaling.
+-- @Author @OrkGabb
+-- src/Server/Services/UpgradeService.luau
+-- Server-authoritative upgrade purchases. All cost math (formula, lookup-table
+-- and milestone gates) is delegated to UpgradeRegistry so validation here and
+-- display on the client can never disagree.
 
 local Players             = game:GetService("Players")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
@@ -24,7 +24,7 @@ local function SanitizeUpgrades(player: Player)
     local upgrades = profile.Data.Upgrades
     if not upgrades then return end
 
-    for id, def in pairs(UpgradeRegistry) do
+    for id, def in pairs(UpgradeRegistry.Defs) do
         local saved = upgrades[id]
         if saved and saved > def.MaxLevel then
             warn(string.format(
@@ -36,39 +36,45 @@ local function SanitizeUpgrades(player: Player)
     end
 end
 
-function UpgradeService.GetCost(id: string, level: number): number
-    local def = UpgradeRegistry[id]
-    local cost = math.floor(def.BaseCost * math.pow(def.CostMultiplier, level))
-    return math.max(0, cost)
-end
-
 -- ─── Event Handlers ──────────────────────────────────────────────────────────
 
 local function OnUpgradeRequest(player: Player, upgradeId: string)
+    if type(upgradeId) ~= "string" then return end
+
     local profile = DataService.Profiles[player]
-    local def = UpgradeRegistry[upgradeId]
+    local def = UpgradeRegistry.GetDef(upgradeId)
     if not profile or not def then return end
 
     -- Fallback for legacy save data structure
     if not profile.Data.Upgrades then profile.Data.Upgrades = {} end
+    if not profile.Data.Currencies then
+        profile.Data.Currencies = { Primary = 0, Secondary = 0, Premium = 0 }
+    end
 
     local currentLevel = profile.Data.Upgrades[upgradeId] or 0
     if currentLevel >= def.MaxLevel then return end
 
-    local cost = UpgradeService.GetCost(upgradeId, currentLevel)
-    
+    local cost, costCurrency = UpgradeRegistry.GetCost(upgradeId, currentLevel)
+    if cost == nil then return end
+
     -- Numeric overflow protection (prevents NaN / Infinity exploits)
     if cost ~= cost or cost == math.huge or cost < 0 then return end
-    
-    if profile.Data.Coins < cost then return end
 
-    profile.Data.Coins -= cost
-    profile.Data.Upgrades[upgradeId] = currentLevel + 1
+    local newLevel = currentLevel + 1
+    local milestoneCost, milestoneCurrency = UpgradeRegistry.GetMilestoneCost(upgradeId, newLevel)
 
-    local ls = player:FindFirstChild("leaderstats")
-    if ls and ls:FindFirstChild("Coins") then
-        ls.Coins.Value = profile.Data.Coins
+    local currencies = profile.Data.Currencies
+    local baseBalance: number = currencies[costCurrency] or 0
+    if baseBalance < cost then return end
+
+    if milestoneCost > 0 then
+        local milestoneBalance: number = currencies[milestoneCurrency] or 0
+        if milestoneBalance < milestoneCost then return end
+        currencies[milestoneCurrency] = milestoneBalance - milestoneCost
     end
+
+    currencies[costCurrency] = baseBalance - cost
+    profile.Data.Upgrades[upgradeId] = newLevel
 
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
     local updateEvent = remotes:FindFirstChild("UpdateUpgrades") :: RemoteEvent?
@@ -88,12 +94,12 @@ end
 
 function UpgradeService.Init(): ()
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    
+
     local requiredRemotes = {
         "UpgradeRequest",
         "UpdateUpgrades",
     }
-    
+
     for _, name in ipairs(requiredRemotes) do
         if not remotes:FindFirstChild(name) then
             local event = Instance.new("RemoteEvent")
@@ -106,7 +112,7 @@ end
 function UpgradeService.Start(): ()
     QuestService = require(ServerScriptService.Server.Services.QuestService)
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    
+
     local upgradeEvent = remotes:WaitForChild("UpgradeRequest") :: RemoteEvent
     upgradeEvent.OnServerEvent:Connect(OnUpgradeRequest)
 

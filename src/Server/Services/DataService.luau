@@ -12,6 +12,9 @@ local ProfileService: any = require(ReplicatedStorage:WaitForChild("Shared"):Wai
 
 local DATA_STORE_NAME: string = FeatureResolver.GetConfigField("Data", "StoreName", "PSU_Production_01")
 
+-- Abstract, genre-agnostic profile schema. Extend ADDITIVELY only: new fields
+-- must default sensibly so ProfileService:Reconcile() upgrades old saves
+-- without ever breaking existing data.
 local ProfileTemplate: { [string]: any } = {
     Currencies = {
         ["Primary"] = 0,
@@ -30,7 +33,15 @@ local ProfileTemplate: { [string]: any } = {
         ["UnlockedZones"] = {}
     },
     Upgrades = {},
-    Settings = {}
+    Settings = {},
+    -- Named lifetime counters (TotalClicks, LifetimeEarned, GoldenClaims, …).
+    -- Genre services own their keys; core only stores them.
+    Stats = {},
+    -- Per-genre persistent state, keyed by genre name (e.g. GenreData.Clicker_Farm).
+    -- Keeps genre fields out of the core schema entirely.
+    GenreData = {},
+    -- Marketplace idempotency ledger (receipts + gamepass grants)
+    PurchaseHistory = {}
 }
 
 local ProfileStore: any = ProfileService.GetProfileStore(
@@ -121,6 +132,39 @@ function DataService:GetProfileData(player: Player): { [string]: any }?
         return profile.Data
     end
     return nil
+end
+
+-- Returns (creating if needed) the per-genre persistent sub-table for a player.
+-- Genre services own the shape of their own sub-table.
+function DataService:GetGenreData(player: Player, genreKey: string): { [string]: any }?
+    local data: { [string]: any }? = DataService:GetProfileData(player)
+    if data == nil then
+        return nil
+    end
+    if type(data.GenreData) ~= "table" then
+        data.GenreData = {}
+    end
+    if type(data.GenreData[genreKey]) ~= "table" then
+        data.GenreData[genreKey] = {}
+    end
+    return data.GenreData[genreKey]
+end
+
+-- Adds a stackable item into the abstract inventory (Consumables slot).
+function DataService:AddItem(player: Player, itemId: string, amount: number): boolean
+    local data: { [string]: any }? = DataService:GetProfileData(player)
+    if data == nil then
+        return false
+    end
+    if type(data.Inventory) ~= "table" then
+        data.Inventory = { Equipment = {}, Cosmetics = {}, Consumables = {} }
+    end
+    if type(data.Inventory.Consumables) ~= "table" then
+        data.Inventory.Consumables = {}
+    end
+    local current: number = data.Inventory.Consumables[itemId] or 0
+    data.Inventory.Consumables[itemId] = current + amount
+    return true
 end
 
 function DataService:SyncFullState(player: Player): ()

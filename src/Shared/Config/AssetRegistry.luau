@@ -26,10 +26,33 @@ export type AnimationCategory = {
 	Dash: { [string]: AssetEntry },
 }
 
+--- Flat UI asset table: icon ids plus a few layout constants that UI
+--- controllers share. Restored after the June 2026 simplification pass
+--- removed it while controllers still referenced it.
+export type UIAssetCategory = {
+	CoinIcon: string,
+	CloseIcon: string,
+	HideUI: string,
+	AutoRollOnIcon: string,
+	AutoRollOffIcon: string,
+	RebirthIcon: string,
+	EXPPotionIcon: string,
+	ProfileIcon: string,
+	SkillsIcon: string,
+	QuestsIcon: string,
+	DailyIcon: string,
+	SettingsIcon: string,
+	BagIcon: string,
+	ButtonSize: number,
+	BottomButtonSize: number,
+	PotionSpriteSize: Vector2,
+}
+
 export type AssetRegistryType = {
 	Weapons: AssetCategory,
 	Skins: AssetCategory,
 	VFX: AssetCategory,
+	UI: UIAssetCategory,
 	UI_Themes: AssetCategory,
 	Animations: AnimationCategory,
 }
@@ -73,6 +96,30 @@ local AssetRegistry: AssetRegistryType = {
 			Rarity       = "Common",
 			CustomConfig = { Duration = 0.3, Color = Color3.fromRGB(255, 200, 50) },
 		},
+	},
+
+	---------------------------------------------------------------------------
+	-- UI
+	-- Shared icons + layout constants for HUD controllers. Icons marked
+	-- PLACEHOLDER use a generic glyph — swap in your own branded assets.
+	---------------------------------------------------------------------------
+	UI = {
+		CoinIcon         = "rbxassetid://15059633013", -- PLACEHOLDER
+		CloseIcon        = "rbxassetid://15059633013", -- PLACEHOLDER
+		HideUI           = "rbxassetid://15059633013", -- PLACEHOLDER
+		AutoRollOnIcon   = "rbxassetid://15059633013", -- PLACEHOLDER (Aura_Collector roll UI)
+		AutoRollOffIcon  = "rbxassetid://15059633013", -- PLACEHOLDER (Aura_Collector roll UI)
+		RebirthIcon      = "rbxassetid://15059633013", -- PLACEHOLDER
+		EXPPotionIcon    = "rbxassetid://15059633013", -- PLACEHOLDER
+		ProfileIcon      = "rbxassetid://15059633013", -- PLACEHOLDER
+		SkillsIcon       = "rbxassetid://15059633013", -- PLACEHOLDER
+		QuestsIcon       = "rbxassetid://15059633013", -- PLACEHOLDER
+		DailyIcon        = "rbxassetid://15059633013", -- PLACEHOLDER
+		SettingsIcon     = "rbxassetid://15059633013", -- PLACEHOLDER
+		BagIcon          = "rbxassetid://15059633013", -- PLACEHOLDER
+		ButtonSize       = 45,
+		BottomButtonSize = 45,
+		PotionSpriteSize = Vector2.new(256, 256),
 	},
 
 	---------------------------------------------------------------------------

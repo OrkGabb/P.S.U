@@ -10,6 +10,21 @@ local FeatureToggles = require(ReplicatedStorage.Shared.Config.FeatureToggles)
 
 local FeatureResolver = {}
 
+-- Genre keys are derived from FeatureToggles.Genres (SSoT) — adding a new genre
+-- to that table automatically registers it here, no core edits required.
+-- Sorted for deterministic iteration order.
+local function getGenreKeys(): {string}
+	local keys: {string} = {}
+	local genres: any = (FeatureToggles :: any).Genres
+	if type(genres) == "table" then
+		for key in pairs(genres) do
+			table.insert(keys, key)
+		end
+	end
+	table.sort(keys)
+	return keys
+end
+
 -- Returns whether a category or feature flag is active in FeatureToggles
 function FeatureResolver.IsCategoryActive(name: string): boolean
 	local toggle: any = (FeatureToggles :: any)[name]
@@ -37,44 +52,53 @@ end
 -- Returns an array of all active gameplay/feature categories
 function FeatureResolver.GetActiveCategories(): {string}
 	local active: {string} = {}
-	
-	-- Categories list to check
-	local categoriesToCheck: {string} = {
-		"FPS_Shooter",
-		"Clicker_Farm",
-		"Pet_Simulator",
-		"RPG_Adventure",
-	}
 
-	for _, name in ipairs(categoriesToCheck) do
+	for _, name in ipairs(getGenreKeys()) do
 		if FeatureResolver.IsCategoryActive(name) then
 			table.insert(active, name)
 		end
 	end
-	
+
 	-- Automatically fallback to Global if no category is toggled
 	if #active == 0 then
 		table.insert(active, "Global")
 	end
-	
+
 	return active
 end
 
 -- Returns the first active genre key, or nil if no genre is active
 function FeatureResolver.GetActiveGenre(): string?
-	local genreKeys: {string} = {
-		"FPS_Shooter",
-		"Clicker_Farm",
-		"Pet_Simulator",
-		"RPG_Adventure",
-	}
-	for _, key: string in ipairs(genreKeys) do
+	for _, key: string in ipairs(getGenreKeys()) do
 		local cfg: any = (FeatureToggles :: any).Genres and (FeatureToggles :: any).Genres[key]
 		if type(cfg) == "table" and cfg.Enabled == true then
 			return key
 		end
 	end
 	return nil
+end
+
+-- Resolves the display names for the two abstract currency slots
+-- (Currencies.Primary / Currencies.Secondary) from the active genre's config.
+-- Single source of truth for leaderstats naming, UI labels and store text.
+function FeatureResolver.GetCurrencyNames(): {Primary: string, Secondary: string}
+	local primary: string = "Coins"
+	local secondary: string = "Gems"
+
+	local genre: string? = FeatureResolver.GetActiveGenre()
+	if genre then
+		local cfg: any = FeatureResolver.GetCategoryConfig(genre)
+		if type(cfg) == "table" and type(cfg.Currencies) == "table" then
+			if type(cfg.Currencies.PrimaryName) == "string" then
+				primary = cfg.Currencies.PrimaryName
+			end
+			if type(cfg.Currencies.SecondaryName) == "string" then
+				secondary = cfg.Currencies.SecondaryName
+			end
+		end
+	end
+
+	return { Primary = primary, Secondary = secondary }
 end
 
 -- Retrieves a GlobalFlags entry by name, returns nil if missing

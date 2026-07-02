@@ -31,6 +31,13 @@ export type BrandingConfigType = {
 	Subtitle: string,
 }
 
+-- Display names for the two persistent currency slots every genre gets
+-- (profile schema stays abstract: Currencies.Primary / Currencies.Secondary).
+export type CurrencyNamesType = {
+	PrimaryName: string,
+	SecondaryName: string,
+}
+
 export type PhysicalLeaderboardConfigType = {
 	Enabled: boolean,
 	Position: Vector3,
@@ -87,6 +94,7 @@ export type FPSWeaponConfig = {
 
 export type FPSConfigType = {
 	Enabled: boolean,
+	Currencies: CurrencyNamesType,
 	Weapons: {[string]: FPSWeaponConfig},
 	DefaultWeapon: string,
 	WeaponOrder: {string},
@@ -107,6 +115,51 @@ export type FPSConfigType = {
 export type MatchStatsConfigType = {
 	Enabled: boolean,
 	SyncDebounce: number,
+}
+
+-- ─── Clicker_Farm genre config ────────────────────────────────────────────────
+
+-- One weighted reward tier for the golden drop event. Reward scales with the
+-- player's current passive income (CpsSeconds × cookies/sec) so it never goes
+-- stale; Floor only dominates for brand-new players with near-zero income.
+export type GoldenDropTierType = {
+	Name: string,
+	Weight: number,
+	CpsSeconds: number,
+	Floor: number,
+}
+
+-- Golden drop event: a clickable bonus icon falls down the screen on a random
+-- cadence; claiming it rolls a weighted reward tier (server-validated by GUID).
+export type GoldenDropConfigType = {
+	Enabled: boolean,
+	SpawnIntervalMin: number, -- seconds between spawns (random in [Min, Max])
+	SpawnIntervalMax: number,
+	DescentDuration: number,  -- seconds the drop takes to cross the screen
+	DescentTolerance: number, -- extra server-side grace for ping/lag before expiry
+	ImageId: string,
+	RewardTiers: {GoldenDropTierType},
+}
+
+export type ClickerConfigType = {
+	Enabled: boolean,
+	Currencies: CurrencyNamesType,
+
+	-- Server-side anti-macro token bucket (authoritative click acceptance)
+	MaxClickBurst: number,   -- bucket size: max clicks accepted in one burst
+	ClickRefillRate: number, -- sustained clicks/second the server will honor
+
+	-- Client-side send tuning
+	ClickBatchInterval: number, -- seconds between batched click submissions
+	ClientClickCooldown: number, -- min seconds between local clicks (input debounce)
+
+	-- Secondary currency minting: 1 Secondary minted per this many MANUAL clicks
+	ClicksPerSecondaryCurrency: number,
+
+	-- Passive income accrual cadence (server heartbeat tick, seconds)
+	PassiveTickInterval: number,
+
+	GoldenDrop: GoldenDropConfigType,
 }
 
 export type SystemConfigType = {
@@ -155,7 +208,7 @@ export type GlobalFlagsType = {
 
 export type GenresType = {
 	FPS_Shooter: FPSConfigType,
-	Clicker_Farm: SystemConfigType,
+	Clicker_Farm: ClickerConfigType,
 	Pet_Simulator: SystemConfigType,
 	RPG_Adventure: SystemConfigType,
 }
@@ -261,7 +314,12 @@ local FeatureToggles: FeatureTogglesType = {
 	-- ─── Exclusivity Genres ───────────────────────────────────────────────────
 	Genres = {
 		FPS_Shooter = {
-			Enabled = true,
+			Enabled = false,
+
+			Currencies = {
+				PrimaryName   = "Cash",
+				SecondaryName = "Kills",
+			},
 
 			-- ── Per-weapon registry (server-authoritative) ────────────────────
 			-- FireRate:            minimum seconds between shots (lower = faster)
@@ -423,7 +481,42 @@ local FeatureToggles: FeatureTogglesType = {
 			HeadshotConfirmSoundId = nil,
 		},
 		Clicker_Farm = {
-			Enabled = false,
+			Enabled = true,
+
+			Currencies = {
+				PrimaryName   = "Sugar",
+				SecondaryName = "Cupcakes",
+			},
+
+			-- ── Anti-macro click acceptance (server-authoritative) ────────────
+			MaxClickBurst   = 30,
+			ClickRefillRate = 20,   -- sustained CPS the server honors
+
+			-- ── Client send tuning ─────────────────────────────────────────────
+			ClickBatchInterval  = 0.25,
+			ClientClickCooldown = 0.05, -- 20 CPS local input debounce
+
+			-- ── Secondary currency (Cupcakes) minted from manual clicks ───────
+			ClicksPerSecondaryCurrency = 50,
+
+			-- ── Passive income cadence ─────────────────────────────────────────
+			PassiveTickInterval = 1,
+
+			-- ── Golden drop bonus event ────────────────────────────────────────
+			GoldenDrop = {
+				Enabled          = true,
+				SpawnIntervalMin = 45,
+				SpawnIntervalMax = 90,
+				DescentDuration  = 10,
+				DescentTolerance = 1.5,
+				ImageId          = "rbxassetid://92050959574120",
+				RewardTiers = {
+					{ Name = "Common",   Weight = 65, CpsSeconds = 15,   Floor = 10  },
+					{ Name = "Uncommon", Weight = 25, CpsSeconds = 60,   Floor = 30  },
+					{ Name = "Rare",     Weight = 8,  CpsSeconds = 300,  Floor = 100 },
+					{ Name = "Jackpot",  Weight = 2,  CpsSeconds = 1800, Floor = 500 },
+				},
+			},
 		},
 		Pet_Simulator = {
 			Enabled = false,

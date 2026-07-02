@@ -1,14 +1,16 @@
 --!strict
---@author OrkGabb
---@module StoreRegistry.luau
---@version 1.0
+-- @Author @OrkGabb
 -- src/Shared/Config/StoreRegistry.luau
--- Centralized Store & Monetization Registry configuration.
--- Buyers can map their own generic Developer Product or Gamepass IDs here.
+-- Compiled store view for the active genre. All definitions live in
+-- CommerceRegistry (the SSoT); this module only reshapes them into the
+-- structures MonetizationService and StoreController consume:
+--   GamepassIDs — passKey → numeric GamePass ID
+--   DevProducts — numeric product ID → reward config
+--   Catalog     — flat StoreItem list for store UI rendering
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Shared = ReplicatedStorage:WaitForChild("Shared") :: Folder
-local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
+local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local CommerceRegistry = require(ReplicatedStorage.Shared.Config.CommerceRegistry)
 
 local FALLBACK_ICON: string = "rbxassetid://15059633013"
 
@@ -33,13 +35,56 @@ export type StoreItem = {
 
 local StoreRegistry = {}
 
--- Gamepass IDs mapping by Key
-StoreRegistry.GamepassIDs = {} :: { [string]: number }
-
--- Developer Product IDs mapping to rewards
-StoreRegistry.DevProducts = {} :: { [number]: RewardConfig }
+StoreRegistry.GamepassIDs = CommerceRegistry.GamepassIDs
+StoreRegistry.DevProducts = CommerceRegistry.DevProducts
 
 -- Catalog Items mapping for UI rendering
 StoreRegistry.Catalog = {} :: { StoreItem }
+
+do
+	local genre: string? = FeatureResolver.GetActiveGenre()
+
+	for _, pass in pairs(CommerceRegistry.ActiveGamepasses) do
+		table.insert(StoreRegistry.Catalog, {
+			Id = pass.Id,
+			Type = "Gamepass" :: "Gamepass",
+			Name = pass.Name,
+			Description = pass.Description,
+			Price = pass.Price,
+			Color = pass.Color or Color3.fromRGB(255, 255, 255),
+			Icon = pass.Icon or FALLBACK_ICON,
+			Category = "PASSES" :: "PASSES",
+			Genre = genre,
+			Reward = nil,
+		})
+	end
+
+	for _, product in pairs(CommerceRegistry.ActiveDevProducts) do
+		table.insert(StoreRegistry.Catalog, {
+			Id = product.Id,
+			Type = "Product" :: "Product",
+			Name = product.Name,
+			Description = product.Description,
+			Price = product.Price,
+			Color = product.Color or Color3.fromRGB(255, 255, 255),
+			Icon = product.Icon or FALLBACK_ICON,
+			Category = "BOOSTS" :: "BOOSTS",
+			Genre = genre,
+			Reward = {
+				Type = product.Reward.Type,
+				Amount = product.Reward.Amount,
+				ItemId = product.Reward.ItemId,
+			},
+		})
+	end
+
+	-- Stable ordering for UI (cheapest first within the table walk)
+	table.sort(StoreRegistry.Catalog, function(a: StoreItem, b: StoreItem): boolean
+		if a.Category ~= b.Category then
+			return a.Category < b.Category
+		end
+		return a.Price < b.Price
+	end)
+end
 
 return StoreRegistry

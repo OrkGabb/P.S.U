@@ -36,7 +36,7 @@ local function ProcessRoll(player: Player, _biomeId: string, spinId: number?)
 
     local speedPotionMult = ItemService:GetVolatileMultiplier(player, "Speed")
     local speedMasteryLvl = (profile.Data.Upgrades and profile.Data.Upgrades["SpeedMastery"]) or 0
-    local speedMasteryBonus = speedMasteryLvl * (UpgradeRegistry["SpeedMastery"] and UpgradeRegistry["SpeedMastery"].Increment or 0)
+    local speedMasteryBonus = speedMasteryLvl * (UpgradeRegistry.Defs["SpeedMastery"] and UpgradeRegistry.Defs["SpeedMastery"].Increment or 0)
     local speedMult = speedPotionMult + speedMasteryBonus 
     
     local hasDoubleSpeed = MonetizationService and MonetizationService.HasGamepass(player, "DoubleSpeed")
@@ -97,7 +97,7 @@ local function ProcessRoll(player: Player, _biomeId: string, spinId: number?)
 
     local baseLuck = 1
     local luckMasteryLvl = (profile.Data.Upgrades and profile.Data.Upgrades["LuckMastery"]) or 0
-    local luckBonus = luckMasteryLvl * (UpgradeRegistry["LuckMastery"] and UpgradeRegistry["LuckMastery"].Increment or 0)
+    local luckBonus = luckMasteryLvl * (UpgradeRegistry.Defs["LuckMastery"] and UpgradeRegistry.Defs["LuckMastery"].Increment or 0)
     local luckMult = ((profile.Data.LuckMultiplier or 1) * baseLuck) + luckBonus
 
     -- [MONETIZATION INJECTION]: Apply double luck buff if player owns the Gamepass
@@ -200,7 +200,7 @@ function ProbabilityService.Start(): ()
 
         local speedPotionMult = ItemService:GetVolatileMultiplier(player, "Speed")
         local speedMasteryLvl = (profile.Data.Upgrades and profile.Data.Upgrades["SpeedMastery"]) or 0
-        local speedMasteryBonus = speedMasteryLvl * (UpgradeRegistry["SpeedMastery"] and UpgradeRegistry["SpeedMastery"].Increment or 0)
+        local speedMasteryBonus = speedMasteryLvl * (UpgradeRegistry.Defs["SpeedMastery"] and UpgradeRegistry.Defs["SpeedMastery"].Increment or 0)
         local speedMult = speedPotionMult + speedMasteryBonus
 
         local hasDoubleSpeed = MonetizationService and MonetizationService.HasGamepass(player, "DoubleSpeed")
@@ -252,7 +252,7 @@ function ProbabilityService.Start(): ()
 
                     local speedPotionMult = ItemService:GetVolatileMultiplier(player, "Speed")
                     local speedMasteryLvl = (profile.Data.Upgrades and profile.Data.Upgrades["SpeedMastery"]) or 0
-                    local speedMasteryBonus = speedMasteryLvl * (UpgradeRegistry["SpeedMastery"] and UpgradeRegistry["SpeedMastery"].Increment or 0)
+                    local speedMasteryBonus = speedMasteryLvl * (UpgradeRegistry.Defs["SpeedMastery"] and UpgradeRegistry.Defs["SpeedMastery"].Increment or 0)
                     local speedMult = speedPotionMult + speedMasteryBonus
 
                     local hasDoubleSpeed = MonetizationService and MonetizationService.HasGamepass(player, "DoubleSpeed")
