@@ -162,15 +162,17 @@ function AdminService.Init(): ()
 		remotes.Parent = ReplicatedStorage
 	end
 
-	local adminRemote = remotes:FindFirstChild("sys_adm") :: RemoteEvent?
-	if not adminRemote then
-		adminRemote = Instance.new("RemoteEvent")
+	if not remotes:FindFirstChild("sys_adm") then
+		local adminRemote = Instance.new("RemoteEvent")
 		adminRemote.Name = "sys_adm"
 		adminRemote.Parent = remotes
 	end
 
-	local adminCheck = remotes:FindFirstChild("sys_adm_chk") :: RemoteFunction?
-	if not adminCheck then
+	local existingCheck = remotes:FindFirstChild("sys_adm_chk")
+	local adminCheck: RemoteFunction
+	if existingCheck and existingCheck:IsA("RemoteFunction") then
+		adminCheck = existingCheck
+	else
 		adminCheck = Instance.new("RemoteFunction")
 		adminCheck.Name = "sys_adm_chk"
 		adminCheck.Parent = remotes

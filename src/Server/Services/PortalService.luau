@@ -7,8 +7,10 @@
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService: ServerScriptService = game:GetService("ServerScriptService")
 
-local FeatureResolver: any = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FeatureResolver"))
-local DataService: any = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Services"):WaitForChild("DataService"))
+-- FeatureResolver lives under Shared/Modules — the old Shared-root path
+-- crashed this service at require time whenever Portals was enabled
+local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local DataService: any = require(ServerScriptService.Server.Services.DataService)
 
 local PortalService = {}
 

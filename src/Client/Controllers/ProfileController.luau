@@ -350,7 +350,7 @@ local function ShowRebirthConfirmation(): ()
 	gainsText.Size = UDim2.new(1, -16, 1, -8)
 	gainsText.Position = UDim2.new(0, 8, 0, 4)
 	gainsText.Text = info.Gains
-	gainsText.Font = Enum.Font.GothamSemibold
+	gainsText.Font = Enum.Font.GothamMedium
 	gainsText.TextSize = 13
 	gainsText.TextColor3 = Color3.fromRGB(130, 255, 160)
 	gainsText.TextXAlignment = Enum.TextXAlignment.Left
@@ -382,7 +382,7 @@ local function ShowRebirthConfirmation(): ()
 	resetsText.Size = UDim2.new(1, -16, 1, -8)
 	resetsText.Position = UDim2.new(0, 8, 0, 4)
 	resetsText.Text = info.Losses
-	resetsText.Font = Enum.Font.GothamSemibold
+	resetsText.Font = Enum.Font.GothamMedium
 	resetsText.TextSize = 13
 	resetsText.TextColor3 = Color3.fromRGB(255, 130, 130)
 	resetsText.TextXAlignment = Enum.TextXAlignment.Left
@@ -533,11 +533,9 @@ function ProfileController.Start(): ()
 	BgShield.AutoButtonColor        = false
 	BgShield.Visible                = false
 	BgShield.Active                 = true
-	BgShield.MouseButton1Up:Connect(function()
-		if type(closePanel) == "function" then
-			closePanel()
-		end
-	end)
+	-- (click-to-close is connected below, once closePanel exists — the old
+	-- guarded global reference was always nil, so clicking the shield
+	-- silently did nothing)
 
 	MainPanel = Instance.new("Frame")
 	MainPanel.Visible          = false
@@ -615,13 +613,8 @@ function ProfileController.Start(): ()
 	closeBtn.MouseButton1Down:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 26, 0, 26)}):Play() end)
 	closeBtn.MouseButton1Up:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32)}):Play() end)
 	
-	if closeBtn then
-		closeBtn.MouseButton1Up:Connect(function()
-			if type(closePanel) == "function" then
-				closePanel()
-			end
-		end)
-	end
+	closeBtn.MouseButton1Up:Connect(closePanel)
+	BgShield.MouseButton1Up:Connect(closePanel)
 
 	local panelTitle = Instance.new("TextLabel", MainPanel)
 	panelTitle.Size                   = UDim2.new(1, 0, 0, 50)
@@ -784,8 +777,10 @@ function ProfileController.Start(): ()
 							local valNum = tonumber(val) or 0
 							local displayName = GetDisplayName(key)
 							if not isFPSActive and (displayName == "KILLS" or displayName == "LEVEL" or displayName == "EXP") then
-								if StatLabels[displayName] then
-									StatLabels[displayName].Parent:Destroy()
+								local row = StatLabels[displayName]
+								if row then
+									local rowParent = row.Parent
+									if rowParent then rowParent:Destroy() end
 									StatLabels[displayName] = nil
 								end
 								continue
@@ -807,8 +802,10 @@ function ProfileController.Start(): ()
 							local valNum = tonumber(val) or 0
 							local displayName = GetDisplayName(key)
 							if not isFPSActive and (displayName == "KILLS" or displayName == "LEVEL" or displayName == "EXP") then
-								if StatLabels[displayName] then
-									StatLabels[displayName].Parent:Destroy()
+								local row = StatLabels[displayName]
+								if row then
+									local rowParent = row.Parent
+									if rowParent then rowParent:Destroy() end
 									StatLabels[displayName] = nil
 								end
 								continue
@@ -829,8 +826,10 @@ function ProfileController.Start(): ()
 						local valNum = tonumber(val) or 0
 						local displayName = GetDisplayName(key)
 						if not isFPSActive and (displayName == "KILLS" or displayName == "LEVEL" or displayName == "EXP") then
-							if StatLabels[displayName] then
-								StatLabels[displayName].Parent:Destroy()
+							local row = StatLabels[displayName]
+							if row then
+								local rowParent = row.Parent
+								if rowParent then rowParent:Destroy() end
 								StatLabels[displayName] = nil
 							end
 							continue

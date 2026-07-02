@@ -6,8 +6,26 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DataService = require(ServerScriptService.Server.Services.DataService)
+local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
 local LevelService = {}
+
+-- Sets the first matching leaderstat under `container` to `value`
+-- (NumberValue/IntValue only; silently skips missing stats).
+local function setLeaderstat(container: Instance, names: {string}, value: number): ()
+    for _, name in ipairs(names) do
+        local stat = container:FindFirstChild(name)
+        if stat then
+            if stat:IsA("NumberValue") then
+                stat.Value = value
+                return
+            elseif stat:IsA("IntValue") then
+                stat.Value = value
+                return
+            end
+        end
+    end
+end
 
 function LevelService.GetMaxExp(level: number): number
     -- Exponential Curve: 1000 Base * 1.3^Level. Creates the grind wall.
@@ -41,29 +59,22 @@ function LevelService.AddExp(player: Player, amount: number)
 
     local ls = player:FindFirstChild("leaderstats")
     if ls then
-        local expVal = ls:FindFirstChild("EXP") or ls:FindFirstChild("Experience")
-        if expVal and (expVal:IsA("NumberValue") or expVal:IsA("IntValue")) then
-            expVal.Value = prog.Experience
-        end
-        
+        setLeaderstat(ls, { "EXP", "Experience" }, prog.Experience)
+
         if leveledUp then
-            local lvlVal = ls:FindFirstChild("Level")
-            if lvlVal and (lvlVal:IsA("NumberValue") or lvlVal:IsA("IntValue")) then
-                lvlVal.Value = prog.Level
-            end
-            
+            setLeaderstat(ls, { "Level" }, prog.Level)
+
             -- Direct currency injection to abstract fields
             if not profile.Data.Currencies then
                 profile.Data.Currencies = { ["Primary"] = 0, ["Secondary"] = 0, ["Premium"] = 0 }
             end
             profile.Data.Currencies.Primary = (profile.Data.Currencies.Primary or 0) + totalReward
-            
-            local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
-            local primaryName = FeatureResolver.GetConfigField("Currencies", "PrimaryName", "Coins")
-            local coinsVal = ls:FindFirstChild(primaryName) or ls:FindFirstChild("Coins")
-            if coinsVal and (coinsVal:IsA("NumberValue") or coinsVal:IsA("IntValue")) then
-                coinsVal.Value = profile.Data.Currencies.Primary
-            end
+
+            -- SSoT: the active genre's currency display name comes from
+            -- FeatureResolver (was a bogus GetConfigField("Currencies", …)
+            -- call that always fell back to "Coins")
+            local primaryName: string = FeatureResolver.GetCurrencyNames().Primary
+            setLeaderstat(ls, { primaryName, "Coins" }, profile.Data.Currencies.Primary)
 
             -- Triggering the Event to the UI (Only 1 trigger, even if leveling up 5 levels)
             local remotes = ReplicatedStorage:WaitForChild("Remotes")

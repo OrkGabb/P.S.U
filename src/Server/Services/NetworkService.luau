@@ -17,8 +17,11 @@ function NetworkService.Init(): ()
     end
 
     for _, name in pairs(RemoteNames) do
-        local event = remotesFolder:FindFirstChild(name) :: RemoteEvent
-        if not event then
+        local existing = remotesFolder:FindFirstChild(name)
+        local event: RemoteEvent
+        if existing and existing:IsA("RemoteEvent") then
+            event = existing
+        else
             event = Instance.new("RemoteEvent")
             event.Name = name
             event.Parent = remotesFolder

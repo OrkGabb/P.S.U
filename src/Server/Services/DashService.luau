@@ -15,7 +15,6 @@
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService        = game:GetService("RunService")
 
 --------------------------------------------------------------------------------
 -- Shared imports
@@ -35,8 +34,6 @@ type DashPlayerState = {
 --------------------------------------------------------------------------------
 -- Constants (sourced from FeatureResolver — SSoT)
 --------------------------------------------------------------------------------
-
-local DashConfig: any = FeatureResolver.GetCategoryConfig("Dash")
 
 local cooldownRaw: any = FeatureResolver.GetConfigField("Dash", "Cooldown", 2.0)
 local COOLDOWN: number = type(cooldownRaw) == "number" and cooldownRaw or 2.0
@@ -200,8 +197,11 @@ function DashService.Start(): ()
 		return
 	end
 
-	local dashRequest: RemoteEvent? = remotes:FindFirstChild("DashRequest") :: RemoteEvent?
-	if not dashRequest then
+	local existing = remotes:FindFirstChild("DashRequest")
+	local dashRequest: RemoteEvent
+	if existing and existing:IsA("RemoteEvent") then
+		dashRequest = existing
+	else
 		-- Create the remote if NetworkService hasn't created it yet
 		dashRequest = Instance.new("RemoteEvent")
 		dashRequest.Name = "DashRequest"

@@ -15,7 +15,7 @@ local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("Fea
 local DebugUtility = require(Shared:WaitForChild("Modules"):WaitForChild("DebugUtility")) :: any
 
 local LocalPlayer: Player = Players.LocalPlayer
-local dashRequestEvent: RemoteEvent
+local dashRequestEvent: RemoteEvent? = nil
 
 local DashController = {}
 
@@ -112,7 +112,9 @@ local function performDash()
 	humanoidRootPart:ApplyImpulse(impulse)
 	
 	-- Network & Authority: Fire validated dash request to server
-	dashRequestEvent:FireServer(moveDirection)
+	if dashRequestEvent then
+		dashRequestEvent:FireServer(moveDirection)
+	end
 	
 	-- Hookups: Debug Visualizations
 	local debugRaw: any = FeatureResolver.GetConfigField("DebugConfig", "DrawPhysicsVectors", false)
@@ -179,11 +181,16 @@ end
 function DashController.Init(): ()
 	DebugUtility.Log("DashController", "Initializing Universal Dash Controller...")
 	
-	dashRequestEvent = ReplicatedStorage:FindFirstChild("DashRequest") :: RemoteEvent
-	if not dashRequestEvent then
-		dashRequestEvent = Instance.new("RemoteEvent")
-		dashRequestEvent.Name = "DashRequest"
-		dashRequestEvent.Parent = ReplicatedStorage
+	-- DashService owns this remote under ReplicatedStorage.Remotes. The old
+	-- code looked in the ReplicatedStorage root, never found it, and created
+	-- a client-side remote the server never listened on — dashes were
+	-- silently dropped.
+	local remotes = ReplicatedStorage:WaitForChild("Remotes")
+	local remote = remotes:WaitForChild("DashRequest", 10)
+	if remote and remote:IsA("RemoteEvent") then
+		dashRequestEvent = remote
+	else
+		warn("[DashController] DashRequest remote not found — dash disabled.")
 	end
 end
 

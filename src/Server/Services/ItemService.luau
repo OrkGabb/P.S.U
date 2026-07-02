@@ -5,8 +5,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local DataService = require(ServerScriptService.Server.Services.DataService)
-local ItemRegistry = require(ReplicatedStorage.Shared.Modules.ItemRegistry)
+-- NOTE: DataService/ItemRegistry are required lazily inside handlers to
+-- avoid a circular require with DataService at module load.
 
 local ItemService = {}
 ItemService.activeBuffs = {} -- EXPORTED: Allows reading active buffs from DataService
