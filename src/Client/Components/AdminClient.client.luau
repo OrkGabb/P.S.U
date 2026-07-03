@@ -8,6 +8,7 @@
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local UserInputService  = game:GetService("UserInputService")
 local TweenService      = game:GetService("TweenService")
 
@@ -45,8 +46,8 @@ local ANIM_SPEED   = 0.25
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
 if not Remotes then return end
 
-local AdminRemote    = Remotes:WaitForChild("sys_adm", 10) :: RemoteEvent?
-local AdminCheckFunc = Remotes:WaitForChild("sys_adm_chk", 10) :: RemoteFunction?
+local AdminRemote    = Remotes:WaitForChild(RemoteNames.SysAdmin, 10) :: RemoteEvent?
+local AdminCheckFunc = Remotes:WaitForChild(RemoteNames.SysAdminCheck, 10) :: RemoteFunction?
 
 if not AdminRemote or not AdminCheckFunc then return end
 

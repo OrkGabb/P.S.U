@@ -10,6 +10,7 @@
 local TextChatService  = game:GetService("TextChatService")
 local Players          = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
 local ChatTagController = {}
 
@@ -41,7 +42,7 @@ end
 function ChatTagController.Init(): ()
     local remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
     if remotes then
-        CheckVIPRemote = remotes:WaitForChild("CheckVIPStatus", 15) :: RemoteFunction?
+        CheckVIPRemote = remotes:WaitForChild(RemoteNames.CheckVIPStatus, 15) :: RemoteFunction?
     end
 end
 

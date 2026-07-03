@@ -4,6 +4,16 @@
 --@version 1.0
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local RunService = game:GetService("RunService")
+
+-- Self-tests are a development aid: run only in Studio with DebugConfig on.
+-- (Previously this ran — and printed [PASS]/[FAIL] — on every production boot.)
+do
+	local FeatureToggles = require(ReplicatedStorage.Shared.Config.FeatureToggles)
+	if not (RunService:IsStudio() and FeatureToggles.DebugConfig.Enabled) then
+		return
+	end
+end
 
 local function getModuleScript(name: string, root: Instance): ModuleScript?
 	local obj = root:FindFirstChild(name, true)

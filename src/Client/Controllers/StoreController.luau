@@ -6,6 +6,7 @@
 -- Dynamic, category-aware Premium Store Controller.
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService: TweenService = game:GetService("TweenService")
 local Players: Players = game:GetService("Players")
 local MarketplaceService: MarketplaceService = game:GetService("MarketplaceService")
@@ -113,7 +114,7 @@ local function PromptPurchase(item: StoreItem)
 		MarketplaceService:PromptProductPurchase(LocalPlayer, item.Id)
 	elseif item.Type == "VirtualCurrency" then
 		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-		local buyRf = remotes and remotes:FindFirstChild("BuyInGameItem") :: RemoteFunction?
+		local buyRf = remotes and remotes:FindFirstChild(RemoteNames.BuyInGameItem) :: RemoteFunction?
 		if buyRf then
 			task.spawn(function()
 				pcall(function() return buyRf:InvokeServer(item.Id) end)
@@ -362,7 +363,7 @@ function StoreController.RenderCategory(categoryName: string)
 				
 				if not owns then
 					local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-					local checkRf = remotes and remotes:FindFirstChild("CheckGamepassOwnership") :: RemoteFunction?
+					local checkRf = remotes and remotes:FindFirstChild(RemoteNames.CheckGamepassOwnership) :: RemoteFunction?
 					if checkRf then
 						local s, res = pcall(function() return checkRf:InvokeServer(item.Id) end)
 						if s and res then owns = true end
@@ -409,7 +410,7 @@ function StoreController.RenderCategory(categoryName: string)
 					
 					if not owns then
 						local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-						local checkRf = remotes and remotes:FindFirstChild("CheckGamepassOwnership") :: RemoteFunction?
+						local checkRf = remotes and remotes:FindFirstChild(RemoteNames.CheckGamepassOwnership) :: RemoteFunction?
 						if checkRf then
 							local s, res = pcall(function() return checkRf:InvokeServer(item.Id) end)
 							if s and res then owns = true end
@@ -625,7 +626,7 @@ function StoreController.Start(): ()
 	task.spawn(function()
 		local remotes       = ReplicatedStorage:WaitForChild("Remotes", 10)
 		if not remotes then return end
-		local notifyEvt     = remotes:WaitForChild("NotifyPurchase", 10) :: RemoteEvent?
+		local notifyEvt     = remotes:WaitForChild(RemoteNames.NotifyPurchase, 10) :: RemoteEvent?
 		if not notifyEvt then return end
 		notifyEvt.OnClientEvent:Connect(function(rewardType: string, amount: number, displayName: string?, extraData: any?)
 			StoreController.PlayPurchaseEffect(rewardType, amount, displayName, extraData)

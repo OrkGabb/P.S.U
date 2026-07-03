@@ -15,6 +15,7 @@
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
@@ -201,7 +202,7 @@ function ClickService.Start(): ()
 	MonetizationService = require(ServerScriptService.Server.Services.MonetizationService)
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local clickReward = remotes:WaitForChild("ClickReward") :: RemoteEvent
+	local clickReward = remotes:WaitForChild(RemoteNames.ClickReward) :: RemoteEvent
 	clickReward.OnServerEvent:Connect(OnClickReward)
 
 	-- Passive accrual heartbeat (tick interval from genre config)

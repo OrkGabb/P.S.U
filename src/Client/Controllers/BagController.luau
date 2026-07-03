@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local ItemRegistry = require(ReplicatedStorage.Shared.Modules.ItemRegistry)
@@ -560,7 +561,7 @@ function BagController.Start(): ()
                 return
             end
 
-            local consumeEvent = remotes:FindFirstChild("RequestConsumeItem")
+            local consumeEvent = remotes:FindFirstChild(RemoteNames.RequestConsumeItem)
             if consumeEvent then
                 useBtn.Text = "USING..."
                 useBtn.BackgroundColor3 = Color3.fromRGB(80, 78, 88)
@@ -612,7 +613,7 @@ function BagController.Start(): ()
         BagController.Refresh()
     end)
 
-    remotes:WaitForChild("SyncActiveBuffs").OnClientEvent:Connect(function(buffs)
+    remotes:WaitForChild(RemoteNames.SyncActiveBuffs).OnClientEvent:Connect(function(buffs)
         activeBuffsCache = buffs
         if isOpen then
             BagController.Refresh()

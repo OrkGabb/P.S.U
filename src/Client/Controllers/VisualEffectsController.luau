@@ -9,6 +9,7 @@
 -- the persistent attachment-cloning pipeline for the Aura_Collector genre.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local Debris = game:GetService("Debris")
 
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
@@ -72,7 +73,7 @@ function VisualEffectsController.Init(): ()
     local remotes = ReplicatedStorage:WaitForChild("Remotes", 0.1) :: Folder?
     if not remotes then return end
 
-    local emitVFX = remotes:WaitForChild("EmitVFX", 0.1) :: RemoteEvent?
+    local emitVFX = remotes:WaitForChild(RemoteNames.EmitVFX, 0.1) :: RemoteEvent?
     if emitVFX then
         emitVFX.OnClientEvent:Connect(function(effectId: any, targetCharacter: any)
             local character: Model? = nil

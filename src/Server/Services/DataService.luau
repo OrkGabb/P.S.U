@@ -6,6 +6,7 @@
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
 local FeatureResolver: any = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
 local ProfileService: any = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("ProfileService"))
@@ -61,10 +62,10 @@ function DataService:Init(): ()
         newRemotes.Parent = ReplicatedStorage
         remotes = newRemotes
     end
-    local updateData = (remotes :: Folder):FindFirstChild("UpdateProfileData") :: RemoteEvent?
+    local updateData = (remotes :: Folder):FindFirstChild(RemoteNames.UpdateProfileData) :: RemoteEvent?
     if not updateData then
         local newUpdateData = Instance.new("RemoteEvent")
-        newUpdateData.Name = "UpdateProfileData"
+        newUpdateData.Name = RemoteNames.UpdateProfileData
         newUpdateData.Parent = remotes
     end
 end
@@ -188,7 +189,7 @@ function DataService:SyncFullState(player: Player): ()
     if not profile then return end
 
     local remotes = ReplicatedStorage:FindFirstChild("Remotes") :: Folder?
-    local updateData = remotes and remotes:FindFirstChild("UpdateProfileData") :: RemoteEvent?
+    local updateData = remotes and remotes:FindFirstChild(RemoteNames.UpdateProfileData) :: RemoteEvent?
     if updateData then
         updateData:FireClient(player, profile.Data)
     end

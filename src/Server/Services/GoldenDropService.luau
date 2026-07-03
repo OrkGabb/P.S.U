@@ -22,7 +22,7 @@ local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
 local GENRE_KEY = "Clicker_Farm"
-local CLAIM_REMOTE_NAME = "GoldenDropClaim"
+local CLAIM_REMOTE_NAME = RemoteNames.GoldenDropClaim
 
 local MonetizationService: any = nil
 

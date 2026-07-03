@@ -17,7 +17,7 @@ local ReplicatedStorage   = game:GetService("ReplicatedStorage")
 --------------------------------------------------------------------------------
 -- Shared imports
 --------------------------------------------------------------------------------
-local FeatureToggles = require(ReplicatedStorage.Shared.Config.FeatureToggles)
+local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -89,6 +89,15 @@ local OPTIONAL_SERVICES: { ToggleEntry } = {
 		end,
 	},
 	{
+		-- FPS-scoped; MatchStatsService.Init additionally self-gates on the
+		-- MatchStats config category (both must be enabled).
+		toggleKey = "FPS_Shooter",
+		registerName = "MatchStatsService",
+		resolver  = function(): ModuleScript
+			return Services:WaitForChild("MatchStatsService") :: ModuleScript
+		end,
+	},
+	{
 		toggleKey = "Portals",
 		registerName = "PortalService",
 		resolver  = function(): ModuleScript
@@ -131,16 +140,12 @@ function FrameworkServer.GetService(name: string): any?
 	return service
 end
 
---- Resolves if a feature toggle is enabled, supporting both boolean values and table configs.
+--- Resolves if a feature toggle is enabled.
+--- Delegates to FeatureResolver — the SSoT for toggle resolution. (A local
+--- reimplementation here previously missed GlobalFlags/Genres sub-tables, so
+--- every genre-keyed optional service was silently skipped at boot.)
 local function isFeatureEnabled(key: string): boolean
-	local toggle: any = (FeatureToggles :: any)[key]
-	if toggle == nil then
-		toggle = (FeatureToggles :: any)[key .. "Config"]
-	end
-	if type(toggle) == "table" then
-		return toggle.Enabled == true
-	end
-	return toggle == true
+	return FeatureResolver.IsCategoryActive(key) == true
 end
 
 --- Loads, initialises, and starts all optional services whose toggle is `true`.

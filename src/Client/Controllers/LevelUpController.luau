@@ -4,6 +4,7 @@
 --@version 1.0
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
@@ -18,7 +19,7 @@ function LevelUpController.Start(): ()
     gui.Parent = LocalPlayer.PlayerGui
 
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    local levelUpEvent = remotes:WaitForChild("LevelUpFX") :: RemoteEvent
+    local levelUpEvent = remotes:WaitForChild(RemoteNames.LevelUpFX) :: RemoteEvent
 
     levelUpEvent.OnClientEvent:Connect(function(newLevel: number, rewardCoins: number)
         local frame = Instance.new("Frame")

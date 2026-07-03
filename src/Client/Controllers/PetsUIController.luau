@@ -14,6 +14,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
@@ -121,7 +122,7 @@ local function RefreshEggList(): ()
 	end)
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local hatchReq = remotes:WaitForChild("HatchRequest") :: RemoteEvent
+	local hatchReq = remotes:WaitForChild(RemoteNames.HatchRequest) :: RemoteEvent
 
 	for order, egg in ipairs(sorted) do
 		local engine = PetRegistry.GetEngine(egg.Id)
@@ -241,7 +242,7 @@ local function RefreshInventory(): ()
 	end)
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local equipReq = remotes:WaitForChild("PetEquipRequest") :: RemoteEvent
+	local equipReq = remotes:WaitForChild(RemoteNames.PetEquipRequest) :: RemoteEvent
 
 	if #owned == 0 then
 		local empty = Instance.new("Frame", InventoryGrid)
@@ -528,7 +529,7 @@ function PetsUIController.Start(): ()
 	-- ── Server events ─────────────────────────────────────────────────────────
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
-	;(remotes:WaitForChild("UpdatePetInventory") :: RemoteEvent).OnClientEvent:Connect(function(inventory: any, equipped: any)
+	;(remotes:WaitForChild(RemoteNames.UpdatePetInventory) :: RemoteEvent).OnClientEvent:Connect(function(inventory: any, equipped: any)
 		if type(inventory) == "table" then
 			inventoryCache = inventory
 		end
@@ -538,7 +539,7 @@ function PetsUIController.Start(): ()
 		if isOpen then RefreshInventory() end
 	end)
 
-	;(remotes:WaitForChild("HatchResult") :: RemoteEvent).OnClientEvent:Connect(function(petId: any, _eggId: any, isNew: any)
+	;(remotes:WaitForChild(RemoteNames.HatchResult) :: RemoteEvent).OnClientEvent:Connect(function(petId: any, _eggId: any, isNew: any)
 		if type(petId) ~= "string" then return end
 		ShowHatchReveal(petId, isNew == true)
 	end)
@@ -557,7 +558,7 @@ function PetsUIController.Start(): ()
 	end
 
 	-- Seed level (egg locks) + inventory from the full-state sync
-	local updateProfileRemote = remotes:WaitForChild("UpdateProfileData", 5) :: RemoteEvent?
+	local updateProfileRemote = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5) :: RemoteEvent?
 	if updateProfileRemote then
 		updateProfileRemote.OnClientEvent:Connect(function(data: any)
 			if type(data) ~= "table" then return end

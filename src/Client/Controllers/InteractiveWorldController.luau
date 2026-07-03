@@ -7,6 +7,7 @@
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage      = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local Players                = game:GetService("Players")
 local CollectionService      = game:GetService("CollectionService")
 local LocalPlayer: Player    = Players.LocalPlayer
@@ -58,7 +59,7 @@ local function OnPromptTriggered(prompt: ProximityPrompt, player: Player)
     local triggerRoll = prompt:GetAttribute("TriggerRoll")
     if triggerRoll == true then
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        if remotes and remotes:FindFirstChild("RollRequest") then
+        if remotes and remotes:FindFirstChild(RemoteNames.RollRequest) then
             local mainInterface = LocalPlayer.PlayerGui:FindFirstChild("MainInterface") :: ScreenGui?
             if mainInterface then
                 local rollBtn = mainInterface:FindFirstChild("RollButton") :: TextButton?
@@ -94,7 +95,7 @@ local function OnPromptTriggered(prompt: ProximityPrompt, player: Player)
 
     if objectText == "Destiny Orb" then
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        if remotes and remotes:FindFirstChild("RollRequest") then
+        if remotes and remotes:FindFirstChild(RemoteNames.RollRequest) then
             local mainInterface = LocalPlayer.PlayerGui:FindFirstChild("MainInterface") :: ScreenGui?
             if mainInterface then
                 local rollBtn = mainInterface:FindFirstChild("RollButton") :: TextButton?

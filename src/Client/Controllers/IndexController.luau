@@ -13,6 +13,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
@@ -851,7 +852,7 @@ function IndexController.Start(): ()
         if not selectedAuraId then return end
         equipBtn.Text = "WAITING..."
         local target = if selectedAuraId == currentEquippedId then "None" else selectedAuraId
-        ;(remotes:WaitForChild("EquipRequest") :: RemoteEvent):FireServer(target)
+        ;(remotes:WaitForChild(RemoteNames.EquipRequest) :: RemoteEvent):FireServer(target)
     end)
 
     equipBestBtn.MouseButton1Click:Connect(function()
@@ -862,7 +863,7 @@ function IndexController.Start(): ()
                 task.delay(1.5, function() equipBestBtn.Text = "EQUIP BEST" end)
             else
                 equipBestBtn.Text = "EQUIPPING..."
-                ;(remotes:WaitForChild("EquipRequest") :: RemoteEvent):FireServer(bestAuraId)
+                ;(remotes:WaitForChild(RemoteNames.EquipRequest) :: RemoteEvent):FireServer(bestAuraId)
             end
         else
             equipBestBtn.Text = "NO AURAS"
@@ -879,7 +880,7 @@ function IndexController.Start(): ()
         IndexController.UpdateDetailsPanel()
     end
 
-    ;(remotes:WaitForChild("UpdateEquipped") :: RemoteEvent).OnClientEvent:Connect(function(auraId: any)
+    ;(remotes:WaitForChild(RemoteNames.UpdateEquipped) :: RemoteEvent).OnClientEvent:Connect(function(auraId: any)
         if type(auraId) == "string" then
             onEquippedChanged(auraId)
         end
@@ -897,14 +898,14 @@ function IndexController.Start(): ()
         currentEquippedId = initialEquipped
     end
 
-    ;(remotes:WaitForChild("UpdateCollection") :: RemoteEvent).OnClientEvent:Connect(function(collection: any)
+    ;(remotes:WaitForChild(RemoteNames.UpdateCollection) :: RemoteEvent).OnClientEvent:Connect(function(collection: any)
         if type(collection) ~= "table" then return end
         IndexController.Refresh(collection)
         IndexController.UpdateDetailsPanel()
     end)
 
     -- Seed owned auras from the full-state sync (rolls only send deltas after)
-    local updateProfileRemote = remotes:WaitForChild("UpdateProfileData", 5) :: RemoteEvent?
+    local updateProfileRemote = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5) :: RemoteEvent?
     if updateProfileRemote then
         updateProfileRemote.OnClientEvent:Connect(function(data: any)
             if type(data) ~= "table" or type(data.GenreData) ~= "table" then return end

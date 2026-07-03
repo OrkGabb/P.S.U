@@ -5,6 +5,7 @@
 -- src/Server/Services/QuestService.lua
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
 local DataService = require(ServerScriptService.Server.Services.DataService)
 local LevelService = require(ServerScriptService.Server.Services.LevelService)
@@ -54,7 +55,7 @@ function QuestService.AddProgress(player: Player, actionType: string, amount: nu
 
     if updated then
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        local event = remotes and remotes:FindFirstChild("UpdateQuests") :: RemoteEvent
+        local event = remotes and remotes:FindFirstChild(RemoteNames.UpdateQuests) :: RemoteEvent
         if event then event:FireClient(player, profile.Data.Progression.Quests) end
     end
 end
@@ -106,7 +107,7 @@ local function OnClaimRequest(player: Player, questId: string)
         DataService:SyncFullState(player)
 
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        local event = remotes and remotes:FindFirstChild("UpdateQuests") :: RemoteEvent
+        local event = remotes and remotes:FindFirstChild(RemoteNames.UpdateQuests) :: RemoteEvent
         if event then event:FireClient(player, profile.Data.Progression.Quests) end
     end
 end
@@ -114,14 +115,14 @@ end
 function QuestService.Init(): ()
     if not QuestsAvailable() then return end
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    if not remotes:FindFirstChild("ClaimQuestRequest") then
+    if not remotes:FindFirstChild(RemoteNames.ClaimQuestRequest) then
         local event = Instance.new("RemoteEvent")
-        event.Name = "ClaimQuestRequest"
+        event.Name = RemoteNames.ClaimQuestRequest
         event.Parent = remotes
     end
-    if not remotes:FindFirstChild("UpdateQuests") then
+    if not remotes:FindFirstChild(RemoteNames.UpdateQuests) then
         local event = Instance.new("RemoteEvent")
-        event.Name = "UpdateQuests"
+        event.Name = RemoteNames.UpdateQuests
         event.Parent = remotes
     end
 end
@@ -129,7 +130,7 @@ end
 function QuestService.Start(): ()
     if not QuestsAvailable() then return end
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    local event = remotes:WaitForChild("ClaimQuestRequest") :: RemoteEvent
+    local event = remotes:WaitForChild(RemoteNames.ClaimQuestRequest) :: RemoteEvent
     event.OnServerEvent:Connect(function(player: Player, questId: any)
         if type(questId) == "string" then
             OnClaimRequest(player, questId)

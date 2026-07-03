@@ -16,7 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 --------------------------------------------------------------------------------
 -- Shared imports
 --------------------------------------------------------------------------------
-local FeatureToggles = require(ReplicatedStorage.Shared.Config.FeatureToggles)
+local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -39,49 +39,21 @@ type ToggleEntry = {
 -- Constants
 --------------------------------------------------------------------------------
 
-local Controllers = script.Parent.Parent:WaitForChild("Controllers")
-
 --- Registry of optional client controllers gated by FeatureToggles.
 --- Add new toggleable controllers here; the bootstrap loop handles the rest.
 ---
 --- IMPORTANT: Only add entries for ModuleScripts that physically exist in
 --- the Controllers folder. Missing modules cause infinite WaitForChild yields.
 local OPTIONAL_CONTROLLERS: { ToggleEntry } = {
-	{
-		toggleKey = "Dash",
-		registerName = "DashController",
-		resolver  = function(): ModuleScript
-			return Controllers:WaitForChild("DashController") :: ModuleScript
-		end,
-	},
-	{
-		toggleKey = "Portals",
-		registerName = "PortalController",
-		resolver  = function(): ModuleScript
-			return Controllers:WaitForChild("PortalController") :: ModuleScript
-		end,
-	},
-	{
-		toggleKey = "FPS_Shooter",
-		registerName = "ViewmodelController",
-		resolver  = function(): ModuleScript
-			return Controllers:WaitForChild("ViewmodelController") :: ModuleScript
-		end,
-	},
-	{
-		-- MatchStatsController must Init before WeaponController.Start references it.
-		-- WeaponController also requires it directly, so this entry is a safety Init/Start guarantee.
-		toggleKey    = "MatchStats",
-		registerName = "MatchStatsController",
-		resolver     = function(): ModuleScript
-			return Controllers:WaitForChild("MatchStatsController") :: ModuleScript
-		end,
-	},
-	-- NOTE: LeaderboardController is NOT listed here because no LeaderboardController
-	-- module exists in the Controllers folder. The LeaderboardService (server-side)
-	-- handles physical leaderboard board spawning independently and requires no
-	-- client-side counterpart at this time. Adding it here would cause an infinite
-	-- WaitForChild yield that freezes the entire boot sequence.
+	-- INTENTIONALLY EMPTY. Every controller that ships in the Controllers
+	-- folder is loaded (and genre-gated) by ClientMain's folder scan + skip
+	-- lists — the single client-side loader. Listing one of those modules
+	-- here as well would run its Init/Start twice (doubled connections).
+	--
+	-- Use this table only for buyer-added controllers that live OUTSIDE the
+	-- scanned Controllers folder and need toggle-gated lifecycle management.
+	-- Only reference ModuleScripts that physically exist: a missing module
+	-- infinite-yields the boot sequence on WaitForChild.
 }
 
 --------------------------------------------------------------------------------
@@ -111,17 +83,13 @@ function FrameworkClient.GetController(name: string): any?
 	return controller
 end
 
---- Resolves if a feature toggle is enabled, supporting both boolean values and table configs.
+--- Resolves if a feature toggle is enabled.
+--- Delegates to FeatureResolver — the SSoT for toggle resolution. (A local
+--- reimplementation here previously missed GlobalFlags/Genres sub-tables, so
+--- genre-keyed optional controllers — ViewmodelController, DashController —
+--- were silently skipped at boot.)
 local function isFeatureEnabled(key: string): boolean
-	if type(FeatureToggles) ~= "table" then return false end
-	local toggle: any = (FeatureToggles :: any)[key]
-	if toggle == nil then
-		toggle = (FeatureToggles :: any)[key .. "Config"]
-	end
-	if type(toggle) == "table" then
-		return toggle.Enabled == true
-	end
-	return type(toggle) == "boolean" and toggle or false
+	return FeatureResolver.IsCategoryActive(key) == true
 end
 
 --- Loads, initialises, and starts all optional controllers whose toggle is `true`.

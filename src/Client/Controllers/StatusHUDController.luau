@@ -8,6 +8,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local LocalPlayer = Players.LocalPlayer
 
 local FeatureResolver = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
@@ -246,7 +247,7 @@ function StatusHUDController.Start(): ()
 	if levelVal then levelVal.Changed:Connect(UpdateHUD) end
 
 	local remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
-	local updateData = remotes:WaitForChild("UpdateProfileData") :: RemoteEvent
+	local updateData = remotes:WaitForChild(RemoteNames.UpdateProfileData) :: RemoteEvent
 	updateData.OnClientEvent:Connect(function(data)
 		if data.IsVIP ~= nil then
 			currentIsVIP = data.IsVIP

@@ -8,6 +8,7 @@
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -207,14 +208,14 @@ function ClickController.Start(): ()
 
 	-- BATCH FLUSH
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	clickRewardRemote = remotes:WaitForChild("ClickReward") :: RemoteEvent
+	clickRewardRemote = remotes:WaitForChild(RemoteNames.ClickReward) :: RemoteEvent
 
 	RunService.Heartbeat:Connect(onHeartbeat)
 
 	-- ASYNC VALUE BINDINGS (floating text mirrors the server's click power;
 	-- both sides derive it from UpgradeRegistry.ComputeStat, so they agree)
 	task.spawn(function()
-		local updateData = remotes:WaitForChild("UpdateProfileData") :: RemoteEvent
+		local updateData = remotes:WaitForChild(RemoteNames.UpdateProfileData) :: RemoteEvent
 		updateData.OnClientEvent:Connect(function(data)
 			if data and type(data.Upgrades) == "table" then
 				local perClick = 1 + UpgradeRegistry.ComputeStat(data.Upgrades, "PerClick")

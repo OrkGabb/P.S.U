@@ -6,6 +6,7 @@
 -- Dynamic metadata-driven Profile UI Controller.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
@@ -738,7 +739,7 @@ function ProfileController.Start(): ()
 	end)
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local updateData: RemoteEvent? = remotes:WaitForChild("UpdateProfileData", 5) :: any
+	local updateData: RemoteEvent? = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5) :: any
 	
 	if updateData then
 		updateData.OnClientEvent:Connect(function(data: any): ()

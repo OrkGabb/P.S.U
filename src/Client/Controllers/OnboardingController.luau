@@ -8,6 +8,7 @@
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local LocalPlayer = Players.LocalPlayer
 
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
@@ -206,7 +207,7 @@ function OnboardingController.Init(): () end
 
 function OnboardingController.Start(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local updateData = remotes:WaitForChild("UpdateProfileData") :: RemoteEvent
+	local updateData = remotes:WaitForChild(RemoteNames.UpdateProfileData) :: RemoteEvent
 
 	local hasLoaded = false
 

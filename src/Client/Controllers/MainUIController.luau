@@ -17,6 +17,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local SoundService = game:GetService("SoundService")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
@@ -469,7 +470,7 @@ function MainUIController.Start(): ()
 				if biome.Id == State.CurrentBiome then return end
 				if State.IsSpinning or State.IsRevealing or State.AutoRoll then return end
 				-- Server validates level/cost; locked clicks are a purchase attempt
-				;(remotes:WaitForChild("SetBiomeRequest") :: RemoteEvent):FireServer(biome.Id)
+				;(remotes:WaitForChild(RemoteNames.SetBiomeRequest) :: RemoteEvent):FireServer(biome.Id)
 			end)
 
 			biomeButtons[biome.Id] = btn
@@ -638,10 +639,10 @@ function MainUIController.Start(): ()
 	end
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local rollReq = remotes:WaitForChild("RollRequest") :: RemoteEvent
-	local toggleAutoReq = remotes:WaitForChild("ToggleAutoRoll") :: RemoteEvent
-	local updateClient = remotes:WaitForChild("UpdateClient") :: RemoteEvent
-	local updateBiome = remotes:WaitForChild("UpdateBiome") :: RemoteEvent
+	local rollReq = remotes:WaitForChild(RemoteNames.RollRequest) :: RemoteEvent
+	local toggleAutoReq = remotes:WaitForChild(RemoteNames.ToggleAutoRoll) :: RemoteEvent
+	local updateClient = remotes:WaitForChild(RemoteNames.UpdateClient) :: RemoteEvent
+	local updateBiome = remotes:WaitForChild(RemoteNames.UpdateBiome) :: RemoteEvent
 
 	if showAutoRoll then
 		local toggleBtn = Instance.new("TextButton")
@@ -692,7 +693,7 @@ function MainUIController.Start(): ()
 		end
 	end
 
-	local forceDisableRemote = remotes:WaitForChild("ForceDisableAutoRoll", 5) :: RemoteEvent?
+	local forceDisableRemote = remotes:WaitForChild(RemoteNames.ForceDisableAutoRoll, 5) :: RemoteEvent?
 	if forceDisableRemote then
 		forceDisableRemote.OnClientEvent:Connect(function()
 			ForceAutoOff()
@@ -826,7 +827,7 @@ function MainUIController.Start(): ()
 	end)
 
 	-- Full-state sync seeds biome/level state on join and after purchases
-	local updateProfileRemote = remotes:WaitForChild("UpdateProfileData", 5) :: RemoteEvent?
+	local updateProfileRemote = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5) :: RemoteEvent?
 	if updateProfileRemote then
 		updateProfileRemote.OnClientEvent:Connect(function(data: any)
 			if type(data) ~= "table" then return end

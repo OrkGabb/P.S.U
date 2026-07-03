@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local RunService = game:GetService("RunService")
 local ItemRegistry = require(ReplicatedStorage.Shared.Modules.ItemRegistry)
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
@@ -111,7 +112,7 @@ function BuffHUDController.Start(): ()
 
     -- ── Networking ────────────────────────────────────────────────────────────
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    local syncEvent = remotes:WaitForChild("SyncActiveBuffs", 10) :: RemoteEvent?
+    local syncEvent = remotes:WaitForChild(RemoteNames.SyncActiveBuffs, 10) :: RemoteEvent?
     if syncEvent then
         syncEvent.OnClientEvent:Connect(function(buffs)
             activeBuffsCache = buffs
