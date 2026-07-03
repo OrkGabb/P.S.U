@@ -7,6 +7,7 @@
 
 local Players             = game:GetService("Players")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local DataService       = require(ServerScriptService.Server.Services.DataService)
@@ -77,7 +78,7 @@ local function OnUpgradeRequest(player: Player, upgradeId: string)
     profile.Data.Upgrades[upgradeId] = newLevel
 
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    local updateEvent = remotes:FindFirstChild("UpdateUpgrades") :: RemoteEvent?
+    local updateEvent = remotes:FindFirstChild(RemoteNames.UpdateUpgrades) :: RemoteEvent?
     if updateEvent then
         updateEvent:FireClient(player, profile.Data.Upgrades)
     end
@@ -96,8 +97,8 @@ function UpgradeService.Init(): ()
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
     local requiredRemotes = {
-        "UpgradeRequest",
-        "UpdateUpgrades",
+        RemoteNames.UpgradeRequest,
+        RemoteNames.UpdateUpgrades,
     }
 
     for _, name in ipairs(requiredRemotes) do
@@ -113,7 +114,7 @@ function UpgradeService.Start(): ()
     QuestService = require(ServerScriptService.Server.Services.QuestService)
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
-    local upgradeEvent = remotes:WaitForChild("UpgradeRequest") :: RemoteEvent
+    local upgradeEvent = remotes:WaitForChild(RemoteNames.UpgradeRequest) :: RemoteEvent
     upgradeEvent.OnServerEvent:Connect(OnUpgradeRequest)
 
     local function onPlayerAdded(player: Player)

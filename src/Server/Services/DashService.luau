@@ -15,6 +15,7 @@
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
 --------------------------------------------------------------------------------
 -- Shared imports
@@ -166,7 +167,7 @@ local function OnDashRequest(player: Player, directionRaw: any): ()
 	-- Notify client to play animation
 	local remotes: Folder? = ReplicatedStorage:FindFirstChild("Remotes") :: Folder?
 	if remotes then
-		local dashGranted: RemoteEvent? = remotes:FindFirstChild("DashGranted") :: RemoteEvent?
+		local dashGranted: RemoteEvent? = remotes:FindFirstChild(RemoteNames.DashGranted) :: RemoteEvent?
 		if dashGranted then
 			dashGranted:FireClient(player)
 		end
@@ -197,14 +198,14 @@ function DashService.Start(): ()
 		return
 	end
 
-	local existing = remotes:FindFirstChild("DashRequest")
+	local existing = remotes:FindFirstChild(RemoteNames.DashRequest)
 	local dashRequest: RemoteEvent
 	if existing and existing:IsA("RemoteEvent") then
 		dashRequest = existing
 	else
 		-- Create the remote if NetworkService hasn't created it yet
 		dashRequest = Instance.new("RemoteEvent")
-		dashRequest.Name = "DashRequest"
+		dashRequest.Name = RemoteNames.DashRequest
 		dashRequest.Parent = remotes
 	end
 

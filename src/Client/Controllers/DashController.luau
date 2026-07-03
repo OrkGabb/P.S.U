@@ -4,6 +4,7 @@
 --@version 1.0
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
 local Workspace = game:GetService("Workspace")
@@ -186,7 +187,7 @@ function DashController.Init(): ()
 	-- a client-side remote the server never listened on — dashes were
 	-- silently dropped.
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local remote = remotes:WaitForChild("DashRequest", 10)
+	local remote = remotes:WaitForChild(RemoteNames.DashRequest, 10)
 	if remote and remote:IsA("RemoteEvent") then
 		dashRequestEvent = remote
 	else

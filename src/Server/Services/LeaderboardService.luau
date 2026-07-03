@@ -9,6 +9,7 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local DataService: any = require(ServerScriptService.Server.Services.DataService)
@@ -152,9 +153,9 @@ end
 function LeaderboardService.Init(): ()
 	local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder
 
-	local getLeaderboardRF: RemoteFunction = remotes:FindFirstChild("GetLeaderboardData") :: RemoteFunction
+	local getLeaderboardRF: RemoteFunction = remotes:FindFirstChild(RemoteNames.GetLeaderboardData) :: RemoteFunction
 		or Instance.new("RemoteFunction", remotes)
-	getLeaderboardRF.Name = "GetLeaderboardData"
+	getLeaderboardRF.Name = RemoteNames.GetLeaderboardData
 
 	getLeaderboardRF.OnServerInvoke = function(_player: Player, boardKey: string?): any
 		if not FeatureResolver.IsCategoryActive("Leaderboards") then
@@ -174,9 +175,9 @@ function LeaderboardService.Init(): ()
 		return result
 	end
 
-	local getBoardConfigRF: RemoteFunction = remotes:FindFirstChild("GetBoardConfigs") :: RemoteFunction
+	local getBoardConfigRF: RemoteFunction = remotes:FindFirstChild(RemoteNames.GetBoardConfigs) :: RemoteFunction
 		or Instance.new("RemoteFunction", remotes)
-	getBoardConfigRF.Name = "GetBoardConfigs"
+	getBoardConfigRF.Name = RemoteNames.GetBoardConfigs
 
 	getBoardConfigRF.OnServerInvoke = function(_player: Player): any
 		if not FeatureResolver.IsCategoryActive("Leaderboards") then

@@ -9,6 +9,7 @@
 local MarketplaceService: MarketplaceService = game:GetService("MarketplaceService")
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService: ServerScriptService = game:GetService("ServerScriptService")
 
 local DataService: any = require(ServerScriptService.Server.Services.DataService)
@@ -163,7 +164,7 @@ local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
 
     -- Dispatch visual notification with readable name
     local remotes: Folder? = ReplicatedStorage:FindFirstChild("Remotes") :: any
-    if remotes and remotes:FindFirstChild("NotifyPurchase") then
+    if remotes and remotes:FindFirstChild(RemoteNames.NotifyPurchase) then
         local displayName: string = "REWARD"
         local extraData: any = nil
         if reward.Type == "Currency" then
@@ -178,7 +179,7 @@ local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
         elseif reward.Type == "Item" and reward.ItemId then
             displayName = string.upper((string.gsub(reward.ItemId, "_", " ")))
         end
-        (remotes:FindFirstChild("NotifyPurchase") :: RemoteEvent):FireClient(player, reward.Type, reward.Amount, displayName, extraData)
+        (remotes:FindFirstChild(RemoteNames.NotifyPurchase) :: RemoteEvent):FireClient(player, reward.Type, reward.Amount, displayName, extraData)
     end
 
     return Enum.ProductPurchaseDecision.PurchaseGranted
@@ -190,19 +191,19 @@ end
 
 function MonetizationService.Init(): ()
     local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder
-    if not remotes:FindFirstChild("NotifyPurchase") then
+    if not remotes:FindFirstChild(RemoteNames.NotifyPurchase) then
         local evt: RemoteEvent = Instance.new("RemoteEvent")
-        evt.Name = "NotifyPurchase"
+        evt.Name = RemoteNames.NotifyPurchase
         evt.Parent = remotes
     end
-    if not remotes:FindFirstChild("CheckGamepassOwnership") then
+    if not remotes:FindFirstChild(RemoteNames.CheckGamepassOwnership) then
         local rf: RemoteFunction = Instance.new("RemoteFunction")
-        rf.Name = "CheckGamepassOwnership"
+        rf.Name = RemoteNames.CheckGamepassOwnership
         rf.Parent = remotes
     end
-    if not remotes:FindFirstChild("BuyInGameItem") then
+    if not remotes:FindFirstChild(RemoteNames.BuyInGameItem) then
         local rf: RemoteFunction = Instance.new("RemoteFunction")
-        rf.Name = "BuyInGameItem"
+        rf.Name = RemoteNames.BuyInGameItem
         rf.Parent = remotes
     end
 end
@@ -218,7 +219,7 @@ function MonetizationService.Start(): ()
     end
     
     local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder
-    local checkRf: RemoteFunction = remotes:WaitForChild("CheckGamepassOwnership") :: RemoteFunction
+    local checkRf: RemoteFunction = remotes:WaitForChild(RemoteNames.CheckGamepassOwnership) :: RemoteFunction
     checkRf.OnServerInvoke = function(player: Player, passId: any): any
         local profile: any = DataService.Profiles[player]
         if profile and profile.Data and profile.Data.PurchaseHistory then
@@ -227,7 +228,7 @@ function MonetizationService.Start(): ()
         return false
     end
 
-    local buyItemRf: RemoteFunction = remotes:WaitForChild("BuyInGameItem") :: RemoteFunction
+    local buyItemRf: RemoteFunction = remotes:WaitForChild(RemoteNames.BuyInGameItem) :: RemoteFunction
     buyItemRf.OnServerInvoke = function(player: Player, itemId: any): boolean
         local profile: any = DataService.Profiles[player]
         if not profile or not profile.Data or not profile.Data.Currencies then return false end
@@ -294,7 +295,7 @@ function MonetizationService.Start(): ()
         end
 
         local remotesFolder: Folder? = ReplicatedStorage:FindFirstChild("Remotes") :: any
-        local notifyEvt: RemoteEvent? = remotesFolder and remotesFolder:FindFirstChild("NotifyPurchase") :: any
+        local notifyEvt: RemoteEvent? = remotesFolder and remotesFolder:FindFirstChild(RemoteNames.NotifyPurchase) :: any
 
         for key: string, configId: number in pairs(MonetizationService.GamepassIDs) do
             if passId == configId then

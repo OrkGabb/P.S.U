@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local QuestRegistry = require(ReplicatedStorage.Shared.Modules.QuestRegistry)
@@ -266,7 +267,7 @@ function QuestsController.Start(): ()
     Instance.new("UIListLayout", list).Padding = UDim.new(0, 12)
 
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    local req = remotes:WaitForChild("ClaimQuestRequest")
+    local req = remotes:WaitForChild(RemoteNames.ClaimQuestRequest)
 
     for _, def in ipairs(QuestRegistry.Quests) do
         local row = Instance.new("Frame")
@@ -458,7 +459,7 @@ function QuestsController.Start(): ()
     camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
     updateUIScale()
 
-    remotes:WaitForChild("UpdateQuests").OnClientEvent:Connect(function(questData)
+    remotes:WaitForChild(RemoteNames.UpdateQuests).OnClientEvent:Connect(function(questData)
         CurrentQuestData = questData
         if isOpen then RefreshUI() end
 
@@ -513,7 +514,7 @@ function QuestsController.Start(): ()
         end
     end)
 
-    local updateProfileData = remotes:WaitForChild("UpdateProfileData", 5)
+    local updateProfileData = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5)
     if updateProfileData then
         (updateProfileData :: RemoteEvent).OnClientEvent:Connect(function(data)
             currentRebirths = data.Rebirths or 0
@@ -521,7 +522,7 @@ function QuestsController.Start(): ()
         end)
     end
 
-    local updateUpgrades = remotes:WaitForChild("UpdateUpgrades", 5)
+    local updateUpgrades = remotes:WaitForChild(RemoteNames.UpdateUpgrades, 5)
     if updateUpgrades then
         (updateUpgrades :: RemoteEvent).OnClientEvent:Connect(function()
             if isOpen then RefreshUI() end

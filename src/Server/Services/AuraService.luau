@@ -16,6 +16,7 @@
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local AuraRegistry = require(ReplicatedStorage.Shared.Modules.AuraRegistry)
@@ -135,7 +136,7 @@ local function setEquipped(player: Player, auraData: AuraGenreData, auraId: stri
 	auraData.Equipped = auraId
 	auraData.ManualEquip = manual
 	player:SetAttribute(EQUIPPED_ATTRIBUTE, auraId)
-	NetworkService.FireClient(player, "UpdateEquipped", auraId)
+	NetworkService.FireClient(player, RemoteNames.UpdateEquipped, auraId)
 end
 
 -- ─── Roll ─────────────────────────────────────────────────────────────────────
@@ -174,7 +175,7 @@ local function processRoll(player: Player, spinId: number?): ()
 		local autoState = autoRollPlayers[player]
 		if autoState and autoState.IsActive then
 			autoState.IsActive = false
-			NetworkService.FireClient(player, "ToggleAutoRoll", false)
+			NetworkService.FireClient(player, RemoteNames.ToggleAutoRoll, false)
 		end
 		return
 	end
@@ -221,8 +222,8 @@ local function processRoll(player: Player, spinId: number?): ()
 	end
 
 	DataService:SyncFullState(player)
-	NetworkService.FireClient(player, "UpdateCollection", auraData.Collection, {})
-	NetworkService.FireClient(player, "UpdateClient", rolled.Id, auraData.Equipped, biomeId, spinId)
+	NetworkService.FireClient(player, RemoteNames.UpdateCollection, auraData.Collection, {})
+	NetworkService.FireClient(player, RemoteNames.UpdateClient, rolled.Id, auraData.Equipped, biomeId, spinId)
 end
 
 -- ─── Idle income ──────────────────────────────────────────────────────────────
@@ -274,7 +275,7 @@ end
 
 function AuraService.Init(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
-	for _, name in ipairs({ "RollRequest", "ToggleAutoRoll", "ForceDisableAutoRoll", "UpdateClient", "UpdateCollection", "UpdateEquipped", "EquipRequest", "SetBiomeRequest", "UpdateBiome" }) do
+	for _, name in ipairs({ RemoteNames.RollRequest, RemoteNames.ToggleAutoRoll, RemoteNames.ForceDisableAutoRoll, RemoteNames.UpdateClient, RemoteNames.UpdateCollection, RemoteNames.UpdateEquipped, RemoteNames.EquipRequest, RemoteNames.SetBiomeRequest, RemoteNames.UpdateBiome }) do
 		if not remotes:FindFirstChild(name) then
 			local evt = Instance.new("RemoteEvent")
 			evt.Name = name
@@ -294,7 +295,7 @@ local function grantVipAuraIfOwned(player: Player): ()
 		return
 	end
 	auraData.Collection.VIP = 1
-	NetworkService.FireClient(player, "UpdateCollection", auraData.Collection, {})
+	NetworkService.FireClient(player, RemoteNames.UpdateCollection, auraData.Collection, {})
 	DataService:SyncFullState(player)
 end
 
@@ -323,7 +324,7 @@ local function processSetBiome(player: Player, biomeId: any): ()
 
 	auraData.CurrentBiome = biomeId
 	DataService:SyncFullState(player)
-	NetworkService.FireClient(player, "UpdateBiome", biomeId)
+	NetworkService.FireClient(player, RemoteNames.UpdateBiome, biomeId)
 end
 
 function AuraService.Start(): ()
@@ -334,7 +335,7 @@ function AuraService.Start(): ()
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
 
-	;(remotes:WaitForChild("SetBiomeRequest") :: RemoteEvent).OnServerEvent:Connect(processSetBiome)
+	;(remotes:WaitForChild(RemoteNames.SetBiomeRequest) :: RemoteEvent).OnServerEvent:Connect(processSetBiome)
 
 	-- VIP aura for in-session gamepass purchases (join grants happen in
 	-- onPlayerAdded once the profile is available)
@@ -344,13 +345,13 @@ function AuraService.Start(): ()
 		end
 	end)
 
-	;(remotes:WaitForChild("RollRequest") :: RemoteEvent).OnServerEvent:Connect(function(player: Player, _clientBiome: any, spinId: any)
+	;(remotes:WaitForChild(RemoteNames.RollRequest) :: RemoteEvent).OnServerEvent:Connect(function(player: Player, _clientBiome: any, spinId: any)
 		local autoState = autoRollPlayers[player]
 		if autoState and autoState.IsActive then return end
 		processRoll(player, if type(spinId) == "number" then spinId else nil)
 	end)
 
-	;(remotes:WaitForChild("EquipRequest") :: RemoteEvent).OnServerEvent:Connect(function(player: Player, auraId: any)
+	;(remotes:WaitForChild(RemoteNames.EquipRequest) :: RemoteEvent).OnServerEvent:Connect(function(player: Player, auraId: any)
 		if type(auraId) ~= "string" then return end
 		local auraData = getAuraData(player)
 		if not auraData then return end
@@ -364,7 +365,7 @@ function AuraService.Start(): ()
 		setEquipped(player, auraData, auraId, true)
 	end)
 
-	;(remotes:WaitForChild("ToggleAutoRoll") :: RemoteEvent).OnServerEvent:Connect(function(player: Player, isActive: any)
+	;(remotes:WaitForChild(RemoteNames.ToggleAutoRoll) :: RemoteEvent).OnServerEvent:Connect(function(player: Player, isActive: any)
 		local now = os.clock()
 		local lastToggle: number = (player:GetAttribute("LastAutoToggle") :: number?) or 0
 		if now - lastToggle < 1.0 then return end
@@ -373,7 +374,7 @@ function AuraService.Start(): ()
 		if isActive == true then
 			-- Auto-roll is a gamepass perk
 			if not ownsPass(player, "AutoRoll") then
-				NetworkService.FireClient(player, "ForceDisableAutoRoll")
+				NetworkService.FireClient(player, RemoteNames.ForceDisableAutoRoll)
 				local state = autoRollPlayers[player]
 				if state then state.IsActive = false end
 				return

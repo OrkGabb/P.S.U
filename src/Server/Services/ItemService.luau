@@ -3,6 +3,7 @@
 --@module ItemService.luau
 --@version 1.0
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
 
 -- NOTE: DataService/ItemRegistry are required lazily inside handlers to
@@ -13,20 +14,20 @@ ItemService.activeBuffs = {} -- EXPORTED: Allows reading active buffs from DataS
 
 function ItemService.Init(): ()
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    if not remotes:FindFirstChild("RequestConsumeItem") then
-        Instance.new("RemoteEvent", remotes).Name = "RequestConsumeItem"
+    if not remotes:FindFirstChild(RemoteNames.RequestConsumeItem) then
+        Instance.new("RemoteEvent", remotes).Name = RemoteNames.RequestConsumeItem
     end
-    if not remotes:FindFirstChild("SyncActiveBuffs") then
+    if not remotes:FindFirstChild(RemoteNames.SyncActiveBuffs) then
         local syncEvent = Instance.new("RemoteEvent")
-        syncEvent.Name = "SyncActiveBuffs"
+        syncEvent.Name = RemoteNames.SyncActiveBuffs
         syncEvent.Parent = remotes
     end
 end
 
 function ItemService.Start(): ()
     local remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
-    local consumeEvent = remotes:FindFirstChild("RequestConsumeItem")
-    local syncEvent    = remotes:FindFirstChild("SyncActiveBuffs")
+    local consumeEvent = remotes:FindFirstChild(RemoteNames.RequestConsumeItem)
+    local syncEvent    = remotes:FindFirstChild(RemoteNames.SyncActiveBuffs)
     local Players      = game:GetService("Players")
 
     local DataSvc      = require(script.Parent.DataService)

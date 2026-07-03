@@ -92,6 +92,8 @@ local function start(): ()
 	if not (isRPGActive or isFPSActive) then
 		SKIP_CONTROLLERS["WeaponController"] = true
 		SKIP_CONTROLLERS["StatusHUDController"] = true
+		SKIP_CONTROLLERS["ViewmodelController"] = true
+		SKIP_CONTROLLERS["MatchStatsController"] = true
 	end
 
 	-- Inventory category

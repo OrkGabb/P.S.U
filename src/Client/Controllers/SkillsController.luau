@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local UpgradeRegistry = require(ReplicatedStorage.Shared.Modules.UpgradeRegistry)
@@ -277,7 +278,7 @@ function SkillsController.Start(): ()
 	listPad.PaddingBottom = UDim.new(0, 4)
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local req = remotes:WaitForChild("UpgradeRequest") :: RemoteEvent
+	local req = remotes:WaitForChild(RemoteNames.UpgradeRequest) :: RemoteEvent
 
 	-- Build skill upgrade cards
 	for id, def in pairs(UpgradeRegistry.Defs) do
@@ -397,7 +398,7 @@ function SkillsController.Start(): ()
 		buy.MouseButton1Click:Connect(function() req:FireServer(id) end)
 	end
 
-	remotes:WaitForChild("UpdateUpgrades").OnClientEvent:Connect(function(upgrades)
+	remotes:WaitForChild(RemoteNames.UpdateUpgrades).OnClientEvent:Connect(function(upgrades)
 		CurrentUpgrades = upgrades
 		RefreshUI()
 	end)

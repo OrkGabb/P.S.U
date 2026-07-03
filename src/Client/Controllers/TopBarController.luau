@@ -9,6 +9,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local LocalPlayer = Players.LocalPlayer
 
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
@@ -250,7 +251,7 @@ function TopBarController.Start(): ()
 
     -- Connect data sync events
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    local updateData: RemoteEvent? = remotes:WaitForChild("UpdateProfileData", 5) :: any
+    local updateData: RemoteEvent? = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5) :: any
     if updateData then
         updateData.OnClientEvent:Connect(UpdateProfile)
     else

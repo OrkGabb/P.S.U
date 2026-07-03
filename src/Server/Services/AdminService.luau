@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared") :: Folder
@@ -56,7 +57,7 @@ end
 
 local function SendFeedback(player: Player, action: string, success: boolean, msg: string)
 	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-	local adminRemote = remotes and remotes:FindFirstChild("sys_adm") :: RemoteEvent?
+	local adminRemote = remotes and remotes:FindFirstChild(RemoteNames.SysAdmin) :: RemoteEvent?
 	if adminRemote then adminRemote:FireClient(player, action, success, msg) end
 end
 
@@ -162,19 +163,19 @@ function AdminService.Init(): ()
 		remotes.Parent = ReplicatedStorage
 	end
 
-	if not remotes:FindFirstChild("sys_adm") then
+	if not remotes:FindFirstChild(RemoteNames.SysAdmin) then
 		local adminRemote = Instance.new("RemoteEvent")
-		adminRemote.Name = "sys_adm"
+		adminRemote.Name = RemoteNames.SysAdmin
 		adminRemote.Parent = remotes
 	end
 
-	local existingCheck = remotes:FindFirstChild("sys_adm_chk")
+	local existingCheck = remotes:FindFirstChild(RemoteNames.SysAdminCheck)
 	local adminCheck: RemoteFunction
 	if existingCheck and existingCheck:IsA("RemoteFunction") then
 		adminCheck = existingCheck
 	else
 		adminCheck = Instance.new("RemoteFunction")
-		adminCheck.Name = "sys_adm_chk"
+		adminCheck.Name = RemoteNames.SysAdminCheck
 		adminCheck.Parent = remotes
 	end
 
@@ -189,7 +190,7 @@ function AdminService.Start(): ()
 	end
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	local adminRemote = remotes:WaitForChild("sys_adm") :: RemoteEvent
+	local adminRemote = remotes:WaitForChild(RemoteNames.SysAdmin) :: RemoteEvent
 
 	adminRemote.OnServerEvent:Connect(function(player: Player, action: unknown, ...)
 		if type(action) ~= "string" or not IsAdmin(player) then return end

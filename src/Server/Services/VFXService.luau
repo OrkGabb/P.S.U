@@ -6,6 +6,7 @@
 -- Server-side Visual Effects Service. Emits lightweight, compressed structural replication data.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
@@ -25,7 +26,7 @@ function VFXService.EmitVFX(player: Player?, effectId: string, origin: any, targ
     local remotes = ReplicatedStorage:FindFirstChild("Remotes")
     if not remotes then return end
     
-    local emitVFXEvent = remotes:FindFirstChild("EmitVFX") :: RemoteEvent?
+    local emitVFXEvent = remotes:FindFirstChild(RemoteNames.EmitVFX) :: RemoteEvent?
     if not emitVFXEvent then return end
 
     local data = {

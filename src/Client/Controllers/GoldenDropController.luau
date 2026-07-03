@@ -16,7 +16,7 @@ local AudioController = require(script.Parent.AudioController)
 local LocalPlayer = Players.LocalPlayer
 
 local GENRE_KEY = "Clicker_Farm"
-local CLAIM_REMOTE_NAME = "GoldenDropClaim"
+local CLAIM_REMOTE_NAME = RemoteNames.GoldenDropClaim
 
 local GoldenDropController = {}
 

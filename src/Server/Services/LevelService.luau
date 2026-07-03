@@ -4,6 +4,7 @@
 --@version 1.0
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
 local DataService = require(ServerScriptService.Server.Services.DataService)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
@@ -78,7 +79,7 @@ function LevelService.AddExp(player: Player, amount: number)
 
             -- Triggering the Event to the UI (Only 1 trigger, even if leveling up 5 levels)
             local remotes = ReplicatedStorage:WaitForChild("Remotes")
-            local levelUpEvent = remotes:FindFirstChild("LevelUpFX") :: RemoteEvent
+            local levelUpEvent = remotes:FindFirstChild(RemoteNames.LevelUpFX) :: RemoteEvent
             if levelUpEvent then
                 levelUpEvent:FireClient(player, prog.Level, totalReward)
             end
@@ -88,9 +89,9 @@ end
 
 function LevelService.Init(): () 
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    if not remotes:FindFirstChild("LevelUpFX") then
+    if not remotes:FindFirstChild(RemoteNames.LevelUpFX) then
         local event = Instance.new("RemoteEvent")
-        event.Name = "LevelUpFX"
+        event.Name = RemoteNames.LevelUpFX
         event.Parent = remotes
     end
 end

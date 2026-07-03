@@ -9,6 +9,7 @@
 
 local Players             = game:GetService("Players")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local DataService: any = nil -- Lazy-loaded in Start()
@@ -33,9 +34,9 @@ end
 
 function ChatTagService.Init(): ()
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    if not remotes:FindFirstChild("CheckVIPStatus") then
+    if not remotes:FindFirstChild(RemoteNames.CheckVIPStatus) then
         local rf = Instance.new("RemoteFunction")
-        rf.Name = "CheckVIPStatus"
+        rf.Name = RemoteNames.CheckVIPStatus
         rf.Parent = remotes
     end
 end
@@ -45,7 +46,7 @@ function ChatTagService.Start(): ()
     MonetizationService = require(ServerScriptService.Server.Services.MonetizationService)
 
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
-    local checkVIP = remotes:WaitForChild("CheckVIPStatus") :: RemoteFunction
+    local checkVIP = remotes:WaitForChild(RemoteNames.CheckVIPStatus) :: RemoteFunction
 
     -- Clients can query any player's VIP status by UserId
     checkVIP.OnServerInvoke = function(_caller: Player, targetUserId: number): boolean

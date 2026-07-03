@@ -20,6 +20,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local PetRegistry = require(ReplicatedStorage.Shared.Modules.PetRegistry)
@@ -112,8 +113,8 @@ local function processHatch(player: Player, eggId: any): ()
 	end
 
 	DataService:SyncFullState(player)
-	NetworkService.FireClient(player, "UpdatePetInventory", petData.Inventory, petData.Equipped)
-	NetworkService.FireClient(player, "HatchResult", rolled.Id, eggId, isNew)
+	NetworkService.FireClient(player, RemoteNames.UpdatePetInventory, petData.Inventory, petData.Equipped)
+	NetworkService.FireClient(player, RemoteNames.HatchResult, rolled.Id, eggId, isNew)
 end
 
 -- ─── Idle income (flat — pets never multiply it) ─────────────────────────────
@@ -139,7 +140,7 @@ end
 
 function PetService.Init(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
-	for _, name in ipairs({ "HatchRequest", "HatchResult", "PetEquipRequest", "UpdatePetInventory" }) do
+	for _, name in ipairs({ RemoteNames.HatchRequest, RemoteNames.HatchResult, RemoteNames.PetEquipRequest, RemoteNames.UpdatePetInventory }) do
 		if not remotes:FindFirstChild(name) then
 			local evt = Instance.new("RemoteEvent")
 			evt.Name = name
@@ -154,9 +155,9 @@ function PetService.Start(): ()
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
 
-	;(remotes:WaitForChild("HatchRequest") :: RemoteEvent).OnServerEvent:Connect(processHatch)
+	;(remotes:WaitForChild(RemoteNames.HatchRequest) :: RemoteEvent).OnServerEvent:Connect(processHatch)
 
-	;(remotes:WaitForChild("PetEquipRequest") :: RemoteEvent).OnServerEvent:Connect(function(player: Player, petId: any)
+	;(remotes:WaitForChild(RemoteNames.PetEquipRequest) :: RemoteEvent).OnServerEvent:Connect(function(player: Player, petId: any)
 		if type(petId) ~= "string" then return end
 		local petData = getPetData(player)
 		if not petData then return end
@@ -178,7 +179,7 @@ function PetService.Start(): ()
 				local petData = getPetData(player)
 				if petData then
 					player:SetAttribute(EQUIPPED_ATTRIBUTE, petData.Equipped)
-					NetworkService.FireClient(player, "UpdatePetInventory", petData.Inventory, petData.Equipped)
+					NetworkService.FireClient(player, RemoteNames.UpdatePetInventory, petData.Inventory, petData.Equipped)
 					return
 				end
 				task.wait(0.5)
