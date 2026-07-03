@@ -547,7 +547,7 @@ local FeatureToggles: FeatureTogglesType = {
 			HeadshotConfirmSoundId = nil,
 		},
 		Clicker_Farm = {
-			Enabled = false,
+			Enabled = true,
 
 			Currencies = {
 				PrimaryName   = "Sugar",
@@ -591,7 +591,7 @@ local FeatureToggles: FeatureTogglesType = {
 			},
 		},
 		Aura_Collector = {
-			Enabled = true,
+			Enabled = false,
 
 			Currencies = {
 				PrimaryName   = "Coins",
