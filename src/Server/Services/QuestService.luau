@@ -11,6 +11,7 @@ local DataService = require(ServerScriptService.Server.Services.DataService)
 local LevelService = require(ServerScriptService.Server.Services.LevelService)
 local QuestRegistry = require(ReplicatedStorage.Shared.Modules.QuestRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 
 local QuestService = {}
 
@@ -20,19 +21,25 @@ local function QuestsAvailable(): boolean
     return #QuestRegistry.Quests > 0
 end
 
-local function ValidateQuestData(profile: any)
+-- Backfills the lazily-created quest sub-table and returns it typed — the
+-- single any→typed boundary for quest persistence (same idiom as the genre
+-- services' getAuraData/getPetData validators).
+local function ValidateQuestData(profile: any): PSUTypes.QuestSaveData
     if type(profile.Data.Progression) ~= "table" then
         profile.Data.Progression = {}
     end
-    if type(profile.Data.Progression.Quests) ~= "table" then
-        profile.Data.Progression.Quests = { Progress = {}, Claimed = {}, LastReset = 0, LastWeeklyReset = 0 }
+    local progression = profile.Data.Progression :: PSUTypes.ProgressionData
+    if type(progression.Quests) ~= "table" then
+        progression.Quests = { Progress = {}, Claimed = {}, LastReset = 0, LastWeeklyReset = 0 }
     end
-    if type(profile.Data.Progression.Quests.Progress) ~= "table" then 
-        profile.Data.Progression.Quests.Progress = {} 
+    local quests = progression.Quests :: PSUTypes.QuestSaveData
+    if type(quests.Progress) ~= "table" then
+        quests.Progress = {}
     end
-    if type(profile.Data.Progression.Quests.Claimed) ~= "table" then 
-        profile.Data.Progression.Quests.Claimed = {} 
+    if type(quests.Claimed) ~= "table" then
+        quests.Claimed = {}
     end
+    return quests
 end
 
 function QuestService.AddProgress(player: Player, actionType: string, amount: number)
@@ -40,14 +47,14 @@ function QuestService.AddProgress(player: Player, actionType: string, amount: nu
     local profile = DataService.Profiles[player]
     if not profile then return end
 
-    ValidateQuestData(profile)
+    local quests = ValidateQuestData(profile)
 
     local updated = false
     for _, quest in ipairs(QuestRegistry.Quests) do
-        if quest.ActionType == actionType and not profile.Data.Progression.Quests.Claimed[quest.Id] then
-            local current = profile.Data.Progression.Quests.Progress[quest.Id] or 0
+        if quest.ActionType == actionType and not quests.Claimed[quest.Id] then
+            local current = quests.Progress[quest.Id] or 0
             if current < quest.Target then
-                profile.Data.Progression.Quests.Progress[quest.Id] = math.min(current + amount, quest.Target)
+                quests.Progress[quest.Id] = math.min(current + amount, quest.Target)
                 updated = true
             end
         end
@@ -56,7 +63,7 @@ function QuestService.AddProgress(player: Player, actionType: string, amount: nu
     if updated then
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         local event = remotes and remotes:FindFirstChild(RemoteNames.UpdateQuests) :: RemoteEvent
-        if event then event:FireClient(player, profile.Data.Progression.Quests) end
+        if event then event:FireClient(player, quests) end
     end
 end
 
@@ -65,9 +72,9 @@ local function OnClaimRequest(player: Player, questId: string)
     local profile = DataService.Profiles[player]
     if not profile then return end
 
-    ValidateQuestData(profile)
+    local quests = ValidateQuestData(profile)
 
-    if profile.Data.Progression.Quests.Claimed[questId] then return end
+    if quests.Claimed[questId] then return end
 
     local questDef = nil
     for _, q in ipairs(QuestRegistry.Quests) do
@@ -75,13 +82,14 @@ local function OnClaimRequest(player: Player, questId: string)
     end
     if not questDef then return end
 
-    local current = profile.Data.Progression.Quests.Progress[questId] or 0
+    local current = quests.Progress[questId] or 0
     if current >= questDef.Target then
-        profile.Data.Progression.Quests.Claimed[questId] = true
+        quests.Claimed[questId] = true
         
-        local level: number = if type(profile.Data.Progression) == "table"
-            then (profile.Data.Progression.Level or 1)
-            else 1
+        local progression = if type(profile.Data.Progression) == "table"
+            then profile.Data.Progression :: PSUTypes.ProgressionData
+            else nil
+        local level: number = if progression then (progression.Level or 1) else 1
         local mult = QuestRegistry.GetMultiplier(level, 0)
         local finalCoins = questDef.BaseCoins * mult
         local finalEXP = questDef.BaseEXP * mult
@@ -108,7 +116,7 @@ local function OnClaimRequest(player: Player, questId: string)
 
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         local event = remotes and remotes:FindFirstChild(RemoteNames.UpdateQuests) :: RemoteEvent
-        if event then event:FireClient(player, profile.Data.Progression.Quests) end
+        if event then event:FireClient(player, quests) end
     end
 end
 

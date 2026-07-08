@@ -47,7 +47,7 @@ local function isAnyMenuOpen(): boolean
     return false
 end
 
-local os_time: () -> number = os.time
+local os_time: typeof(os.time) = os.time
 
 local function onRenderStepped(): ()
     if isAnyMenuOpen() then

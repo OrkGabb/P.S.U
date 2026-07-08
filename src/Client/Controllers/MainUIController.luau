@@ -28,6 +28,7 @@ local AuraRegistry = require(ReplicatedStorage.Shared.Modules.AuraRegistry)
 local AudioRegistry = require(ReplicatedStorage.Shared.Config.AudioRegistry)
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 
 local GENRE_KEY = "Aura_Collector"
 
@@ -831,11 +832,13 @@ function MainUIController.Start(): ()
 	if updateProfileRemote then
 		updateProfileRemote.OnClientEvent:Connect(function(data: any)
 			if type(data) ~= "table" then return end
-			if type(data.Progression) == "table" and type(data.Progression.Level) == "number" then
-				State.Level = data.Progression.Level
+			local progression = if type(data.Progression) == "table" then data.Progression :: PSUTypes.ProgressionData else nil
+			if progression and type(progression.Level) == "number" then
+				State.Level = progression.Level
 			end
-			local genreData = if type(data.GenreData) == "table" then data.GenreData[GENRE_KEY] else nil
-			if type(genreData) == "table" then
+			local genreDataRaw = if type(data.GenreData) == "table" then (data.GenreData :: PSUTypes.GenreDataMap)[GENRE_KEY] else nil
+			if type(genreDataRaw) == "table" then
+				local genreData = genreDataRaw :: PSUTypes.AuraCollectorData
 				if type(genreData.CurrentBiome) == "string" then
 					State.CurrentBiome = genreData.CurrentBiome
 				end

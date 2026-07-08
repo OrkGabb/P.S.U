@@ -25,6 +25,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local PetRegistry = require(ReplicatedStorage.Shared.Modules.PetRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 local DataService = require(ServerScriptService.Server.Services.DataService)
 local NetworkService = require(ServerScriptService.Server.Services.NetworkService)
 
@@ -90,7 +91,8 @@ local function processHatch(player: Player, eggId: any): ()
 	if type(data.Currencies) ~= "table" then
 		data.Currencies = { Primary = 0, Secondary = 0, Premium = 0 }
 	end
-	local level: number = if type(data.Progression) == "table" then (data.Progression.Level or 1) else 1
+	local progression = if type(data.Progression) == "table" then data.Progression :: PSUTypes.ProgressionData else nil
+	local level: number = if progression then (progression.Level or 1) else 1
 	if level < egg.LevelReq then return end
 	if (data.Currencies.Primary or 0) < egg.HatchCost then return end
 	data.Currencies.Primary -= egg.HatchCost
