@@ -46,6 +46,13 @@ local arrowBtn: TextButton? = nil
 local upgradePanel: Frame? = nil
 local upgradePanelScale: UIScale? = nil
 
+-- Open state is tracked here, never derived from Visible: Visible stays true
+-- through the whole close animation, so deriving state from it misroutes any
+-- toggle that arrives mid-animation. The generation counter invalidates stale
+-- Tween.Completed handlers when a newer transition has taken over.
+local upgradePanelOpen: boolean = false
+local upgradePanelAnimGen: number = 0
+
 local sidebarVisible: boolean = true
 local centeredOffsetY: number = 0
 local safeUI = AssetRegistry.UI or {}
@@ -97,23 +104,32 @@ local function SetSidebarVisible(open: boolean, instant: boolean?): ()
 end
 
 local function ToggleUpgradePanel(): ()
-	if not upgradePanel or not upgradePanelScale then return end
-	local isCurrentlyOpen: boolean = upgradePanel.Visible
-	
-	if isCurrentlyOpen then
+	local panel = upgradePanel
+	local panelScale = upgradePanelScale
+	if not panel or not panelScale then return end
+
+	upgradePanelOpen = not upgradePanelOpen
+	upgradePanelAnimGen += 1
+	local gen = upgradePanelAnimGen
+
+	if upgradePanelOpen then
+		-- Retarget from the current scale (no reset to 0) so reopening during a
+		-- close animation continues smoothly instead of snapping shut first.
+		panel.Visible = true
+		TweenService:Create(panelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+		GetLocalEvent("NotifyMenuOpened"):Fire("Upgrades")
+	else
 		GetLocalEvent("NotifyMenuClosed"):Fire("Upgrades")
-		local tw = TweenService:Create(upgradePanelScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+		local tw = TweenService:Create(panelScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
 		tw:Play()
 		tw.Completed:Connect(function(state: Enum.PlaybackState): ()
-			if not upgradePanel.Visible then return end
-			upgradePanel.Visible = false
+			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
+			-- and bumps the generation; hide only if this close ran to completion
+			-- and is still the latest transition.
+			if gen ~= upgradePanelAnimGen then return end
+			if state ~= Enum.PlaybackState.Completed then return end
+			panel.Visible = false
 		end)
-	else
-		upgradePanel.Visible = true
-		upgradePanelScale.Scale = 0
-		local tw = TweenService:Create(upgradePanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
-		tw:Play()
-		GetLocalEvent("NotifyMenuOpened"):Fire("Upgrades")
 	end
 end
 
@@ -244,25 +260,24 @@ function UIController.InitializeDynamicHUD(): ()
 	trLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	trLayout.Parent = trFrame
 
-	-- Coordinate sidebar placement on viewport resize
-	task.spawn(function(): ()
-		local camera: Camera? = workspace.CurrentCamera
-		if camera then
-			local function updateSidebarPosition(): ()
-				if not mainUI or not camera then return end
-				local screenH: number = mainUI.AbsoluteSize.Y
-				local freeZoneCenter: number = 56 + (screenH - 56 - 150) / 2
-				centeredOffsetY = math.floor(freeZoneCenter - screenH * 0.5)
+	-- Coordinate sidebar placement from the interface's own AbsoluteSize.
+	-- AbsoluteSize is (0, 0) until the ScreenGui is parented to PlayerGui (done
+	-- asynchronously below), and camera ViewportSize does not fire on parenting —
+	-- so listen to the AbsoluteSize signal, which covers both parenting and any
+	-- later viewport resize.
+	local function updateSidebarPosition(): ()
+		local screenH: number = dynamicInterface.AbsoluteSize.Y
+		if screenH <= 0 then return end
+		local freeZoneCenter: number = 56 + (screenH - 56 - 150) / 2
+		centeredOffsetY = math.floor(freeZoneCenter - screenH * 0.5)
 
-				POS_OPEN = UDim2.new(0, 15, 0.5, centeredOffsetY)
-				POS_CLOSE = UDim2.new(0, -buttonSize - 20, 0.5, centeredOffsetY)
+		POS_OPEN = UDim2.new(0, 15, 0.5, centeredOffsetY)
+		POS_CLOSE = UDim2.new(0, -buttonSize - 20, 0.5, centeredOffsetY)
 
-				SetSidebarVisible(sidebarVisible, true)
-			end
-			camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateSidebarPosition)
-			updateSidebarPosition()
-		end
-	end)
+		SetSidebarVisible(sidebarVisible, true)
+	end
+	dynamicInterface:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSidebarPosition)
+	updateSidebarPosition()
 
 	-- Open/Close coordination matching SidebarController behavior
 	GetLocalEvent("NotifyMenuClosed").Event:Connect(function(closedMenuId: string): ()

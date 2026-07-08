@@ -22,7 +22,9 @@ local PanelScale: UIScale
 local BgShield: TextButton
 local statsContainer: ScrollingFrame
 local isOpen: boolean = false
-local isAnimating: boolean = false
+-- Bumped on every open/close transition; stale animation callbacks compare
+-- against it and stand down if a newer transition has taken over.
+local animGen: number = 0
 
 local currentLevel: number = 1
 local currentRebirths: number = 0
@@ -524,7 +526,7 @@ function ProfileController.Start(): ()
 	local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
 	gui.Name         = "ProfileGui"
 	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 22
+	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
 
 	BgShield = Instance.new("TextButton", gui)
 	BgShield.Size                   = UDim2.fromScale(1, 1)
@@ -561,8 +563,10 @@ function ProfileController.Start(): ()
 		local scaleX = size.X / 380
 		local scaleY = size.Y / 540
 		targetScale = math.clamp(math.min(scaleX, scaleY, 1), 0.5, 1.2)
-		if isOpen and not isAnimating then
-			PanelScale.Scale = targetScale
+		if isOpen then
+			-- Retarget with a tween: a direct Scale set while another tween is
+			-- animating the property gets overwritten every frame.
+			TweenService:Create(PanelScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
 		end
 	end
 	
@@ -574,14 +578,20 @@ function ProfileController.Start(): ()
 	local function closePanel(): ()
 		if not isOpen then return end
 		isOpen            = false
-		isAnimating       = true
+		animGen += 1
+		local gen = animGen
+		gui.DisplayOrder  = 60
 		BgShield.Visible  = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Profile")
 		local tw = TweenService:Create(PanelScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
 		tw:Play()
 		tw.Completed:Connect(function(state: Enum.PlaybackState): ()
-			isAnimating = false
-			if not isOpen then MainPanel.Visible = false end
+			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
+			-- and bumps the generation; hide only if this close ran to completion
+			-- and is still the latest transition.
+			if gen ~= animGen then return end
+			if state ~= Enum.PlaybackState.Completed then return end
+			MainPanel.Visible = false
 		end)
 	end
 
@@ -712,21 +722,18 @@ function ProfileController.Start(): ()
 	end
 
 	GetLocalEvent("ToggleProfile").Event:Connect(function(): ()
-		if isAnimating then return end
 		if isOpen then
 			closePanel()
 		else
 			isOpen            = true
-			isAnimating       = true
+			animGen += 1
+			gui.DisplayOrder  = 61 -- render above the outgoing panel during a switch
 			MainPanel.Visible = true
 			BgShield.Visible  = true
-			PanelScale.Scale  = 0
-			updateUIScale()
-			local tw = TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = targetScale })
-			tw:Play()
-			tw.Completed:Connect(function(state: Enum.PlaybackState): ()
-				isAnimating = false
-			end)
+			-- Retarget from the current scale (no reset to 0) so reopening during
+			-- a close animation continues smoothly instead of snapping shut first.
+			-- targetScale is kept fresh by the ViewportSize connection above.
+			TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = targetScale }):Play()
 
 			GetLocalEvent("NotifyMenuOpened"):Fire("Profile")
 
@@ -734,9 +741,8 @@ function ProfileController.Start(): ()
 		end
 	end)
 
-	GetLocalEvent("NotifyMenuOpened").Event:Connect(function(openedMenuId: string): ()
-		if isOpen and openedMenuId ~= "Profile" then closePanel() end
-	end)
+	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
+	-- handler, which fires ToggleProfile when another menu opens.
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local updateData: RemoteEvent? = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5) :: any

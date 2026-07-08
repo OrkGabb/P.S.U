@@ -22,12 +22,12 @@ local SettingsState: {[string]: any} = {
 }
 
 local isOpen     = false
-local isAnimating = false
+-- Bumped on every open/close transition; stale animation callbacks compare
+-- against it and stand down if a newer transition has taken over.
+local animGen    = 0
 local mainPanel: Frame
 local panelScale: UIScale
 local BgShield: TextButton
-local _tweenClose: Tween?
-local _tweenOpen:  Tween?
 local _cachedEvents: {[string]: BindableEvent} = {}
 
 type ParticleSnap = {
@@ -52,14 +52,6 @@ local function GetLocalEvent(name: string): BindableEvent
 	evt.Name = name
 	_cachedEvents[name] = evt :: BindableEvent
 	return evt :: BindableEvent
-end
-
-local function RebuildTweens()
-	if not panelScale then return end
-	_tweenClose = TweenService:Create(panelScale,
-		TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In),  { Scale = 0 })
-	_tweenOpen  = TweenService:Create(panelScale,
-		TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
 end
 
 local _defaultFog = Lighting.FogEnd
@@ -393,7 +385,7 @@ function SettingsController.Start(): ()
 	local gui        = Instance.new("ScreenGui")
 	gui.Name         = "SettingsGui"
 	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 50
+	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
 	gui.Parent       = LocalPlayer.PlayerGui
 	
 	if SettingsState.PerformanceMode then
@@ -427,7 +419,6 @@ function SettingsController.Start(): ()
 
 	panelScale       = Instance.new("UIScale", mainPanel)
 	panelScale.Scale = 0
-	RebuildTweens()
 
 	local title                  = Instance.new("TextLabel", mainPanel)
 	title.Size                   = UDim2.new(1, 0, 0, 50)
@@ -468,13 +459,20 @@ function SettingsController.Start(): ()
 	local function ClosePanel()
 		if not isOpen then return end
 		isOpen = false
-		isAnimating = true
+		animGen += 1
+		local gen = animGen
+		gui.DisplayOrder = 60
 		BgShield.Visible = false
-		if _tweenClose then _tweenClose:Play() end
 		GetLocalEvent("NotifyMenuClosed"):Fire("Settings")
-		task.delay(0.25, function()
-			isAnimating = false
-			if not isOpen then mainPanel.Visible = false end
+		local tw = TweenService:Create(panelScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
+		tw:Play()
+		tw.Completed:Connect(function(state: Enum.PlaybackState)
+			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
+			-- and bumps the generation; hide only if this close ran to completion
+			-- and is still the latest transition.
+			if gen ~= animGen then return end
+			if state ~= Enum.PlaybackState.Completed then return end
+			mainPanel.Visible = false
 		end)
 	end
 
@@ -601,28 +599,23 @@ function SettingsController.Start(): ()
 	end)
 
 	GetLocalEvent("ToggleSettings").Event:Connect(function()
-		if isAnimating then return end
 		if isOpen then
 			ClosePanel()
 		else
 			isOpen            = true
-			isAnimating       = true
+			animGen += 1
+			gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
 			mainPanel.Visible = true
 			BgShield.Visible  = true
-			panelScale.Scale  = 0
-			if _tweenOpen then _tweenOpen:Play() end
-			task.delay(0.35, function()
-				isAnimating = false
-			end)
+			-- Retarget from the current scale (no reset to 0) so reopening during
+			-- a close animation continues smoothly instead of snapping shut first.
+			TweenService:Create(panelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 			GetLocalEvent("NotifyMenuOpened"):Fire("Settings")
 		end
 	end)
 
-	GetLocalEvent("NotifyMenuOpened").Event:Connect(function(openedMenuId: string)
-		if isOpen and openedMenuId ~= "Settings" then
-			ClosePanel()
-		end
-	end)
+	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
+	-- handler, which fires ToggleSettings when another menu opens.
 end
 
 return SettingsController

@@ -21,7 +21,9 @@ local DetailsPanel: Frame
 local PanelScale: UIScale
 local BgShield: TextButton 
 local isOpen = false
-local isAnimating = false
+-- Bumped on every open/close transition; stale animation callbacks compare
+-- against it and stand down if a newer transition has taken over.
+local animGen = 0
 
 local inventoryCache: {[string]: number} = {}
 local selectedItemId: string? = nil
@@ -282,7 +284,7 @@ function BagController.Start(): ()
     local gui = Instance.new("ScreenGui")
     gui.Name = "BagGui"
     gui.ResetOnSpawn = false 
-    gui.DisplayOrder = 40
+    gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
     gui.Parent = LocalPlayer.PlayerGui
 
     BgShield = Instance.new("TextButton", gui)
@@ -329,8 +331,10 @@ function BagController.Start(): ()
         local scaleX = size.X / 640
         local scaleY = size.Y / 440
         targetScale = math.clamp(math.min(scaleX, scaleY, 1), 0.5, 1.2)
-        if isOpen and not isAnimating then
-            PanelScale.Scale = targetScale
+        if isOpen then
+            -- Retarget with a tween: a direct Scale set while another tween is
+            -- animating the property gets overwritten every frame.
+            TweenService:Create(PanelScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
         end
     end
     
@@ -340,14 +344,20 @@ function BagController.Start(): ()
     local function closePanel()
         if not isOpen then return end
         isOpen = false
-        isAnimating = true
+        animGen += 1
+        local gen = animGen
+        gui.DisplayOrder = 60
         BgShield.Visible = false
         GetLocalEvent("NotifyMenuClosed"):Fire("Bag")
         local tw = TweenService:Create(PanelScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
         tw:Play()
-        tw.Completed:Connect(function()
-            isAnimating = false
-            if not isOpen then MainPanel.Visible = false end
+        tw.Completed:Connect(function(state: Enum.PlaybackState)
+            -- A reopen cancels this tween (Completed still fires, state=Cancelled)
+            -- and bumps the generation; hide only if this close ran to completion
+            -- and is still the latest transition.
+            if gen ~= animGen then return end
+            if state ~= Enum.PlaybackState.Completed then return end
+            MainPanel.Visible = false
         end)
     end
 
@@ -586,23 +596,20 @@ function BagController.Start(): ()
 
     -- ─── Networking & Events Connect ─────────────────────────────────────────
 
-    GetLocalEvent("ToggleBag").Event:Connect(function() 
-        if isAnimating then return end
+    GetLocalEvent("ToggleBag").Event:Connect(function()
         if isOpen then
             closePanel()
         else
             isOpen = true
-            isAnimating = true
+            animGen += 1
+            gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
             MainPanel.Visible = true
-            BgShield.Visible = true 
-            PanelScale.Scale = 0
-            updateUIScale()
-            local tw = TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = targetScale})
-            tw:Play()
-            tw.Completed:Connect(function()
-                isAnimating = false
-            end)
-            
+            BgShield.Visible = true
+            -- Retarget from the current scale (no reset to 0) so reopening during
+            -- a close animation continues smoothly instead of snapping shut first.
+            -- targetScale is kept fresh by the ViewportSize connection above.
+            TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
+
             GetLocalEvent("NotifyMenuOpened"):Fire("Bag")
             BagController.UpdateDetailsPanel()
         end
@@ -620,11 +627,8 @@ function BagController.Start(): ()
         end
     end)
 
-    GetLocalEvent("NotifyMenuOpened").Event:Connect(function(menuName)
-        if menuName ~= "Bag" and isOpen then
-            closePanel()
-        end
-    end)
+    -- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
+    -- handler, which fires ToggleBag when another menu opens.
 
     -- Real-time details button & remaining duration updates loop
     task.spawn(function()
