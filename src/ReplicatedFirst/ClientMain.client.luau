@@ -31,6 +31,10 @@ local function start(): ()
 
 
 
+	-- Genres are mutually exclusive — abort boot naming the exact flags on conflict.
+	FeatureResolver.AssertGenreExclusivity("ClientMain")
+	print(("[ClientMain] Active genre: %s"):format(FeatureResolver.GetActiveGenre() or "Global"))
+
 	local controllersFolder: Folder = ClientFolder:WaitForChild("Controllers") :: Folder
 	local startupOrder: { any } = {}
 
@@ -50,18 +54,6 @@ local function start(): ()
 	-- Aura mode carries consumable potions, so it needs the inventory UI.
 	-- Pet mode does NOT: pets are cosmetic-only with their own Pets UI.
 	local isInventoryActive: boolean = isRPGActive or isAuraActive or FeatureResolver.IsCategoryActive("Inventory")
-
-	-- Exclusivity Check
-	local activeGenres = FeatureResolver.GetActiveCategories()
-	local primaryCount = 0
-	for _, genre in ipairs(activeGenres) do
-		if genre ~= "Global" then
-			primaryCount += 1
-		end
-	end
-	if primaryCount > 1 then
-		error("[ClientMain] Hard verification failed: Multiple primary genres active simultaneously. Enforcing single-genre rule.")
-	end
 
 	-- Clicker category
 	if not isClickerActive then
