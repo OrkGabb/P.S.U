@@ -1,9 +1,16 @@
 # This file lists tools managed by Rokit, a toolchain manager for Roblox projects.
 # For more information, see https://github.com/rojo-rbx/rokit
-
+#
 # New tools can be added by running `rokit add <tool>` in a terminal.
+#
+# NOTE: do NOT alias `luau-analyze` to luau-lang/luau. Rokit extracts a single
+# binary per tool spec (it picks luau.exe out of the multi-binary release zip),
+# so the alias silently EXECUTES scripts instead of analyzing them. Static
+# analysis is provided by luau-lsp below instead:
+#   luau-lsp analyze --defs=types/globalTypes.d.luau --sourcemap=sourcemap.json <files>
+# (or run scripts/analyze.ps1, which wraps that command)
 
 [tools]
 rojo = "rojo-rbx/rojo@7.6.1"
 luau = "luau-lang/luau@0.728.0"
-luau-analyze = "luau-lang/luau@0.728.0"
+luau-lsp = "JohnnyMorganz/luau-lsp@1.68.1"
