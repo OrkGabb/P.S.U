@@ -5,3 +5,5 @@
 
 [tools]
 rojo = "rojo-rbx/rojo@7.6.1"
+luau = "luau-lang/luau@0.728.0"
+luau-analyze = "luau-lang/luau@0.728.0"
