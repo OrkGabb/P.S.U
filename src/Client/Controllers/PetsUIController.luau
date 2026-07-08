@@ -409,7 +409,7 @@ function PetsUIController.Start(): ()
 
 	makePanelFrame(gui)
 
-	local function closePanel(): ()
+	local function closePanel(reason: string?): ()
 		-- Guard only on logical state: dropping a close request during an
 		-- animation is how panels get stuck open during cross-menu switches.
 		if not isOpen then return end
@@ -419,7 +419,13 @@ function PetsUIController.Start(): ()
 		gui.DisplayOrder = 60
 		BgShield.Visible = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Pets")
-		local tw = TweenService:Create(PanelScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
+		-- A switch-triggered close (another panel is taking over) uses a fast
+		-- start so the outgoing panel gets out of the way quickly; a manual
+		-- close keeps the slower, weightier Back/In easing.
+		local closeTween: TweenInfo = if reason == "switch"
+			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			else TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		local tw = TweenService:Create(PanelScale, closeTween, { Scale = 0 })
 		tw:Play()
 		tw.Completed:Connect(function(state: Enum.PlaybackState)
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
@@ -440,7 +446,7 @@ function PetsUIController.Start(): ()
 	BgShield.Visible = false
 	BgShield.Active = true
 	BgShield.Parent = gui
-	BgShield.MouseButton1Up:Connect(closePanel)
+	BgShield.MouseButton1Up:Connect(function() closePanel() end)
 
 	local closeBtn = Instance.new("TextButton", MainPanel)
 	closeBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -456,7 +462,7 @@ function PetsUIController.Start(): ()
 	local closeStroke = Instance.new("UIStroke", closeBtn)
 	closeStroke.Color = Color3.fromRGB(120, 20, 20)
 	closeStroke.Thickness = 2
-	closeBtn.MouseButton1Up:Connect(closePanel)
+	closeBtn.MouseButton1Up:Connect(function() closePanel() end)
 
 	local panelTitle = Instance.new("TextLabel", MainPanel)
 	panelTitle.Size = UDim2.new(1, 0, 0, 50)
@@ -512,9 +518,9 @@ function PetsUIController.Start(): ()
 	grid.CellSize = UDim2.new(0, 82, 0, 72)
 
 	-- ── Open/close wiring ─────────────────────────────────────────────────────
-	GetLocalEvent("TogglePets").Event:Connect(function()
+	GetLocalEvent("TogglePets").Event:Connect(function(reason: string?)
 		if isOpen then
-			closePanel()
+			closePanel(reason)
 		else
 			isOpen = true
 			animGen += 1

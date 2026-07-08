@@ -575,7 +575,7 @@ function ProfileController.Start(): ()
 	end
 	updateUIScale()
 
-	local function closePanel(): ()
+	local function closePanel(reason: string?): ()
 		if not isOpen then return end
 		isOpen            = false
 		animGen += 1
@@ -583,7 +583,13 @@ function ProfileController.Start(): ()
 		gui.DisplayOrder  = 60
 		BgShield.Visible  = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Profile")
-		local tw = TweenService:Create(PanelScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
+		-- A switch-triggered close (another panel is taking over) uses a fast
+		-- start so the outgoing panel gets out of the way quickly; a manual
+		-- close keeps the slower, weightier Back/In easing.
+		local closeTween: TweenInfo = if reason == "switch"
+			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			else TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		local tw = TweenService:Create(PanelScale, closeTween, { Scale = 0 })
 		tw:Play()
 		tw.Completed:Connect(function(state: Enum.PlaybackState): ()
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
@@ -624,8 +630,8 @@ function ProfileController.Start(): ()
 	closeBtn.MouseButton1Down:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 26, 0, 26)}):Play() end)
 	closeBtn.MouseButton1Up:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32)}):Play() end)
 	
-	closeBtn.MouseButton1Up:Connect(closePanel)
-	BgShield.MouseButton1Up:Connect(closePanel)
+	closeBtn.MouseButton1Up:Connect(function() closePanel() end)
+	BgShield.MouseButton1Up:Connect(function() closePanel() end)
 
 	local panelTitle = Instance.new("TextLabel", MainPanel)
 	panelTitle.Size                   = UDim2.new(1, 0, 0, 50)
@@ -721,9 +727,9 @@ function ProfileController.Start(): ()
 		end)
 	end
 
-	GetLocalEvent("ToggleProfile").Event:Connect(function(): ()
+	GetLocalEvent("ToggleProfile").Event:Connect(function(reason: string?): ()
 		if isOpen then
-			closePanel()
+			closePanel(reason)
 		else
 			isOpen            = true
 			animGen += 1
