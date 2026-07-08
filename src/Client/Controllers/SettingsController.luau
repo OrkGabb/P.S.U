@@ -456,7 +456,7 @@ function SettingsController.Start(): ()
 	closeBtn.MouseButton1Down:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 26, 0, 26)}):Play() end)
 	closeBtn.MouseButton1Up:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32)}):Play() end)
 
-	local function ClosePanel()
+	local function ClosePanel(reason: string?)
 		if not isOpen then return end
 		isOpen = false
 		animGen += 1
@@ -464,7 +464,13 @@ function SettingsController.Start(): ()
 		gui.DisplayOrder = 60
 		BgShield.Visible = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Settings")
-		local tw = TweenService:Create(panelScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
+		-- A switch-triggered close (another panel is taking over) uses a fast
+		-- start so the outgoing panel gets out of the way quickly; a manual
+		-- close keeps the slower, weightier Back/In easing.
+		local closeTween: TweenInfo = if reason == "switch"
+			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			else TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		local tw = TweenService:Create(panelScale, closeTween, { Scale = 0 })
 		tw:Play()
 		tw.Completed:Connect(function(state: Enum.PlaybackState)
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
@@ -476,8 +482,8 @@ function SettingsController.Start(): ()
 		end)
 	end
 
-	closeBtn.MouseButton1Up:Connect(ClosePanel)
-	BgShield.MouseButton1Up:Connect(ClosePanel)
+	closeBtn.MouseButton1Up:Connect(function() ClosePanel() end)
+	BgShield.MouseButton1Up:Connect(function() ClosePanel() end)
 
 	local listFrame                       = Instance.new("ScrollingFrame", mainPanel)
 	listFrame.Size                        = UDim2.new(1, -30, 1, -70)
@@ -598,9 +604,9 @@ function SettingsController.Start(): ()
 		end
 	end)
 
-	GetLocalEvent("ToggleSettings").Event:Connect(function()
+	GetLocalEvent("ToggleSettings").Event:Connect(function(reason: string?)
 		if isOpen then
-			ClosePanel()
+			ClosePanel(reason)
 		else
 			isOpen            = true
 			animGen += 1

@@ -309,7 +309,7 @@ end
 -- Open / close (mirrors QuestsController's panel-scale pattern)
 --------------------------------------------------------------------------------
 
-local function closeDailyMenu(): ()
+local function closeDailyMenu(reason: string?): ()
 	if not isOpen then return end
 	isOpen = false
 	animGen += 1
@@ -320,7 +320,13 @@ local function closeDailyMenu(): ()
 	-- still animating shut.
 	BgShield.Visible = false
 	GetLocalEvent("NotifyMenuClosed"):Fire("Daily")
-	local tw = TweenService:Create(PanelScale, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Scale = 0})
+	-- A switch-triggered close (another panel is taking over) uses a fast
+	-- start so the outgoing panel gets out of the way quickly; a manual close
+	-- keeps the slower, weightier Quart/In easing.
+	local closeTween: TweenInfo = if reason == "switch"
+		then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		else TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+	local tw = TweenService:Create(PanelScale, closeTween, {Scale = 0})
 	tw:Play()
 	tw.Completed:Connect(function(state: Enum.PlaybackState)
 		-- A reopen cancels this tween (Completed still fires, state=Cancelled)
@@ -387,9 +393,9 @@ function DailyUIController.Start(): ()
 		end)
 	end
 
-	GetLocalEvent("ToggleDaily").Event:Connect(function()
+	GetLocalEvent("ToggleDaily").Event:Connect(function(reason: string?)
 		if isOpen then
-			closeDailyMenu()
+			closeDailyMenu(reason)
 		else
 			isOpen = true
 			animGen += 1

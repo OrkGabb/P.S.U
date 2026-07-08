@@ -103,7 +103,7 @@ local function SetSidebarVisible(open: boolean, instant: boolean?): ()
 	TweenService:Create(arrowBtn, tweenInfo, {Position = targetArrow}):Play()
 end
 
-local function ToggleUpgradePanel(): ()
+local function ToggleUpgradePanel(reason: string?): ()
 	local panel = upgradePanel
 	local panelScale = upgradePanelScale
 	if not panel or not panelScale then return end
@@ -120,7 +120,13 @@ local function ToggleUpgradePanel(): ()
 		GetLocalEvent("NotifyMenuOpened"):Fire("Upgrades")
 	else
 		GetLocalEvent("NotifyMenuClosed"):Fire("Upgrades")
-		local tw = TweenService:Create(panelScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+		-- A switch-triggered close (another panel is taking over) uses a fast
+		-- start so the outgoing panel gets out of the way quickly; a manual
+		-- close keeps the slower, weightier Back/In easing.
+		local closeTween: TweenInfo = if reason == "switch"
+			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			else TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		local tw = TweenService:Create(panelScale, closeTween, {Scale = 0})
 		tw:Play()
 		tw.Completed:Connect(function(state: Enum.PlaybackState): ()
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
@@ -289,7 +295,9 @@ function UIController.InitializeDynamicHUD(): ()
 
 	GetLocalEvent("NotifyMenuOpened").Event:Connect(function(openedMenuId: string): ()
 		if currentOpenMenuId and currentOpenMenuId ~= openedMenuId then
-			GetLocalEvent("Toggle" .. currentOpenMenuId):Fire()
+			-- "switch" tells the outgoing panel to use its fast-start close
+			-- instead of the slower manual-close easing.
+			GetLocalEvent("Toggle" .. currentOpenMenuId):Fire("switch")
 		end
 		currentOpenMenuId = openedMenuId
 		GetLocalEvent("ToggleGachaButton"):Fire(false)
@@ -530,7 +538,7 @@ function UIController.InitializeDynamicPanels(): ()
 	closeBtn.MouseLeave:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 30, 0, 30), BackgroundColor3 = Color3.fromRGB(220, 50, 50)}):Play() end)
 	closeBtn.MouseButton1Down:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 26, 0, 26)}):Play() end)
 	closeBtn.MouseButton1Up:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32)}):Play() end)
-	closeBtn.MouseButton1Up:Connect(ToggleUpgradePanel)
+	closeBtn.MouseButton1Up:Connect(function() ToggleUpgradePanel() end)
 
 	local panelTitle = Instance.new("TextLabel")
 	panelTitle.Size = UDim2.new(1, 0, 0, 50)

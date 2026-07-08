@@ -236,7 +236,7 @@ function SkillsController.Start(): ()
 	camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
 	updateUIScale()
 
-	local function closeSkillsMenu()
+	local function closeSkillsMenu(reason: string?)
 		if isOpen then
 			isOpen = false
 			animGen += 1
@@ -244,7 +244,13 @@ function SkillsController.Start(): ()
 			gui.DisplayOrder = 60
 			BgShield.Visible = false
 			GetLocalEvent("NotifyMenuClosed"):Fire("Skills")
-			local tw = TweenService:Create(PanelScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+			-- A switch-triggered close (another panel is taking over) uses a
+			-- fast start so the outgoing panel gets out of the way quickly; a
+			-- manual close keeps the slower, weightier Back/In easing.
+			local closeTween: TweenInfo = if reason == "switch"
+				then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				else TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+			local tw = TweenService:Create(PanelScale, closeTween, {Scale = 0})
 			tw:Play()
 			tw.Completed:Connect(function(state: Enum.PlaybackState)
 				-- A reopen cancels this tween (Completed still fires, state=Cancelled)
@@ -257,8 +263,8 @@ function SkillsController.Start(): ()
 		end
 	end
 
-	closeBtn.MouseButton1Up:Connect(closeSkillsMenu)
-	BgShield.MouseButton1Up:Connect(closeSkillsMenu)
+	closeBtn.MouseButton1Up:Connect(function() closeSkillsMenu() end)
+	BgShield.MouseButton1Up:Connect(function() closeSkillsMenu() end)
 
 	-- Header Title
 	local title = Instance.new("TextLabel", MainPanel)
@@ -426,9 +432,9 @@ function SkillsController.Start(): ()
 		end
 	end)
 
-	GetLocalEvent("ToggleSkills").Event:Connect(function()
+	GetLocalEvent("ToggleSkills").Event:Connect(function(reason: string?)
 		if isOpen then
-			closeSkillsMenu()
+			closeSkillsMenu(reason)
 		else
 			isOpen = true
 			animGen += 1
