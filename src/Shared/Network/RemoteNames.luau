@@ -33,6 +33,9 @@ export type RemoteNamesType = {
 	-- Core: quests
 	UpdateQuests: string,
 	ClaimQuestRequest: string,
+	-- Core: daily rewards
+	UpdateDaily: string,
+	ClaimDailyRequest: string,
 	-- Core: upgrades
 	UpgradeRequest: string,
 	UpdateUpgrades: string,
@@ -102,6 +105,12 @@ local Schema: { [string]: RemoteDef } = {
 		Signature = "(questState: table) — active quest progress snapshot" },
 	ClaimQuestRequest = { Kind = "Event", Direction = "C->S", System = "QuestService",
 		Signature = "(questId: string) — claim a completed quest's reward" },
+
+	-- ── Core: daily rewards ──────────────────────────────────────────────────
+	UpdateDaily = { Kind = "Event", Direction = "S->C", System = "DailyService",
+		Signature = "(dailyData: table) — { LastClaim: number, CurrentDay: number }" },
+	ClaimDailyRequest = { Kind = "Event", Direction = "C->S", System = "DailyService",
+		Signature = "() — claim today's daily reward, no args" },
 
 	-- ── Core: upgrades ───────────────────────────────────────────────────────
 	UpgradeRequest = { Kind = "Event", Direction = "C->S", System = "UpgradeService",
@@ -217,6 +226,9 @@ local RemoteNames: RemoteNamesType = {
 	-- Core: quests
 	UpdateQuests       = "UpdateQuests",
 	ClaimQuestRequest  = "ClaimQuestRequest",
+	-- Core: daily rewards
+	UpdateDaily        = "UpdateDaily",
+	ClaimDailyRequest  = "ClaimDailyRequest",
 	-- Core: upgrades
 	UpgradeRequest     = "UpgradeRequest",
 	UpdateUpgrades     = "UpdateUpgrades",
