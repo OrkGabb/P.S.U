@@ -45,6 +45,7 @@ local topRightFrame: Frame? = nil
 local arrowBtn: TextButton? = nil
 local upgradePanel: Frame? = nil
 local upgradePanelScale: UIScale? = nil
+local upgradePanelShield: TextButton? = nil
 
 -- Open state is tracked here, never derived from Visible: Visible stays true
 -- through the whole close animation, so deriving state from it misroutes any
@@ -58,9 +59,14 @@ local centeredOffsetY: number = 0
 local safeUI = AssetRegistry.UI or {}
 local buttonSize: number = safeUI.ButtonSize or 45
 local bottomButtonSize: number = safeUI.BottomButtonSize or 45
-local ARROW_OPEN_X: number = 15 + buttonSize + 10
-local ARROW_CLOSE_X: number = 6
-local POS_OPEN: UDim2 = UDim2.new(0, 15, 0.5, 0)
+-- Sidebar hugs the left screen edge (10px margin) so a leftward cursor flick
+-- lands on the buttons instead of a dead strip.
+local SIDEBAR_MARGIN_X: number = 10
+local ARROW_OPEN_X: number = SIDEBAR_MARGIN_X + buttonSize + 10
+-- Closed-state arrow sits flush against the screen edge so a leftward flick
+-- can't overshoot it (Fitts edge target).
+local ARROW_CLOSE_X: number = 0
+local POS_OPEN: UDim2 = UDim2.new(0, SIDEBAR_MARGIN_X, 0.5, 0)
 local POS_CLOSE: UDim2 = UDim2.new(0, -buttonSize - 20, 0.5, 0)
 local currentOpenMenuId: string? = nil
 
@@ -116,9 +122,11 @@ local function ToggleUpgradePanel(reason: string?): ()
 		-- Retarget from the current scale (no reset to 0) so reopening during a
 		-- close animation continues smoothly instead of snapping shut first.
 		panel.Visible = true
+		if upgradePanelShield then upgradePanelShield.Visible = true end
 		TweenService:Create(panelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
 		GetLocalEvent("NotifyMenuOpened"):Fire("Upgrades")
 	else
+		if upgradePanelShield then upgradePanelShield.Visible = false end
 		GetLocalEvent("NotifyMenuClosed"):Fire("Upgrades")
 		-- A switch-triggered close (another panel is taking over) uses a fast
 		-- start so the outgoing panel gets out of the way quickly; a manual
@@ -176,20 +184,20 @@ function UIController.InitializeDynamicHUD(): ()
 	sidebarFrame = sFrame
 
 	local sLayout = Instance.new("UIListLayout")
-	sLayout.Padding = UDim.new(0, 4)
+	sLayout.Padding = UDim.new(0, 6)
 	sLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	sLayout.Parent = sFrame
 
 	-- Toggle Arrow
 	local arrow = Instance.new("TextButton")
 	arrow.Name = "SidebarToggleArrow"
-	arrow.Size = UDim2.new(0, 18, 0, 36)
+	arrow.Size = UDim2.new(0, 28, 0, 64)
 	arrow.AnchorPoint = Vector2.new(0, 0.5)
 	arrow.BackgroundColor3 = Color3.fromRGB(28, 28, 33)
 	arrow.BackgroundTransparency = 0.3
 	arrow.Text = "◀"
 	arrow.Font = Enum.Font.GothamBlack
-	arrow.TextSize = 12
+	arrow.TextSize = 14
 	arrow.TextColor3 = Color3.fromRGB(180, 180, 190)
 	arrow.AutoButtonColor = false
 	arrow.ZIndex = 10
@@ -277,7 +285,7 @@ function UIController.InitializeDynamicHUD(): ()
 		local freeZoneCenter: number = 56 + (screenH - 56 - 150) / 2
 		centeredOffsetY = math.floor(freeZoneCenter - screenH * 0.5)
 
-		POS_OPEN = UDim2.new(0, 15, 0.5, centeredOffsetY)
+		POS_OPEN = UDim2.new(0, SIDEBAR_MARGIN_X, 0.5, centeredOffsetY)
 		POS_CLOSE = UDim2.new(0, -buttonSize - 20, 0.5, centeredOffsetY)
 
 		SetSidebarVisible(sidebarVisible, true)
@@ -474,6 +482,23 @@ function UIController.InitializeDynamicPanels(): ()
 	local dynamicInterface = mainUI
 	if not dynamicInterface then return end
 
+	-- Click-outside-to-close shield, matching the BgShield every other panel has.
+	-- Created before the panel so sibling paint order keeps the panel on top.
+	local shield = Instance.new("TextButton")
+	shield.Name = "InputSink"
+	shield.Size = UDim2.fromScale(1, 1)
+	shield.BackgroundColor3 = Color3.new(0, 0, 0)
+	shield.BackgroundTransparency = 0.5
+	shield.Text = ""
+	shield.AutoButtonColor = false
+	shield.Visible = false
+	shield.Active = true
+	shield.Parent = dynamicInterface
+	upgradePanelShield = shield
+	shield.MouseButton1Up:Connect(function(): ()
+		if upgradePanelOpen then ToggleUpgradePanel() end
+	end)
+
 	local panel = Instance.new("Frame")
 	panel.Name = "UpgradePanel"
 	panel.Size = UDim2.new(0, 620, 0, 420)
@@ -510,8 +535,8 @@ function UIController.InitializeDynamicPanels(): ()
 
 	-- Close Button
 	local closeBtn = Instance.new("TextButton")
-	closeBtn.Size = UDim2.new(0, 30, 0, 30)
-	closeBtn.Position = UDim2.new(1, -12, 0, 12)
+	closeBtn.Size = UDim2.new(0, 36, 0, 36)
+	closeBtn.Position = UDim2.new(1, -10, 0, 10)
 	closeBtn.AnchorPoint = Vector2.new(1, 0)
 	closeBtn.AutoButtonColor = false
 	closeBtn.Text = "X"
@@ -534,10 +559,10 @@ function UIController.InitializeDynamicPanels(): ()
 
 	local TweenService = game:GetService("TweenService")
 	local clickTw = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	closeBtn.MouseEnter:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = Color3.fromRGB(255, 70, 70)}):Play() end)
-	closeBtn.MouseLeave:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 30, 0, 30), BackgroundColor3 = Color3.fromRGB(220, 50, 50)}):Play() end)
-	closeBtn.MouseButton1Down:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 26, 0, 26)}):Play() end)
-	closeBtn.MouseButton1Up:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32)}):Play() end)
+	closeBtn.MouseEnter:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 38, 0, 38), BackgroundColor3 = Color3.fromRGB(255, 70, 70)}):Play() end)
+	closeBtn.MouseLeave:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 36, 0, 36), BackgroundColor3 = Color3.fromRGB(220, 50, 50)}):Play() end)
+	closeBtn.MouseButton1Down:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32)}):Play() end)
+	closeBtn.MouseButton1Up:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 38, 0, 38)}):Play() end)
 	closeBtn.MouseButton1Up:Connect(function() ToggleUpgradePanel() end)
 
 	local panelTitle = Instance.new("TextLabel")
@@ -601,8 +626,8 @@ function UIController.InitializeDynamicPanels(): ()
 
 	local buyBtn = Instance.new("TextButton")
 	buyBtn.Name = "PurchaseButton"
-	buyBtn.Size = UDim2.new(0, 120, 0, 32)
-	buyBtn.Position = UDim2.new(1, -135, 0.5, -16)
+	buyBtn.Size = UDim2.new(0, 140, 0, 40)
+	buyBtn.Position = UDim2.new(1, -155, 0.5, -20)
 	buyBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 50)
 	buyBtn.Text = "UPGRADE"
 	buyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)

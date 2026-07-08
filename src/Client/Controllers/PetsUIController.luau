@@ -155,8 +155,8 @@ local function RefreshEggList(): ()
 
 		local hatchBtn = Instance.new("TextButton", card)
 		hatchBtn.Name = "HatchBtn"
-		hatchBtn.Size = UDim2.new(0, 130, 0, 32)
-		hatchBtn.Position = UDim2.new(1, -140, 0, 34)
+		hatchBtn.Size = UDim2.new(0, 150, 0, 40)
+		hatchBtn.Position = UDim2.new(1, -160, 0, 30)
 		hatchBtn.Font = Enum.Font.GothamBlack
 		hatchBtn.TextSize = 13
 		hatchBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -449,8 +449,8 @@ function PetsUIController.Start(): ()
 	BgShield.MouseButton1Up:Connect(function() closePanel() end)
 
 	local closeBtn = Instance.new("TextButton", MainPanel)
-	closeBtn.Size = UDim2.new(0, 30, 0, 30)
-	closeBtn.Position = UDim2.new(1, -15, 0, 15)
+	closeBtn.Size = UDim2.new(0, 36, 0, 36)
+	closeBtn.Position = UDim2.new(1, -10, 0, 10)
 	closeBtn.AnchorPoint = Vector2.new(1, 0)
 	closeBtn.AutoButtonColor = false
 	closeBtn.Text = "X"
