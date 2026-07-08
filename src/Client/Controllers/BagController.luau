@@ -368,8 +368,8 @@ function BagController.Start(): ()
     end
 
     local closeBtn = Instance.new("TextButton", MainPanel)
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeBtn.Position = UDim2.new(1, -12, 0, 12)
+    closeBtn.Size = UDim2.new(0, 36, 0, 36)
+    closeBtn.Position = UDim2.new(1, -10, 0, 10)
     closeBtn.AnchorPoint = Vector2.new(1, 0)
     closeBtn.AutoButtonColor = false
     closeBtn.Text = "" 

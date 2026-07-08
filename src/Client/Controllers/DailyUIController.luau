@@ -188,13 +188,13 @@ local function BuildPanel(): ()
 
 	local closeBtn = Instance.new("TextButton")
 	closeBtn.Name = "CloseButton"
-	closeBtn.Size = UDim2.new(0, 28, 0, 28)
-	closeBtn.Position = UDim2.new(1, -38, 0, 12)
+	closeBtn.Size = UDim2.new(0, 36, 0, 36)
+	closeBtn.Position = UDim2.new(1, -46, 0, 10)
 	closeBtn.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
 	closeBtn.Text = "X"
 	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	closeBtn.Font = Enum.Font.GothamBold
-	closeBtn.TextSize = 14
+	closeBtn.TextSize = 16
 	closeBtn.Parent = MainPanel
 	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 

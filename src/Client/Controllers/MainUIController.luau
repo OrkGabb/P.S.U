@@ -298,7 +298,10 @@ function MainUIController.Start(): ()
 	oddsToggle.Name = "OddsToggle"
 	oddsToggle.Size = UDim2.new(0, 70, 0, 30)
 	oddsToggle.AnchorPoint = Vector2.new(0.5, 1)
-	oddsToggle.Position = UDim2.new(0.5, 190, 1, -47)
+	-- Offset keeps a ~25px gap from the roll button's right edge (which sits at
+	-- +150 when the Monetization auto-roll shift is active) so spam-rolling
+	-- can't mis-click the odds toggle.
+	oddsToggle.Position = UDim2.new(0.5, 210, 1, -47)
 	oddsToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 	oddsToggle.Font = Enum.Font.GothamBlack
 	oddsToggle.TextSize = 13
@@ -313,7 +316,7 @@ function MainUIController.Start(): ()
 	oddsPanel.Name = "OddsPanel"
 	oddsPanel.Size = UDim2.new(0, 250, 0, 320)
 	oddsPanel.AnchorPoint = Vector2.new(0.5, 1)
-	oddsPanel.Position = UDim2.new(0.5, 190, 1, -85)
+	oddsPanel.Position = UDim2.new(0.5, 210, 1, -85)
 	oddsPanel.BackgroundColor3 = Color3.fromRGB(14, 11, 22)
 	oddsPanel.Visible = false
 	oddsPanel.Parent = mainInterface
