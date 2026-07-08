@@ -55,7 +55,7 @@ local SUFFIXES: {string} = {"", "k", "M", "B", "T", "Qd"}
 local function Format(n: number): string
 	if n < 1000 then return tostring(math.floor(n)) end
 	local exp = math.floor(math.log10(n) / 3)
-	return string.format("%.1f%s", n / (10 ^ (exp * 3)), SUFFIXES[exp + 1] or "inf"):gsub("%.0", "")
+	return (string.format("%.1f%s", n / (10 ^ (exp * 3)), SUFFIXES[exp + 1] or "inf"):gsub("%.0", ""))
 end
 
 local function GetLocalEvent(eventName: string): BindableEvent

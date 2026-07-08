@@ -17,25 +17,17 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
 
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
 local RemoteNames     = require(Shared:WaitForChild("Network"):WaitForChild("RemoteNames"))     :: any
+-- Required un-cast: supplies FPSConfigType/FPSWeaponConfig for typed config access.
+-- (Full inline path: the `Shared` local's `:: Folder` cast hides the instance
+-- tree from the analyzer, which breaks type-aware require resolution.)
+local FeatureToggles  = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("FeatureToggles"))
 
 -- ── Types ─────────────────────────────────────────────────────────────────────
 
-type WeaponConfig = {
-	DisplayName:        string,
-	FireRate:           number,
-	BaseDamage:         number,
-	MaxAmmo:            number,
-	ReloadTime:         number,
-	AimFOV:             number,
-	ScopeFOV:           number,
-	MaxRange:           number,
-	HeadshotMultiplier: number,
-	LimbMultiplier:     number,
-	PelletCount:        number?,
-	PelletSpreadDegrees: number?,
-	PelletDamage:       number?,
-	SpreadDegrees:      number?,
-}
+-- Alias of the shared config-entry type (SSoT: FeatureToggles.luau). The server
+-- reads only the damage-model subset, but aliasing the full shared shape keeps
+-- WEAPONS assignable straight from the typed config (indexers are invariant).
+type WeaponConfig = FeatureToggles.FPSWeaponConfig
 
 type SessionAmmo = {
 	current:     number,
@@ -90,14 +82,15 @@ local WEAPONS:  {[string]: WeaponConfig}
 local DEFAULT_WEAPON: string
 
 if type(fpsConfig) == "table" then
-	BASE_WALK_SPEED  = type(fpsConfig.WalkSpeed)        == "number" and fpsConfig.WalkSpeed        or 16
-	SPRINT_MULT      = type(fpsConfig.SprintMultiplier) == "number" and fpsConfig.SprintMultiplier or 1.75
-	SLIDE_BOOST      = type(fpsConfig.SlideSpeedBoost)  == "number" and fpsConfig.SlideSpeedBoost  or 28
-	SLIDE_DURATION   = type(fpsConfig.SlideDuration)    == "number" and fpsConfig.SlideDuration    or 0.85
-	SLIDE_COOLDOWN   = type(fpsConfig.SlideCooldown)    == "number" and fpsConfig.SlideCooldown    or 1.2
-	SLIDE_HIP_HEIGHT = type(fpsConfig.SlideHipHeight)   == "number" and fpsConfig.SlideHipHeight   or 0.5
-	WEAPONS          = type(fpsConfig.Weapons)          == "table"  and fpsConfig.Weapons           or {}
-	DEFAULT_WEAPON   = type(fpsConfig.DefaultWeapon)    == "string" and fpsConfig.DefaultWeapon     or "AR-GUN"
+	local cfg = fpsConfig :: FeatureToggles.FPSConfigType
+	BASE_WALK_SPEED  = type(cfg.WalkSpeed)        == "number" and cfg.WalkSpeed        or 16
+	SPRINT_MULT      = type(cfg.SprintMultiplier) == "number" and cfg.SprintMultiplier or 1.75
+	SLIDE_BOOST      = type(cfg.SlideSpeedBoost)  == "number" and cfg.SlideSpeedBoost  or 28
+	SLIDE_DURATION   = type(cfg.SlideDuration)    == "number" and cfg.SlideDuration    or 0.85
+	SLIDE_COOLDOWN   = type(cfg.SlideCooldown)    == "number" and cfg.SlideCooldown    or 1.2
+	SLIDE_HIP_HEIGHT = type(cfg.SlideHipHeight)   == "number" and cfg.SlideHipHeight   or 0.5
+	WEAPONS          = type(cfg.Weapons)          == "table"  and cfg.Weapons           or {}
+	DEFAULT_WEAPON   = type(cfg.DefaultWeapon)    == "string" and cfg.DefaultWeapon     or "AR-GUN"
 else
 	BASE_WALK_SPEED  = 16
 	SPRINT_MULT      = 1.75

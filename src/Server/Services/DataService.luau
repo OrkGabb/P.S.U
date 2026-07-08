@@ -7,6 +7,7 @@
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
+local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 
 local FeatureResolver: any = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
 local ProfileService: any = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("ProfileService"))
@@ -15,7 +16,8 @@ local DATA_STORE_NAME: string = FeatureResolver.GetConfigField("Data", "StoreNam
 
 -- Abstract, genre-agnostic profile schema. Extend ADDITIVELY only: new fields
 -- must default sensibly so ProfileService:Reconcile() upgrades old saves
--- without ever breaking existing data.
+-- without ever breaking existing data. Sub-table shapes are mirrored by the
+-- profile-schema types in Shared/Types/PSUTypes.luau — keep both in sync.
 local ProfileTemplate: { [string]: any } = {
     Currencies = {
         ["Primary"] = 0,
@@ -145,10 +147,11 @@ function DataService:GetGenreData(player: Player, genreKey: string): { [string]:
     if type(data.GenreData) ~= "table" then
         data.GenreData = {}
     end
-    if type(data.GenreData[genreKey]) ~= "table" then
-        data.GenreData[genreKey] = {}
+    local genreMap = data.GenreData :: PSUTypes.GenreDataMap
+    if type(genreMap[genreKey]) ~= "table" then
+        genreMap[genreKey] = {}
     end
-    return data.GenreData[genreKey]
+    return genreMap[genreKey]
 end
 
 -- Adds a stackable item into the abstract inventory (Consumables slot).
@@ -160,11 +163,12 @@ function DataService:AddItem(player: Player, itemId: string, amount: number): bo
     if type(data.Inventory) ~= "table" then
         data.Inventory = { Equipment = {}, Cosmetics = {}, Consumables = {} }
     end
-    if type(data.Inventory.Consumables) ~= "table" then
-        data.Inventory.Consumables = {}
+    local inventory = data.Inventory :: PSUTypes.InventoryData
+    if type(inventory.Consumables) ~= "table" then
+        inventory.Consumables = {}
     end
-    local current: number = data.Inventory.Consumables[itemId] or 0
-    data.Inventory.Consumables[itemId] = current + amount
+    local current: number = inventory.Consumables[itemId] or 0
+    inventory.Consumables[itemId] = current + amount
     return true
 end
 
@@ -175,12 +179,17 @@ function DataService:ConsumeItem(player: Player, itemId: string, amount: number)
     if data == nil or type(data.Inventory) ~= "table" or type(data.Inventory.Consumables) ~= "table" then
         return false
     end
-    local current: number = data.Inventory.Consumables[itemId] or 0
+    local inventory = data.Inventory :: PSUTypes.InventoryData
+    local current: number = inventory.Consumables[itemId] or 0
     if current < amount then
         return false
     end
     local remaining: number = current - amount
-    data.Inventory.Consumables[itemId] = if remaining > 0 then remaining else nil
+    if remaining > 0 then
+        inventory.Consumables[itemId] = remaining
+    else
+        inventory.Consumables[itemId] = nil
+    end
     return true
 end
 

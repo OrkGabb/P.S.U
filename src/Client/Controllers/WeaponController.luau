@@ -34,6 +34,10 @@ local FeatureResolver      = require(Shared:WaitForChild("Modules"):WaitForChild
 local RemoteNames          = require(Shared:WaitForChild("Network"):WaitForChild("RemoteNames"))         :: any
 local MatchStatsController = require(script.Parent:WaitForChild("MatchStatsController"))                 :: any
 local Spring               = require(Shared:WaitForChild("Modules"):WaitForChild("Spring"))               :: any
+-- Required un-cast: supplies the FPSWeaponConfig type for weapon config entries.
+-- (Full inline path: the `Shared` local's `:: Folder` cast hides the instance
+-- tree from the analyzer, which breaks type-aware require resolution.)
+local FeatureToggles       = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("FeatureToggles"))
 
 local LocalPlayer = Players.LocalPlayer :: Player
 
@@ -242,7 +246,7 @@ function WeaponController.Init(): ()
 	end)
 
 	if type(fpsConfig) == "table" and type(fpsConfig.Weapons) == "table" then
-		local wCfg: any = fpsConfig.Weapons[DEFAULT_WEAPON_KEY]
+		local wCfg = fpsConfig.Weapons[DEFAULT_WEAPON_KEY] :: FeatureToggles.FPSWeaponConfig?
 		if type(wCfg) == "table" then
 			currentFireRate   = type(wCfg.FireRate)   == "number" and wCfg.FireRate   or 0.1
 			currentScopeFOV   = type(wCfg.ScopeFOV)   == "number" and wCfg.ScopeFOV   or 20
@@ -547,7 +551,7 @@ local function HandleFireModeToggle(
 ): Enum.ContextActionResult
 	if state ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
 	
-	local wCfg: any = fpsConfig.Weapons[currentWeaponKey]
+	local wCfg = fpsConfig.Weapons[currentWeaponKey] :: FeatureToggles.FPSWeaponConfig?
 	local allowedModes = (wCfg and type(wCfg.AllowedFireModes) == "table" and #wCfg.AllowedFireModes > 0) and wCfg.AllowedFireModes or {FIRE_MODE_FULL_AUTO}
 
 	local currentIndex = 1
@@ -732,7 +736,7 @@ local function SwitchToIndex(newIndex: number): ()
 	isLmbHeld     = false
 
 	if type(fpsConfig) == "table" and type(fpsConfig.Weapons) == "table" then
-		local wCfg: any = fpsConfig.Weapons[currentWeaponKey]
+		local wCfg = fpsConfig.Weapons[currentWeaponKey] :: FeatureToggles.FPSWeaponConfig?
 		if type(wCfg) == "table" then
 			currentFireRate   = type(wCfg.FireRate)   == "number" and wCfg.FireRate   or 0.1
 			currentScopeFOV   = type(wCfg.ScopeFOV)   == "number" and wCfg.ScopeFOV   or 20
@@ -1390,8 +1394,9 @@ function WeaponController.Start(): ()
 		local camInst: Instance = cam :: Instance
 
 		if type(fpsConfig) == "table" and type(fpsConfig.Weapons) == "table" then
-			for wKey: string, wCfg: any in pairs(fpsConfig.Weapons) do
-				if type(wCfg) == "table" then
+			for wKey: string, wCfgRaw: any in pairs(fpsConfig.Weapons) do
+				if type(wCfgRaw) == "table" then
+					local wCfg = wCfgRaw :: FeatureToggles.FPSWeaponConfig
 					weaponSoundsCache[wKey] = {
 						FireSound   = MakeSound(type(wCfg.FireSoundId)   == "number" and wCfg.FireSoundId   or nil, camInst),
 						ReloadSound = MakeSound(type(wCfg.ReloadSoundId) == "number" and wCfg.ReloadSoundId or nil, camInst),
