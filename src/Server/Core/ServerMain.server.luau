@@ -68,6 +68,7 @@ local VFXService: any          = require(Services.VFXService)
 -- Framework Registration
 -- ═══════════════════════════════════════════════════════════════════════════════
 local FrameworkServer: any = require(ServerScriptService.Server.Core.FrameworkServer)
+local BootTelemetry: any = require(ServerScriptService.Server.Core.BootTelemetry)
 
 FrameworkServer.RegisterService("NetworkService", NetworkService)
 FrameworkServer.RegisterService("DataService", DataService)
@@ -85,6 +86,8 @@ FrameworkServer.RegisterService("VFXService", VFXService)
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Safe Lifecycle Call Helper
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- DEAD CODE: superseded by BootTelemetry.TrackedCall at every call site below.
+-- Left in place intentionally — removal is a separate future decision.
 local function SafeCall(mod: any, method: string): ()
     if typeof(mod) == "table" and type(mod[method]) == "function" then
         local ok: boolean, err: any = pcall(mod[method])
@@ -97,34 +100,36 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Phase 1: Init (Remote creation, DataStore initialization, Instance setup)
 -- ═══════════════════════════════════════════════════════════════════════════════
-SafeCall(NetworkService, "Init")
-SafeCall(DataService, "Init")
-SafeCall(LeaderstatsService, "Init")
-SafeCall(LevelService, "Init")
-SafeCall(UpgradeService, "Init")
-SafeCall(QuestService, "Init")
-SafeCall(DailyService, "Init")
-SafeCall(MonetizationService, "Init")
-SafeCall(AdminService, "Init")
-SafeCall(ChatTagService, "Init")
-SafeCall(AntiExploitService, "Init")
-SafeCall(VFXService, "Init")
+BootTelemetry.BeginSequence()
+BootTelemetry.TrackedCall(NetworkService, "Init", "NetworkService")
+BootTelemetry.TrackedCall(DataService, "Init", "DataService")
+BootTelemetry.TrackedCall(LeaderstatsService, "Init", "LeaderstatsService")
+BootTelemetry.TrackedCall(LevelService, "Init", "LevelService")
+BootTelemetry.TrackedCall(UpgradeService, "Init", "UpgradeService")
+BootTelemetry.TrackedCall(QuestService, "Init", "QuestService")
+BootTelemetry.TrackedCall(DailyService, "Init", "DailyService")
+BootTelemetry.TrackedCall(MonetizationService, "Init", "MonetizationService")
+BootTelemetry.TrackedCall(AdminService, "Init", "AdminService")
+BootTelemetry.TrackedCall(ChatTagService, "Init", "ChatTagService")
+BootTelemetry.TrackedCall(AntiExploitService, "Init", "AntiExploitService")
+BootTelemetry.TrackedCall(VFXService, "Init", "VFXService")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Phase 2: Start (Event connections, loop startup, network routines)
 -- ═══════════════════════════════════════════════════════════════════════════════
-SafeCall(NetworkService, "Start")
-SafeCall(DataService, "Start")
-SafeCall(LeaderstatsService, "Start")
-SafeCall(LevelService, "Start")
-SafeCall(UpgradeService, "Start")
-SafeCall(QuestService, "Start")
-SafeCall(DailyService, "Start")
-SafeCall(MonetizationService, "Start")
-SafeCall(AdminService, "Start")
-SafeCall(ChatTagService, "Start")
-SafeCall(AntiExploitService, "Start")
-SafeCall(VFXService, "Start")
+BootTelemetry.TrackedCall(NetworkService, "Start", "NetworkService")
+BootTelemetry.TrackedCall(DataService, "Start", "DataService")
+BootTelemetry.TrackedCall(LeaderstatsService, "Start", "LeaderstatsService")
+BootTelemetry.TrackedCall(LevelService, "Start", "LevelService")
+BootTelemetry.TrackedCall(UpgradeService, "Start", "UpgradeService")
+BootTelemetry.TrackedCall(QuestService, "Start", "QuestService")
+BootTelemetry.TrackedCall(DailyService, "Start", "DailyService")
+BootTelemetry.TrackedCall(MonetizationService, "Start", "MonetizationService")
+BootTelemetry.TrackedCall(AdminService, "Start", "AdminService")
+BootTelemetry.TrackedCall(ChatTagService, "Start", "ChatTagService")
+BootTelemetry.TrackedCall(AntiExploitService, "Start", "AntiExploitService")
+BootTelemetry.TrackedCall(VFXService, "Start", "VFXService")
+BootTelemetry.PrintSummary()
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Phase 3: Framework Boot
