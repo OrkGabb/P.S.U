@@ -275,6 +275,7 @@ export type GenresType = {
 
 export type FeatureTogglesType = {
 	FrameworkVersion: string,
+	AllowMultipleGenres: boolean,
 	GlobalFlags: GlobalFlagsType,
 	DebugConfig: DebugConfigType,
 	Monetization: SystemConfigType,
@@ -290,6 +291,17 @@ export type FeatureTogglesType = {
 
 local FeatureToggles: FeatureTogglesType = {
 	FrameworkVersion = "ModularFramework Core v1.0.0",
+
+	-- Escape hatch for consumers who want multiple genre flags enabled at once.
+	-- When true, FeatureResolver.resolveGenre() skips AssertGenreExclusivity
+	-- entirely and no longer errors on conflicting genre flags — it silently
+	-- resolves to the alphabetically-first enabled genre instead. The framework's
+	-- default (false) exists because letting multiple genres run concurrently
+	-- causes UI/state bugs (mismatched HUD flags, currency names, per-genre
+	-- systems double-initializing, etc.) that this check is designed to catch
+	-- at boot. Only flip this on if you understand and accept that risk for
+	-- your own project.
+	AllowMultipleGenres = false,
 
 	-- ─── Global Safety Flags ──────────────────────────────────────────────────
 	GlobalFlags = {

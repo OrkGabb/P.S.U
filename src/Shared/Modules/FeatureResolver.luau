@@ -1,14 +1,18 @@
 --!strict
 --@author OrkGabb
 --@module FeatureResolver.luau
---@version 1.0
+--@version 1.1
 -- src/Shared/Modules/FeatureResolver.luau
 -- Centralized single source of truth for dynamic category/feature discovery and resolution.
+-- Genre flags are mutually exclusive: exactly ONE genre is resolved per session.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local FeatureToggles = require(ReplicatedStorage.Shared.Config.FeatureToggles)
 
 local FeatureResolver = {}
+
+-- Intentional fallback genre when nothing is enabled in FeatureToggles.Genres.
+local DEFAULT_GENRE = "Clicker_Farm"
 
 -- Genre keys are derived from FeatureToggles.Genres (SSoT) — adding a new genre
 -- to that table automatically registers it here, no core edits required.
@@ -25,8 +29,95 @@ local function getGenreKeys(): {string}
 	return keys
 end
 
--- Returns whether a category or feature flag is active in FeatureToggles
+local function isGenreKey(name: string): boolean
+	local genres: any = (FeatureToggles :: any).Genres
+	return type(genres) == "table" and type(genres[name]) == "table"
+end
+
+--------------------------------------------------------------------------------
+-- Genre resolution (computed once per VM, then cached)
+--------------------------------------------------------------------------------
+
+local resolvedGenre: string? = nil
+local conflictingGenres: {string} = {}
+-- Full set of enabled genres when FeatureToggles.AllowMultipleGenres opted out of
+-- exclusivity. Empty in the default (single-genre) path — IsCategoryActive/
+-- GetActiveCategories fall back to resolvedGenre in that case.
+local multiGenreSet: {string} = {}
+-- Resolved once per VM lifetime and cached — this module does NOT re-evaluate if
+-- FeatureToggles.Genres or AllowMultipleGenres change after first resolution (e.g.
+-- hot-reloading config in Studio Play Solo, or a runtime admin panel toggling flags).
+-- A changed flag only takes effect after a full server/client restart. If a future
+-- use case needs live flag changes, this caching strategy must be revisited.
+local resolutionDone = false
+
+-- Exactly one enabled genre → that genre. None → DEFAULT_GENRE. Multiple →
+-- conflict recorded for AssertGenreExclusivity, UNLESS FeatureToggles.AllowMultipleGenres
+-- is true, in which case FeatureResolver does not arbitrate: every enabled genre is
+-- recorded in multiGenreSet and IsCategoryActive/GetActiveCategories report the full
+-- set. resolvedGenre still gets a "first enabled" representative value purely for
+-- the handful of call sites that need a single genre string (currency naming, audio/
+-- commerce config lookup, boot-log prints) — it is NOT authoritative for gating.
+local function resolveGenre(): string?
+	if resolutionDone then
+		return resolvedGenre
+	end
+	resolutionDone = true
+
+	local enabled: {string} = {}
+	for _, key: string in ipairs(getGenreKeys()) do
+		local cfg: any = (FeatureToggles :: any).Genres[key]
+		if type(cfg) == "table" and cfg.Enabled == true then
+			table.insert(enabled, key)
+		end
+	end
+
+	if #enabled > 1 and (FeatureToggles :: any).AllowMultipleGenres == true then
+		multiGenreSet = enabled
+		resolvedGenre = enabled[1]
+		warn(("[FeatureResolver] Multiple genre flags enabled: %s. FeatureToggles.AllowMultipleGenres is true — skipping exclusivity enforcement; all listed genres are active."):format(
+			table.concat(enabled, ", ")))
+	elseif #enabled > 1 then
+		conflictingGenres = enabled
+		resolvedGenre = enabled[1]
+		warn(("[FeatureResolver] Conflicting genre flags enabled: %s. Genres are mutually exclusive — resolving to %q until FeatureToggles.Genres is fixed."):format(
+			table.concat(enabled, ", "), enabled[1]))
+	elseif #enabled == 1 then
+		resolvedGenre = enabled[1]
+	elseif isGenreKey(DEFAULT_GENRE) then
+		resolvedGenre = DEFAULT_GENRE
+		warn(("[FeatureResolver] No genre enabled in FeatureToggles.Genres — defaulting to %q."):format(DEFAULT_GENRE))
+	else
+		resolvedGenre = nil
+		warn(("[FeatureResolver] No genre enabled and default %q is not a valid genre key — booting core-only."):format(DEFAULT_GENRE))
+	end
+
+	return resolvedGenre
+end
+
+-- Boot gate: raises when multiple genre flags are enabled, naming each one.
+-- Called by ServerMain/ClientMain before any genre-gated module loads.
+function FeatureResolver.AssertGenreExclusivity(context: string?): ()
+	resolveGenre()
+	if #conflictingGenres > 1 then
+		error(("[%s] Conflicting genre flags enabled: %s. Genres are mutually exclusive — enable exactly one in FeatureToggles.Genres."):format(
+			context or "FeatureResolver", table.concat(conflictingGenres, ", ")))
+	end
+end
+
+-- Returns whether a category or feature flag is active in FeatureToggles.
+-- Genre keys answer against the resolved genre set — never the raw flag.
+-- Default: exactly one genre reads as active framework-wide. When
+-- FeatureToggles.AllowMultipleGenres is true and multiple flags are enabled,
+-- every enabled genre reads as active (membership in multiGenreSet).
 function FeatureResolver.IsCategoryActive(name: string): boolean
+	if isGenreKey(name) then
+		resolveGenre()
+		if #multiGenreSet > 0 then
+			return table.find(multiGenreSet, name) ~= nil
+		end
+		return name == resolvedGenre
+	end
 	local toggle: any = (FeatureToggles :: any)[name]
 	if toggle == nil then
 		toggle = (FeatureToggles :: any)[name .. "Config"]
@@ -37,45 +128,39 @@ function FeatureResolver.IsCategoryActive(name: string): boolean
 			toggle = (FeatureToggles.GlobalFlags :: any)[name .. "Config"]
 		end
 	end
-	if toggle == nil and (FeatureToggles :: any).Genres then
-		toggle = (FeatureToggles :: any).Genres[name]
-		if toggle == nil then
-			toggle = (FeatureToggles :: any).Genres[name .. "Config"]
-		end
-	end
 	if type(toggle) == "table" then
 		return toggle.Enabled == true
 	end
 	return toggle == true
 end
 
--- Returns an array of all active gameplay/feature categories
+-- Returns the active gameplay categories: every enabled genre when
+-- FeatureToggles.AllowMultipleGenres opted out of exclusivity, otherwise the
+-- single resolved genre, or "Global" when running core-only.
 function FeatureResolver.GetActiveCategories(): {string}
-	local active: {string} = {}
-
-	for _, name in ipairs(getGenreKeys()) do
-		if FeatureResolver.IsCategoryActive(name) then
-			table.insert(active, name)
+	local genre: string? = resolveGenre()
+	if #multiGenreSet > 0 then
+		local copy: {string} = {}
+		for _, key in ipairs(multiGenreSet) do
+			table.insert(copy, key)
 		end
+		return copy
 	end
-
-	-- Automatically fallback to Global if no category is toggled
-	if #active == 0 then
-		table.insert(active, "Global")
+	if genre then
+		return { genre }
 	end
-
-	return active
+	return { "Global" }
 end
 
--- Returns the first active genre key, or nil if no genre is active
+-- Returns a single representative resolved genre key (default applied), or nil
+-- if core-only. NOT authoritative for gating in multi-genre mode — when
+-- FeatureToggles.AllowMultipleGenres allows several genres to be active at
+-- once, this returns only the alphabetically-first one, for the sake of call
+-- sites that structurally need one genre (currency naming, audio/commerce
+-- config lookup, boot-log prints). Use IsCategoryActive or GetActiveCategories
+-- for correct multi-genre gating.
 function FeatureResolver.GetActiveGenre(): string?
-	for _, key: string in ipairs(getGenreKeys()) do
-		local cfg: any = (FeatureToggles :: any).Genres and (FeatureToggles :: any).Genres[key]
-		if type(cfg) == "table" and cfg.Enabled == true then
-			return key
-		end
-	end
-	return nil
+	return resolveGenre()
 end
 
 -- Resolves the display names for the two abstract currency slots
@@ -109,7 +194,9 @@ function FeatureResolver.GetFlag(name: string): any
 	return nil
 end
 
--- Safely retrieves configuration table for a category
+-- Safely retrieves configuration table for a category.
+-- Note: genre configs stay readable even for inactive genres — activation
+-- gating is IsCategoryActive's job, not this accessor's.
 function FeatureResolver.GetCategoryConfig(name: string): any
 	local config: any = (FeatureToggles :: any)[name]
 	if config == nil then

@@ -34,17 +34,9 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════════
 local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
--- Exclusivity Check
-local activeGenres: {string} = FeatureResolver.GetActiveCategories()
-local primaryCount: number = 0
-for _, genre: string in ipairs(activeGenres) do
-	if genre ~= "Global" then
-		primaryCount += 1
-	end
-end
-if primaryCount > 1 then
-	error("[ServerMain] Hard verification failed: Multiple primary genres active simultaneously. Enforcing single-genre rule.")
-end
+-- Genres are mutually exclusive — abort boot naming the exact flags on conflict.
+FeatureResolver.AssertGenreExclusivity("ServerMain")
+print(("[ServerMain] Active genre: %s"):format(FeatureResolver.GetActiveGenre() or "Global"))
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Service Imports
