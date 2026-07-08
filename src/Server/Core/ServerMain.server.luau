@@ -8,6 +8,7 @@
 
 local ServerScriptService: ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService: RunService = game:GetService("RunService")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Defensive Network Layer: Instantiate critical remote bridges BEFORE any
@@ -37,6 +38,10 @@ local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureRes
 -- Genres are mutually exclusive — abort boot naming the exact flags on conflict.
 FeatureResolver.AssertGenreExclusivity("ServerMain")
 print(("[ServerMain] Active genre: %s"):format(FeatureResolver.GetActiveGenre() or "Global"))
+
+if RunService:IsStudio() then
+	require(ReplicatedStorage.Shared.Modules.ConfigAudit).PrintReport()
+end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Service Imports
