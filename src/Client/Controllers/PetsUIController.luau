@@ -23,6 +23,7 @@ local LocalPlayer = Players.LocalPlayer
 local PetRegistry = require(ReplicatedStorage.Shared.Modules.PetRegistry)
 local AudioRegistry = require(ReplicatedStorage.Shared.Config.AudioRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 
 local GENRE_KEY = "Pet_Simulator"
 
@@ -34,7 +35,9 @@ local InventoryGrid: ScrollingFrame
 local PanelScale: UIScale
 local BgShield: TextButton
 local isOpen = false
-local isAnimating = false
+-- Bumped on every open/close transition; stale animation callbacks compare
+-- against it and stand down if a newer transition has taken over.
+local animGen = 0
 local inventoryCache: {[string]: number} = {}
 local currentEquippedId = "None"
 local playerLevel = 1
@@ -401,22 +404,30 @@ function PetsUIController.Start(): ()
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "PetsGui"
 	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 20
+	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
 	gui.Parent = LocalPlayer.PlayerGui
 
 	makePanelFrame(gui)
 
 	local function closePanel(): ()
-		if not isOpen or isAnimating then return end
+		-- Guard only on logical state: dropping a close request during an
+		-- animation is how panels get stuck open during cross-menu switches.
+		if not isOpen then return end
 		isOpen = false
-		isAnimating = true
+		animGen += 1
+		local gen = animGen
+		gui.DisplayOrder = 60
 		BgShield.Visible = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Pets")
 		local tw = TweenService:Create(PanelScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
 		tw:Play()
-		tw.Completed:Connect(function()
-			isAnimating = false
-			if not isOpen then MainPanel.Visible = false end
+		tw.Completed:Connect(function(state: Enum.PlaybackState)
+			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
+			-- and bumps the generation; hide only if this close ran to completion
+			-- and is still the latest transition.
+			if gen ~= animGen then return end
+			if state ~= Enum.PlaybackState.Completed then return end
+			MainPanel.Visible = false
 		end)
 	end
 
@@ -502,29 +513,25 @@ function PetsUIController.Start(): ()
 
 	-- ── Open/close wiring ─────────────────────────────────────────────────────
 	GetLocalEvent("TogglePets").Event:Connect(function()
-		if isAnimating then return end
 		if isOpen then
 			closePanel()
 		else
 			isOpen = true
-			isAnimating = true
+			animGen += 1
+			gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
 			MainPanel.Visible = true
 			BgShield.Visible = true
-			PanelScale.Scale = 0
 			RefreshEggList()
 			RefreshInventory()
-			local tw = TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
-			tw:Play()
-			tw.Completed:Connect(function()
-				isAnimating = false
-			end)
+			-- Retarget from the current scale (no reset to 0) so reopening during
+			-- a close animation continues smoothly instead of snapping shut first.
+			TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 			GetLocalEvent("NotifyMenuOpened"):Fire("Pets")
 		end
 	end)
 
-	GetLocalEvent("NotifyMenuOpened").Event:Connect(function(openedMenuId: string)
-		if isOpen and openedMenuId ~= "Pets" then closePanel() end
-	end)
+	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
+	-- handler, which fires TogglePets when another menu opens.
 
 	-- ── Server events ─────────────────────────────────────────────────────────
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -562,14 +569,16 @@ function PetsUIController.Start(): ()
 	if updateProfileRemote then
 		updateProfileRemote.OnClientEvent:Connect(function(data: any)
 			if type(data) ~= "table" then return end
-			if type(data.Progression) == "table" and type(data.Progression.Level) == "number" then
-				if data.Progression.Level ~= playerLevel then
-					playerLevel = data.Progression.Level
+			local progression = if type(data.Progression) == "table" then data.Progression :: PSUTypes.ProgressionData else nil
+			if progression and type(progression.Level) == "number" then
+				if progression.Level ~= playerLevel then
+					playerLevel = progression.Level
 					if isOpen then RefreshEggList() end
 				end
 			end
-			local genreData = if type(data.GenreData) == "table" then data.GenreData[GENRE_KEY] else nil
-			if type(genreData) == "table" then
+			local genreDataRaw = if type(data.GenreData) == "table" then (data.GenreData :: PSUTypes.GenreDataMap)[GENRE_KEY] else nil
+			if type(genreDataRaw) == "table" then
+				local genreData = genreDataRaw :: PSUTypes.PetSimulatorData
 				if type(genreData.Inventory) == "table" then
 					inventoryCache = genreData.Inventory
 				end

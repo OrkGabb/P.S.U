@@ -13,15 +13,18 @@ local LocalPlayer = Players.LocalPlayer
 local QuestRegistry = require(ReplicatedStorage.Shared.Modules.QuestRegistry)
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 
 local QuestsController = {}
 local MainPanel: Frame
 local PanelScale: UIScale
 local BgShield: TextButton
 local isOpen = false
-local isAnimating = false
+-- Bumped on every open/close transition; stale animation callbacks compare
+-- against it and stand down if a newer transition has taken over.
+local animGen = 0
 local UI_Cache: {[string]: {ProgTxt: TextLabel, Desc: TextLabel, Bar: Frame, Btn: TextButton, CoinTxt: TextLabel, ExpTxt: TextLabel}} = {}
-local CurrentQuestData = { Progress = {}, Claimed = {} }
+local CurrentQuestData: PSUTypes.QuestClientData = { Progress = {}, Claimed = {} }
 local currentRebirths = 0
 
 local function FormatNumber(n: number): string
@@ -143,7 +146,7 @@ function QuestsController.Start(): ()
     local gui = Instance.new("ScreenGui")
     gui.Name = "QuestsGui"
     gui.ResetOnSpawn = false 
-    gui.DisplayOrder = 30
+    gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
     gui.Parent = LocalPlayer.PlayerGui
 
     BgShield = Instance.new("TextButton", gui)
@@ -218,14 +221,20 @@ function QuestsController.Start(): ()
     local function closeQuestsMenu()
         if isOpen then
             isOpen = false
-            isAnimating = true
+            animGen += 1
+            local gen = animGen
+            gui.DisplayOrder = 60
             BgShield.Visible = false
             GetLocalEvent("NotifyMenuClosed"):Fire("Quests")
             local tw = TweenService:Create(PanelScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
             tw:Play()
-            tw.Completed:Connect(function()
-                isAnimating = false
-                if not isOpen then MainPanel.Visible = false end
+            tw.Completed:Connect(function(state: Enum.PlaybackState)
+                -- A reopen cancels this tween (Completed still fires, state=Cancelled)
+                -- and bumps the generation; hide only if this close ran to completion
+                -- and is still the latest transition.
+                if gen ~= animGen then return end
+                if state ~= Enum.PlaybackState.Completed then return end
+                MainPanel.Visible = false
             end)
         end
     end
@@ -451,16 +460,18 @@ function QuestsController.Start(): ()
         local scaleX = size.X / 500
         local scaleY = size.Y / 460
         targetScale = math.clamp(math.min(scaleX, scaleY, 1), 0.5, 1.2)
-        if isOpen and not isAnimating then
-            PanelScale.Scale = targetScale
+        if isOpen then
+            -- Retarget with a tween: a direct Scale set while another tween is
+            -- animating the property gets overwritten every frame.
+            TweenService:Create(PanelScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
         end
     end
     
     camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
     updateUIScale()
 
-    remotes:WaitForChild(RemoteNames.UpdateQuests).OnClientEvent:Connect(function(questData)
-        CurrentQuestData = questData
+    remotes:WaitForChild(RemoteNames.UpdateQuests).OnClientEvent:Connect(function(questData: any)
+        CurrentQuestData = questData :: PSUTypes.QuestClientData
         if isOpen then RefreshUI() end
 
         local hasUnclaimed = false
@@ -486,33 +497,27 @@ function QuestsController.Start(): ()
     local levelVal = ls:WaitForChild("Level", 10)
     if levelVal then levelVal.Changed:Connect(function() if isOpen then RefreshUI() end end) end
 
-    GetLocalEvent("ToggleQuests").Event:Connect(function() 
-        if isAnimating then return end
+    GetLocalEvent("ToggleQuests").Event:Connect(function()
         if isOpen then
             closeQuestsMenu()
         else
             isOpen = true
-            isAnimating = true
+            animGen += 1
+            gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
             MainPanel.Visible = true
             BgShield.Visible = true
-            PanelScale.Scale = 0
             RefreshUI()
-            updateUIScale()
-            local tw = TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = targetScale})
-            tw:Play()
-            tw.Completed:Connect(function()
-                isAnimating = false
-            end)
-            
+            -- Retarget from the current scale (no reset to 0) so reopening during
+            -- a close animation continues smoothly instead of snapping shut first.
+            -- targetScale is kept fresh by the ViewportSize connection above.
+            TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
+
             GetLocalEvent("NotifyMenuOpened"):Fire("Quests")
         end
     end)
 
-    GetLocalEvent("NotifyMenuOpened").Event:Connect(function(openedMenuId: string)
-        if isOpen and openedMenuId ~= "Quests" then
-            closeQuestsMenu()
-        end
-    end)
+    -- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
+    -- handler, which fires ToggleQuests when another menu opens.
 
     local updateProfileData = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5)
     if updateProfileData then

@@ -22,7 +22,9 @@ local GridContainer: ScrollingFrame
 local PanelScale: UIScale
 local BgShield: TextButton
 local isOpen: boolean = false
-local isAnimating: boolean = false
+-- Bumped on every open/close transition; stale animation callbacks compare
+-- against it and stand down if a newer transition has taken over.
+local animGen: number = 0
 
 local FALLBACK_ICON: string = "rbxassetid://15059633013"
 
@@ -452,7 +454,7 @@ function StoreController.Start(): ()
 	local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
 	gui.Name         = "StoreGui"
 	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 25
+	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
 
 	BgShield = Instance.new("TextButton", gui) :: any
 	BgShield.Name                   = "InputSink"
@@ -498,14 +500,20 @@ function StoreController.Start(): ()
 	local function closePanel()
 		if not isOpen then return end
 		isOpen            = false
-		isAnimating       = true
+		animGen += 1
+		local gen = animGen
+		gui.DisplayOrder  = 60
 		BgShield.Visible  = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Store")
 		local tw = TweenService:Create(PanelScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
 		tw:Play()
-		tw.Completed:Connect(function()
-			isAnimating = false
-			if not isOpen then MainPanel.Visible = false end
+		tw.Completed:Connect(function(state: Enum.PlaybackState)
+			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
+			-- and bumps the generation; hide only if this close ran to completion
+			-- and is still the latest transition.
+			if gen ~= animGen then return end
+			if state ~= Enum.PlaybackState.Completed then return end
+			MainPanel.Visible = false
 		end)
 	end
 	BgShield.MouseButton1Up:Connect(closePanel)
@@ -634,21 +642,18 @@ function StoreController.Start(): ()
 	end)
 
 	GetLocalEvent("ToggleStore").Event:Connect(function()
-		if isAnimating then return end
 		if isOpen then
 			closePanel()
 		else
 			InitializeCatalog()
 			isOpen            = true
-			isAnimating       = true
+			animGen += 1
+			gui.DisplayOrder  = 61 -- render above the outgoing panel during a switch
 			MainPanel.Visible = true
 			BgShield.Visible  = true
-			PanelScale.Scale  = 0
-			local tw = TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
-			tw:Play()
-			tw.Completed:Connect(function()
-				isAnimating = false
-			end)
+			-- Retarget from the current scale (no reset to 0) so reopening during
+			-- a close animation continues smoothly instead of snapping shut first.
+			TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 
 			GetLocalEvent("NotifyMenuOpened"):Fire("Store")
 
@@ -663,11 +668,8 @@ function StoreController.Start(): ()
 		end
 	end)
 
-	GetLocalEvent("NotifyMenuOpened").Event:Connect(function(openedMenuId: string)
-		if isOpen and openedMenuId ~= "Store" then
-			closePanel()
-		end
-	end)
+	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
+	-- handler, which fires ToggleStore when another menu opens.
 end
 
 return StoreController
