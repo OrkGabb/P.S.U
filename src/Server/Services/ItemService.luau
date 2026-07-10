@@ -12,6 +12,10 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ItemService = {}
 ItemService.activeBuffs = {} -- EXPORTED: Allows reading active buffs from DataService
 
+-- Monotonic counter stamped onto each buff instance (see consumeEvent handler)
+-- so a stale task.delay can detect it's no longer the active instance.
+local buffGen = 0
+
 function ItemService.Init(): ()
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
     if not remotes:FindFirstChild(RemoteNames.RequestConsumeItem) then
@@ -42,10 +46,15 @@ function ItemService.Start(): ()
             if success then
                 -- Buff is stored only in volatile memory - NEVER saved to profile
                 ItemService.activeBuffs[player] = ItemService.activeBuffs[player] or {}
+                -- Generation token: re-applying the same itemId before the prior
+                -- instance expires must not let the prior task.delay wipe this one.
+                buffGen += 1
+                local gen = buffGen
                 ItemService.activeBuffs[player][itemId] = {
                     EndTime = os.time() + itemData.Duration,
                     Stat    = itemData.Stat,
-                    Boost   = itemData.Boost
+                    Boost   = itemData.Boost,
+                    Gen     = gen
                 }
 
                 -- Sync HUD
@@ -62,12 +71,15 @@ function ItemService.Start(): ()
                     QuestService.AddProgress(player, "UsePotion", 1)
                 end
 
-                -- Auto-expiration: clears the buff and updates the UI
+                -- Auto-expiration: clears the buff and updates the UI, but only if
+                -- this task.delay's instance is still the active one (a re-applied
+                -- buff before expiry bumps Gen, and the stale delay must no-op).
                 task.delay(itemData.Duration, function()
-                    if not ItemService.activeBuffs[player] then return end
-                    ItemService.activeBuffs[player][itemId] = nil
+                    local buffs = ItemService.activeBuffs[player]
+                    if not buffs or not buffs[itemId] or buffs[itemId].Gen ~= gen then return end
+                    buffs[itemId] = nil
                     if syncEvent then
-                        syncEvent:FireClient(player, ItemService.activeBuffs[player])
+                        syncEvent:FireClient(player, buffs)
                     end
                     -- Update full state on expiration
                     DataSvc:SyncFullState(player)
