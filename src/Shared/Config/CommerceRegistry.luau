@@ -198,6 +198,13 @@ CommerceRegistry.DevProducts = {} :: {[number]: DevProductReward}
 -- productKey → DevProductDef for UI listings
 CommerceRegistry.ActiveDevProducts = {} :: {[string]: DevProductDef}
 
+-- NOT THREAD-SAFE: table.clear() opens a window where Defs is empty while
+-- being repopulated. Not reachable today (Recompile() only runs once, at
+-- module load, with no other call sites) — but if a future caller (live
+-- admin panel, hot-reload) ever invokes Recompile() again mid-session, a
+-- concurrent GetCost read landing in that window returns (nil, "Primary"),
+-- indistinguishable from "already maxed" — silently rejecting a legitimate
+-- purchase. Fix then: build into a fresh table and swap it in atomically.
 function CommerceRegistry.Recompile(): ()
 	table.clear(CommerceRegistry.ActiveGamepasses)
 	table.clear(CommerceRegistry.GamepassIDs)

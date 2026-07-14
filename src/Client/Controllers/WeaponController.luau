@@ -551,7 +551,10 @@ local function HandleFireModeToggle(
 ): Enum.ContextActionResult
 	if state ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
 	
-	local wCfg = fpsConfig.Weapons[currentWeaponKey] :: FeatureToggles.FPSWeaponConfig?
+	local wCfg: FeatureToggles.FPSWeaponConfig? = nil
+	if type(fpsConfig) == "table" and type(fpsConfig.Weapons) == "table" then
+		wCfg = fpsConfig.Weapons[currentWeaponKey] :: FeatureToggles.FPSWeaponConfig?
+	end
 	local allowedModes = (wCfg and type(wCfg.AllowedFireModes) == "table" and #wCfg.AllowedFireModes > 0) and wCfg.AllowedFireModes or {FIRE_MODE_FULL_AUTO}
 
 	local currentIndex = 1

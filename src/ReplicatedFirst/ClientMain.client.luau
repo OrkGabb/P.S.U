@@ -16,13 +16,54 @@ LoadingController.Start()
 
 local ClientMain = {}
 
-local ClientFolder = StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Client")
-local FrameworkClient: any = require(
-	ClientFolder:WaitForChild("Core"):WaitForChild("FrameworkClient")
-)
-local FeatureResolver: any = require(
-	ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver")
-)
+-- Must stay comfortably under LoadingController's MAX_PRELOAD_TIMEOUT (10s) so
+-- a boot failure here is signaled while its safety loop is still running,
+-- instead of racing it as a second, independent timeout.
+local WAIT_TIMEOUT = 8
+
+-- Waits for a chain of instances, each bounded by WAIT_TIMEOUT. Returns nil
+-- (instead of hanging or erroring) if any link in the chain is missing.
+local function waitChain(root: Instance, ...: string): Instance?
+	local current = root
+	for _, name in ipairs({...}) do
+		local nextChild = current:WaitForChild(name, WAIT_TIMEOUT)
+		if not nextChild then
+			return nil
+		end
+		current = nextChild
+	end
+	return current
+end
+
+local ClientFolder: any = nil
+local FrameworkClient: any = nil
+local FeatureResolver: any = nil
+
+local bootOk: boolean, bootErr: any = pcall(function()
+	local clientFolder = waitChain(StarterPlayer, "StarterPlayerScripts", "Client")
+	if not clientFolder then
+		error("timed out waiting for StarterPlayerScripts.Client")
+	end
+	ClientFolder = clientFolder
+
+	local frameworkClientModule = waitChain(clientFolder, "Core", "FrameworkClient")
+	if not frameworkClientModule then
+		error("timed out waiting for Client.Core.FrameworkClient")
+	end
+	FrameworkClient = require(frameworkClientModule)
+
+	local featureResolverModule = waitChain(ReplicatedStorage, "Shared", "Modules", "FeatureResolver")
+	if not featureResolverModule then
+		error("timed out waiting for Shared.Modules.FeatureResolver")
+	end
+	FeatureResolver = require(featureResolverModule)
+end)
+
+if not bootOk then
+	warn(("[ClientMain] Boot dependency resolution failed: %s"):format(tostring(bootErr)))
+	LoadingController.SignalFailure(tostring(bootErr))
+	return ClientMain
+end
 
 local function start(): ()
 	pcall(function()

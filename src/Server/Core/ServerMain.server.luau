@@ -62,6 +62,7 @@ local AdminService: any        = require(Services.AdminService)
 local ChatTagService: any      = require(Services.ChatTagService)
 local AntiExploitService: any  = require(Services.AntiExploitService)
 local VFXService: any          = require(Services.VFXService)
+local ItemService: any         = require(Services.ItemService)
 
 -- Genre-gated services (WeaponService, MatchStatsService, AuraService,
 -- PetService, ClickService, …) are NOT loaded here: they register through
@@ -87,6 +88,7 @@ FrameworkServer.RegisterService("AdminService", AdminService)
 FrameworkServer.RegisterService("ChatTagService", ChatTagService)
 FrameworkServer.RegisterService("AntiExploitService", AntiExploitService)
 FrameworkServer.RegisterService("VFXService", VFXService)
+FrameworkServer.RegisterService("ItemService", ItemService)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Safe Lifecycle Call Helper
@@ -118,6 +120,7 @@ BootTelemetry.TrackedCall(AdminService, "Init", "AdminService")
 BootTelemetry.TrackedCall(ChatTagService, "Init", "ChatTagService")
 BootTelemetry.TrackedCall(AntiExploitService, "Init", "AntiExploitService")
 BootTelemetry.TrackedCall(VFXService, "Init", "VFXService")
+BootTelemetry.TrackedCall(ItemService, "Init", "ItemService")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- Phase 2: Start (Event connections, loop startup, network routines)
@@ -134,6 +137,7 @@ BootTelemetry.TrackedCall(AdminService, "Start", "AdminService")
 BootTelemetry.TrackedCall(ChatTagService, "Start", "ChatTagService")
 BootTelemetry.TrackedCall(AntiExploitService, "Start", "AntiExploitService")
 BootTelemetry.TrackedCall(VFXService, "Start", "VFXService")
+BootTelemetry.TrackedCall(ItemService, "Start", "ItemService")
 BootTelemetry.PrintSummary()
 
 -- ═══════════════════════════════════════════════════════════════════════════════

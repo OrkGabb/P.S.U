@@ -23,6 +23,11 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Configuration constants
 local MAX_PRELOAD_TIMEOUT = 10 -- Safety timeout limit to prevent infinite menu lockups
+-- Per-instance WaitForChild timeout used below and by ClientMain.client.luau's own
+-- boot resolution. Must stay comfortably under MAX_PRELOAD_TIMEOUT so a boot
+-- failure is signaled (via SignalFailure) while this file's safety loop is
+-- still running, instead of racing it independently.
+local BOOT_WAIT_TIMEOUT = 8
 
 -- Active states
 local loadingActive = true
@@ -30,16 +35,57 @@ local screenGui: ScreenGui? = nil
 local background: Frame? = nil
 local controls: any = nil
 local clientMainReady = false
+local clientMainFailed = false
+local failureReason: string? = nil
+
+-- Waits for a chain of instances, each bounded by BOOT_WAIT_TIMEOUT. Returns
+-- nil (instead of hanging or erroring) if any link in the chain is missing.
+local function waitChain(root: Instance, ...: string): Instance?
+	local current = root
+	for _, name in ipairs({...}) do
+		local nextChild = current:WaitForChild(name, BOOT_WAIT_TIMEOUT)
+		if not nextChild then
+			return nil
+		end
+		current = nextChild
+	end
+	return current
+end
+
+-- Same as waitChain, but requires the resolved ModuleScript. Returns nil on
+-- either a missing instance or a require() error — callers treat both as
+-- "dependency unavailable" and fall back accordingly.
+local function tryRequireChain(root: Instance, ...: string): any?
+	local moduleScript = waitChain(root, ...)
+	if not moduleScript then
+		return nil
+	end
+	local ok, result = pcall(require, moduleScript)
+	if not ok then
+		return nil
+	end
+	return result
+end
 
 -- Signal from ClientMain
 function LoadingController.SignalReady()
 	clientMainReady = true
 end
 
+-- Signal from ClientMain that boot failed unrecoverably. The safety loop below
+-- observes this and hard-locks on an error screen instead of fading out and
+-- releasing controls into a client with no controllers initialized.
+function LoadingController.SignalFailure(reason: string): ()
+	clientMainFailed = true
+	failureReason = reason
+end
+
 function LoadingController.Init(): ()
-	-- Load DebugUtility dynamically
-	local DebugUtility = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("DebugUtility")) :: any
-	DebugUtility.Log("LoadingController", "Initializing dynamic loading bootstrapper...")
+	-- Load DebugUtility dynamically (non-fatal: logging only)
+	local DebugUtility = tryRequireChain(ReplicatedStorage, "Shared", "Modules", "DebugUtility")
+	if DebugUtility then
+		DebugUtility.Log("LoadingController", "Initializing dynamic loading bootstrapper...")
+	end
 
 	-- Lock controls immediately to prevent player movement during load
 	pcall(function()
@@ -81,11 +127,15 @@ end
 function LoadingController.CreateAndAnimateHUD()
 	if not screenGui or not background then return end
 
-	-- Dynamically load FeatureResolver and VFXRegistry
-	local FeatureResolver = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
-	local VFXRegistry = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("VFXRegistry")) :: any
+	-- Dynamically load FeatureResolver and VFXRegistry. Neither is fatal to the
+	-- loading screen itself if missing — ClientMain's own dependency resolution
+	-- is the authoritative fatal-failure channel (via SignalFailure); here we
+	-- just fall back to sane defaults so the HUD still renders.
+	local FeatureResolver = tryRequireChain(ReplicatedStorage, "Shared", "Modules", "FeatureResolver")
+	local VFXRegistry = tryRequireChain(ReplicatedStorage, "Shared", "Config", "VFXRegistry") or {}
 
-	local branding = FeatureResolver.GetCategoryConfig("Branding") or { GameName = "YOUR PROJECT", Subtitle = "FRAMEWORK CORE ACTIVE" }
+	local branding = (FeatureResolver and FeatureResolver.GetCategoryConfig("Branding"))
+		or { GameName = "YOUR PROJECT", Subtitle = "FRAMEWORK CORE ACTIVE" }
 
 	-- Game Title Label (Replaces legacy title with professional placeholder)
 	local titleLabel = Instance.new("TextLabel")
@@ -112,10 +162,10 @@ function LoadingController.CreateAndAnimateHUD()
 
 	-- Match active modules with dynamic tags
 	local activeTemplates: {string} = {}
-	if FeatureResolver.IsCategoryActive("FPS_Shooter") then table.insert(activeTemplates, "FPS SHOOTER") end
-	if FeatureResolver.IsCategoryActive("Clicker_Farm") then table.insert(activeTemplates, "CLICKER FARM") end
-	if FeatureResolver.IsCategoryActive("Pet_Simulator") then table.insert(activeTemplates, "PET SIMULATOR") end
-	if FeatureResolver.IsCategoryActive("RPG_Adventure") then table.insert(activeTemplates, "RPG ADVENTURE") end
+	if FeatureResolver and FeatureResolver.IsCategoryActive("FPS_Shooter") then table.insert(activeTemplates, "FPS SHOOTER") end
+	if FeatureResolver and FeatureResolver.IsCategoryActive("Clicker_Farm") then table.insert(activeTemplates, "CLICKER FARM") end
+	if FeatureResolver and FeatureResolver.IsCategoryActive("Pet_Simulator") then table.insert(activeTemplates, "PET SIMULATOR") end
+	if FeatureResolver and FeatureResolver.IsCategoryActive("RPG_Adventure") then table.insert(activeTemplates, "RPG ADVENTURE") end
 
 	if #activeTemplates > 0 then
 		genreLabel.Text = string.upper(branding.Subtitle) .. " + " .. table.concat(activeTemplates, " + ")
@@ -221,10 +271,25 @@ function LoadingController.CreateAndAnimateHUD()
 		statusLabel.Text = "PRE-LOAD SYSTEM COMPLETED"
 	end
 
-	-- Timeout safety loop ensuring slow networks don't freeze the boot sequence
+	-- Timeout safety loop ensuring slow networks don't freeze the boot sequence.
+	-- Also breaks early on a signaled boot failure, so that branch (below) runs
+	-- while there's still timeout budget left rather than only at the 10s cap.
 	local elapsed = 0
-	while (completedAssets < totalAssets or not clientMainReady) and elapsed < MAX_PRELOAD_TIMEOUT do
+	while (completedAssets < totalAssets or (not clientMainReady and not clientMainFailed)) and elapsed < MAX_PRELOAD_TIMEOUT do
 		elapsed += task.wait()
+	end
+
+	if clientMainFailed then
+		-- Hard lock: boot failed unrecoverably (see ClientMain.client.luau).
+		-- Leave the loading screen up and controls disabled rather than
+		-- releasing the player into a client with no controllers initialized —
+		-- a stuck loading screen with a clear error is preferable to a
+		-- silently broken, player-controllable game world.
+		statusLabel.Text = "FAILED TO LOAD — PLEASE REJOIN"
+		statusLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
+		progressBar.BackgroundColor3 = Color3.fromRGB(255, 90, 90)
+		warn(("[LoadingController] Boot failed, holding on error screen: %s"):format(tostring(failureReason)))
+		return
 	end
 
 	statusLabel.Text = "PRE-LOADING COMPLETED! LAUNCHING ENGINE..."
@@ -251,9 +316,11 @@ function LoadingController.CreateAndAnimateHUD()
 			end)
 		end
 		
-		-- Require DebugUtility dynamically for log
-		local DebugUtility = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("DebugUtility")) :: any
-		DebugUtility.Log("LoadingController", "Bootstrapper closed cleanly. Gameplay loop active.")
+		-- Require DebugUtility dynamically for log (non-fatal: logging only)
+		local DebugUtility = tryRequireChain(ReplicatedStorage, "Shared", "Modules", "DebugUtility")
+		if DebugUtility then
+			DebugUtility.Log("LoadingController", "Bootstrapper closed cleanly. Gameplay loop active.")
+		end
 	end)
 end
 

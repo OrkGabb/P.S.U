@@ -24,6 +24,7 @@ local PetRegistry = require(ReplicatedStorage.Shared.Modules.PetRegistry)
 local AudioRegistry = require(ReplicatedStorage.Shared.Config.AudioRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
+local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
 
 local GENRE_KEY = "Pet_Simulator"
 
@@ -448,21 +449,7 @@ function PetsUIController.Start(): ()
 	BgShield.Parent = gui
 	BgShield.MouseButton1Up:Connect(function() closePanel() end)
 
-	local closeBtn = Instance.new("TextButton", MainPanel)
-	closeBtn.Size = UDim2.new(0, 36, 0, 36)
-	closeBtn.Position = UDim2.new(1, -10, 0, 10)
-	closeBtn.AnchorPoint = Vector2.new(1, 0)
-	closeBtn.AutoButtonColor = false
-	closeBtn.Text = "X"
-	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	closeBtn.TextScaled = true
-	closeBtn.Font = Enum.Font.GothamBlack
-	closeBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
-	local closeStroke = Instance.new("UIStroke", closeBtn)
-	closeStroke.Color = Color3.fromRGB(120, 20, 20)
-	closeStroke.Thickness = 2
-	closeBtn.MouseButton1Up:Connect(function() closePanel() end)
+	UIHelpers.CreateCloseButton(MainPanel, closePanel)
 
 	local panelTitle = Instance.new("TextLabel", MainPanel)
 	panelTitle.Size = UDim2.new(1, 0, 0, 50)

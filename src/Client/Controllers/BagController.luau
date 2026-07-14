@@ -367,14 +367,19 @@ function BagController.Start(): ()
         end)
     end
 
+    -- NOTE: not yet consolidated into UIHelpers.CreateCloseButton (see
+    -- src/Client/UI/UIHelpers.luau) -- this is a transparent icon-based button
+    -- (ImageLabel + color-only hover tween), a different visual pattern from
+    -- the other nine panels' red X button + size tween. Needs its own design
+    -- decision if unification with the shared factory is wanted later.
     local closeBtn = Instance.new("TextButton", MainPanel)
     closeBtn.Size = UDim2.new(0, 36, 0, 36)
     closeBtn.Position = UDim2.new(1, -10, 0, 10)
     closeBtn.AnchorPoint = Vector2.new(1, 0)
     closeBtn.AutoButtonColor = false
-    closeBtn.Text = "" 
-    closeBtn.BackgroundTransparency = 1 
-    
+    closeBtn.Text = ""
+    closeBtn.BackgroundTransparency = 1
+
     local cIcon = Instance.new("ImageLabel", closeBtn)
     cIcon.Name = "HD_Icon"
     cIcon.Size = UDim2.fromScale(1, 1)

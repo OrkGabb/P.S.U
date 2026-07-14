@@ -217,7 +217,14 @@ function MonetizationService.Start(): ()
     for _, player: Player in ipairs(Players:GetPlayers()) do
         task.spawn(LoadPlayerGamepasses, player)
     end
-    
+
+    -- Clear the cache on exit so OwnedGamepasses doesn't keep pinning a
+    -- Player instance (and its subtable) for every player who has ever joined.
+    Players.PlayerRemoving:Connect(function(player: Player)
+        OwnedGamepasses[player] = nil
+    end)
+
+
     local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder
     local checkRf: RemoteFunction = remotes:WaitForChild(RemoteNames.CheckGamepassOwnership) :: RemoteFunction
     checkRf.OnServerInvoke = function(player: Player, passId: any): any
