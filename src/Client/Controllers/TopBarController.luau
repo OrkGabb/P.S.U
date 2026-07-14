@@ -118,6 +118,28 @@ local function UpdateProfile(data: any): ()
 	end
 end
 
+local function PathsMatch(a: {string}, b: {string}): boolean
+	if #a ~= #b then return false end
+	for i, seg in ipairs(a) do
+		if seg ~= b[i] then return false end
+	end
+	return true
+end
+
+-- Fires on every UpdateResourceValue push — a single-resource delta from a
+-- high-frequency source (clicks, golden drops, passive income) that doesn't
+-- warrant a full UpdateProfileData snapshot. Matches by DataPath so any
+-- resource the registry knows about (not just currencies) benefits without a
+-- controller change — see HUDResourceRegistry's own "config, not logic" note.
+local function UpdateResource(path: {string}, value: number): ()
+	if type(value) ~= "number" then return end
+	for _, def in ipairs(HUDResourceRegistry.GetResourcesForSlot("TopBar")) do
+		if rows[def.Id] and PathsMatch(def.DataPath, path) then
+			TweenRow(def.Id, value)
+		end
+	end
+end
+
 local function BuildRow(def: HUDResourceRegistry.ResourceDef, layoutOrder: number): ()
 	local row = Instance.new("Frame")
 	row.Name = def.Id .. "Row"
@@ -230,6 +252,16 @@ function TopBarController.Start(): ()
 		updateData.OnClientEvent:Connect(UpdateProfile)
 	else
 		warn("[TopBarController] UpdateProfileData remote not found after 5s timeout.")
+	end
+
+	-- High-frequency single-resource deltas (clicks, golden drops, passive
+	-- income) — additive to UpdateProfileData, not a replacement. Full syncs
+	-- (load, purchases, upgrades) still drive UpdateProfile as before.
+	local updateResource: RemoteEvent? = remotes:WaitForChild(RemoteNames.UpdateResourceValue, 5) :: any
+	if updateResource then
+		updateResource.OnClientEvent:Connect(UpdateResource)
+	else
+		warn("[TopBarController] UpdateResourceValue remote not found after 5s timeout.")
 	end
 
 	-- Initial values arrive on the first UpdateProfileData push (DataService

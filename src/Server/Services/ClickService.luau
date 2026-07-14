@@ -32,6 +32,16 @@ local GENRE_KEY = "Clicker_Farm"
 
 local ClickService = {}
 
+-- Lightweight HUD sync: pushes a single {path, value} delta instead of a full
+-- UpdateProfileData snapshot (see TopBarController's UpdateResourceValue
+-- listener). Set by Start(); nil-safe no-op before then.
+local resourceValueRemote: RemoteEvent? = nil
+local function pushResourceDelta(player: Player, path: {string}, value: number): ()
+	if resourceValueRemote then
+		resourceValueRemote:FireClient(player, path, value)
+	end
+end
+
 type Bucket = { tokens: number, lastUpdate: number }
 local bucketMap: {[Player]: Bucket} = {}
 
@@ -120,6 +130,7 @@ local function OnClickReward(player: Player, batch: number?): ()
 	-- Primary currency gain
 	local gain = math.floor(getClickPower(data) * getIncomeMultiplier(player, data)) * clickCount
 	data.Currencies.Primary += gain
+	pushResourceDelta(player, {"Currencies", "Primary"}, data.Currencies.Primary)
 
 	-- Lifetime stats
 	addStat(data, "TotalClicks", clickCount)
@@ -136,6 +147,7 @@ local function OnClickReward(player: Player, batch: number?): ()
 			genreData.ClickAccumulator = accumulator % clicksPerMint
 			if minted > 0 then
 				data.Currencies.Secondary += minted
+				pushResourceDelta(player, {"Currencies", "Secondary"}, data.Currencies.Secondary)
 			end
 		end
 	end
@@ -152,6 +164,10 @@ end
 
 local function accruePassive(): ()
 	local now = os.clock()
+	-- Per-tick, per-player HUD push — the highest-frequency source of
+	-- UpdateResourceValue traffic, so it's opt-out via config for projects
+	-- with high expected CCU (default true matches pre-existing behavior).
+	local pushHUDTick = FeatureResolver.GetConfigField(GENRE_KEY, "PassiveHUDLiveTick", true) == true
 	for _, player in ipairs(Players:GetPlayers()) do
 		-- Always advance the clock so time spent before the profile loads is
 		-- never credited (no startup burst).
@@ -178,6 +194,9 @@ local function accruePassive(): ()
 		local gain = perSecond * elapsed * incomeMult
 		data.Currencies.Primary += gain
 		addStat(data, "LifetimeEarned", gain)
+		if pushHUDTick then
+			pushResourceDelta(player, {"Currencies", "Primary"}, data.Currencies.Primary)
+		end
 	end
 end
 
@@ -204,6 +223,7 @@ function ClickService.Start(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local clickReward = remotes:WaitForChild(RemoteNames.ClickReward) :: RemoteEvent
 	clickReward.OnServerEvent:Connect(OnClickReward)
+	resourceValueRemote = remotes:WaitForChild(RemoteNames.UpdateResourceValue) :: RemoteEvent
 
 	-- Passive accrual heartbeat (tick interval from genre config)
 	local tickInterval = cfg("PassiveTickInterval", 1)

@@ -169,6 +169,15 @@ export type ClickerConfigType = {
 	-- Passive income accrual cadence (server heartbeat tick, seconds)
 	PassiveTickInterval: number,
 
+	-- Whether passive-income accrual pushes a live UpdateResourceValue tick to
+	-- the TopBar HUD every PassiveTickInterval (per player with income > 0).
+	-- Default true matches pre-existing behavior; projects with high expected
+	-- CCU may want to disable this and rely on the panel-open/purchase-driven
+	-- UpdateProfileData refresh instead, since this is the highest-frequency
+	-- source of HUD-sync traffic (a steady per-player trickle vs. the
+	-- click/golden-drop deltas, which only fire on discrete player actions).
+	PassiveHUDLiveTick: boolean,
+
 	GoldenDrop: GoldenDropConfigType,
 }
 
@@ -585,6 +594,7 @@ local FeatureToggles: FeatureTogglesType = {
 
 			-- ── Passive income cadence ─────────────────────────────────────────
 			PassiveTickInterval = 1,
+			PassiveHUDLiveTick  = true,
 
 			-- ── Golden drop bonus event ────────────────────────────────────────
 			GoldenDrop = {
