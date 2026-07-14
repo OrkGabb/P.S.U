@@ -28,6 +28,11 @@ local MonetizationService: any = nil
 
 local GoldenDropService = {}
 
+-- Lightweight HUD sync: pushes a single {path, value} delta instead of a full
+-- UpdateProfileData snapshot (see TopBarController's UpdateResourceValue
+-- listener). Set by Start(); nil-safe no-op before then.
+local resourceValueRemote: RemoteEvent? = nil
+
 -- One pending drop per player: guid → spawn os.time()
 local activeDrops: {[Player]: {[string]: number}} = {}
 
@@ -141,6 +146,9 @@ local function onClaim(player: Player, guid: any): any
 	local reward = math.max(1, math.floor(math.max(tier.Floor, tier.CpsSeconds * cps) * incomeMult))
 
 	data.Currencies.Primary += reward
+	if resourceValueRemote then
+		resourceValueRemote:FireClient(player, {"Currencies", "Primary"}, data.Currencies.Primary)
+	end
 	if type(data.Stats) ~= "table" then data.Stats = {} end
 	data.Stats.GoldenClaims = (data.Stats.GoldenClaims or 0) + 1
 	data.Stats.LifetimeEarned = (data.Stats.LifetimeEarned or 0) + reward
@@ -171,6 +179,7 @@ function GoldenDropService.Start(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
 	local spawnRemote = remotes:WaitForChild(RemoteNames.GoldenDropSpawn) :: RemoteEvent
 	local claimRemote = remotes:WaitForChild(CLAIM_REMOTE_NAME) :: RemoteFunction
+	resourceValueRemote = remotes:WaitForChild(RemoteNames.UpdateResourceValue) :: RemoteEvent
 
 	claimRemote.OnServerInvoke = onClaim
 

@@ -29,6 +29,7 @@ export type RemoteDef = {
 export type RemoteNamesType = {
 	-- Core: data / progression
 	UpdateProfileData: string,
+	UpdateResourceValue: string,
 	LevelUpFX: string,
 	-- Core: quests
 	UpdateQuests: string,
@@ -97,6 +98,8 @@ local Schema: { [string]: RemoteDef } = {
 	-- ── Core: data / progression ─────────────────────────────────────────────
 	UpdateProfileData = { Kind = "Event", Direction = "S->C", System = "DataService",
 		Signature = "(profileData: table) — full profile snapshot after any change" },
+	UpdateResourceValue = { Kind = "Event", Direction = "S->C", System = "DataService",
+		Signature = "(path: {string}, value: number) — single resource delta (e.g. {\"Currencies\",\"Primary\"}); lighter than a full UpdateProfileData snapshot for high-frequency changes (clicks, golden drops, passive income)" },
 	LevelUpFX = { Kind = "Event", Direction = "S->C", System = "LevelService",
 		Signature = "(newLevel: number) — level-up celebration trigger" },
 
@@ -221,8 +224,9 @@ local Schema: { [string]: RemoteDef } = {
 
 local RemoteNames: RemoteNamesType = {
 	-- Core: data / progression
-	UpdateProfileData  = "UpdateProfileData",
-	LevelUpFX          = "LevelUpFX",
+	UpdateProfileData   = "UpdateProfileData",
+	UpdateResourceValue = "UpdateResourceValue",
+	LevelUpFX           = "LevelUpFX",
 	-- Core: quests
 	UpdateQuests       = "UpdateQuests",
 	ClaimQuestRequest  = "ClaimQuestRequest",
