@@ -17,8 +17,10 @@ local ChatTagController = {}
 -- Cache: UserId -> { isVIP: boolean, checkedAt: number }
 local VIPCache: {[number]: { isVIP: boolean, checkedAt: number }} = {}
 local CACHE_TTL = 60 -- Re-check every 60 seconds
+local TIMEOUT_CACHE_TTL = 30 -- Shorter re-check after a timeout, so a stuck handler doesn't stall every message for INVOKE_TIMEOUT seconds
 
 local CheckVIPRemote: RemoteFunction? = nil
+local INVOKE_TIMEOUT = 5 -- seconds; OnIncomingMessage blocks message rendering, so this must not hang forever
 
 local function GetVIPStatus(userId: number): boolean
     local now = os.clock()
@@ -30,9 +32,29 @@ local function GetVIPStatus(userId: number): boolean
     -- Query the server
     if not CheckVIPRemote then return false end
 
-    local ok, result = pcall(function()
-        return (CheckVIPRemote :: RemoteFunction):InvokeServer(userId)
+    -- Run the InvokeServer call on its own thread and bound how long we wait
+    -- on it here — OnIncomingMessage is synchronous, so a stalled server
+    -- handler must not hang chat rendering indefinitely.
+    local done, ok, result = false, false, nil
+    task.spawn(function()
+        ok, result = pcall(function()
+            return (CheckVIPRemote :: RemoteFunction):InvokeServer(userId)
+        end)
+        done = true
     end)
+
+    local start = os.clock()
+    while not done and (os.clock() - start) < INVOKE_TIMEOUT do
+        task.wait()
+    end
+
+    if not done then
+        -- Timed out: cache a negative result briefly so a stuck handler doesn't
+        -- re-stall every subsequent message for INVOKE_TIMEOUT seconds; the
+        -- shorter TTL still lets us recover soon after the server recovers.
+        VIPCache[userId] = { isVIP = false, checkedAt = now - CACHE_TTL + TIMEOUT_CACHE_TTL }
+        return false
+    end
 
     local isVIP = ok and result == true
     VIPCache[userId] = { isVIP = isVIP, checkedAt = now }

@@ -14,6 +14,7 @@ local LocalPlayer: Player = Players.LocalPlayer
 
 local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 local StoreRegistry: any = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("StoreRegistry"))
+local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
 
 local StoreController = {}
 
@@ -524,37 +525,8 @@ function StoreController.Start(): ()
 	end
 	BgShield.MouseButton1Up:Connect(function() closePanel() end)
 
-	local closeBtn = Instance.new("TextButton", MainPanel)
-	closeBtn.Size             = UDim2.new(0, 36, 0, 36)
-	closeBtn.Position         = UDim2.new(1, -10, 0, 10)
-	closeBtn.AnchorPoint      = Vector2.new(1, 0)
-	closeBtn.AutoButtonColor  = false
-	closeBtn.Text = "X" 
-	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	closeBtn.TextScaled = true
-	closeBtn.Font = Enum.Font.GothamBlack
-	closeBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-	closeBtn.BackgroundTransparency = 0 
+	local closeBtn = UIHelpers.CreateCloseButton(MainPanel, closePanel)
 	closeBtn.ZIndex = 2
-	
-	local corner = Instance.new("UICorner", closeBtn)
-	corner.CornerRadius = UDim.new(0, 8)
-	
-	local stroke = Instance.new("UIStroke", closeBtn)
-	stroke.Color = Color3.fromRGB(120, 20, 20)
-	stroke.Thickness = 2
-	
-	local cIcon = closeBtn:FindFirstChild("HD_Icon")
-	if cIcon then cIcon:Destroy() end
-	
-	local TweenService = game:GetService("TweenService")
-	local clickTw = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	closeBtn.MouseEnter:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 38, 0, 38), BackgroundColor3 = Color3.fromRGB(255, 70, 70)}):Play() end)
-	closeBtn.MouseLeave:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 36, 0, 36), BackgroundColor3 = Color3.fromRGB(220, 50, 50)}):Play() end)
-	closeBtn.MouseButton1Down:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 32, 0, 32)}):Play() end)
-	closeBtn.MouseButton1Up:Connect(function() TweenService:Create(closeBtn, clickTw, {Size = UDim2.new(0, 38, 0, 38)}):Play() end)
-	
-	closeBtn.MouseButton1Up:Connect(function() closePanel() end)
 
 	local panelTitle = Instance.new("TextLabel", MainPanel)
 	panelTitle.Size                   = UDim2.new(1, 0, 0, 50)

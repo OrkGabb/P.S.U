@@ -255,14 +255,22 @@ function StatusHUDController.Start(): ()
 		end
 	end)
 
-	LocalPlayer.CharacterAdded:Connect(function(char)
+	local healthChangedConn: RBXScriptConnection? = nil
+	local function ConnectHealthChanged(char: Model): ()
+		if healthChangedConn then
+			healthChangedConn:Disconnect()
+			healthChangedConn = nil
+		end
 		local hum = char:WaitForChild("Humanoid")
-		hum.HealthChanged:Connect(UpdateHUD)
+		healthChangedConn = hum.HealthChanged:Connect(UpdateHUD)
+	end
+
+	LocalPlayer.CharacterAdded:Connect(function(char)
+		ConnectHealthChanged(char)
 		UpdateHUD()
 	end)
 	if LocalPlayer.Character then
-		local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-		if hum then hum.HealthChanged:Connect(UpdateHUD) end
+		ConnectHealthChanged(LocalPlayer.Character)
 	end
 	UpdateHUD()
 end

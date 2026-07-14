@@ -19,6 +19,7 @@ local TweenService = game:GetService("TweenService")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local DailyRegistry = require(ReplicatedStorage.Shared.Modules.DailyRegistry)
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
+local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
 local LocalPlayer = Players.LocalPlayer
 
 local DailyUIController = {}
@@ -30,6 +31,7 @@ local BgShield: TextButton
 local ClaimButton: TextButton
 local StatusLabel: TextLabel
 local DayCells: { [number]: { Cell: Frame, Label: TextLabel, Icon: ImageLabel } } = {}
+local closeDailyMenu: (reason: string?) -> ()
 
 local isOpen = false
 -- Bumped on every open/close transition; stale animation callbacks compare
@@ -186,17 +188,7 @@ local function BuildPanel(): ()
 	title.TextSize = 20
 	title.Parent = MainPanel
 
-	local closeBtn = Instance.new("TextButton")
-	closeBtn.Name = "CloseButton"
-	closeBtn.Size = UDim2.new(0, 36, 0, 36)
-	closeBtn.Position = UDim2.new(1, -46, 0, 10)
-	closeBtn.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
-	closeBtn.Text = "X"
-	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	closeBtn.Font = Enum.Font.GothamBold
-	closeBtn.TextSize = 16
-	closeBtn.Parent = MainPanel
-	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+	UIHelpers.CreateCloseButton(MainPanel, closeDailyMenu)
 
 	local gridHolder = Instance.new("ScrollingFrame")
 	gridHolder.Name = "GridHolder"
@@ -248,9 +240,6 @@ local function BuildPanel(): ()
 	GetButtonStroke(ClaimButton).Thickness = 0
 
 	BgShield.MouseButton1Click:Connect(function()
-		GetLocalEvent("ToggleDaily"):Fire()
-	end)
-	closeBtn.MouseButton1Click:Connect(function()
 		GetLocalEvent("ToggleDaily"):Fire()
 	end)
 end
@@ -309,7 +298,7 @@ end
 -- Open / close (mirrors QuestsController's panel-scale pattern)
 --------------------------------------------------------------------------------
 
-local function closeDailyMenu(reason: string?): ()
+closeDailyMenu = function(reason: string?): ()
 	if not isOpen then return end
 	isOpen = false
 	animGen += 1
