@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module PortalService.luau
---@version 1.0
--- src/Server/Services/PortalService.lua
+-- @Author @OrkGabb
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService: ServerScriptService = game:GetService("ServerScriptService")
@@ -64,7 +61,7 @@ function PortalService:HasZoneAccess(player: Player, zoneId: string): boolean
     
     local unlockedZones: { [string]: boolean }? = data.Progression.UnlockedZones
     
-    -- Strictly gated by abstract Unlock state (Zero Hardcoded Levels)
+    -- Gated by abstract Unlock state (Zero Hardcoded Levels)
     if unlockedZones ~= nil and unlockedZones[zoneId] == true then
         return true
     end

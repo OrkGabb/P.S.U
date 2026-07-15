@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Server/Services/ClickService.luau
 -- Clicker_Farm genre service: server-authoritative click income, passive
 -- income accrual, and secondary-currency (milestone) minting.
 --
@@ -49,13 +48,10 @@ local bucketMap: {[Player]: Bucket} = {}
 -- resets it, so offline time is never double-credited).
 local lastAccrual: {[Player]: number} = {}
 
--- ─── Config (SSoT: FeatureToggles.Genres.Clicker_Farm) ──────────────────────
-
+-- Config (SSoT: FeatureToggles.Genres.Clicker_Farm)
 local function cfg(field: string, default: number): number
 	return FeatureResolver.GetConfigField(GENRE_KEY, field, default)
 end
-
--- ─── Economy helpers ─────────────────────────────────────────────────────────
 
 local function ownsPass(player: Player): (string) -> boolean
 	return function(passKey: string): boolean
@@ -94,8 +90,6 @@ local function addStat(data: {[string]: any}, key: string, amount: number): ()
 	data.Stats[key] = (data.Stats[key] or 0) + amount
 end
 
--- ─── Click handling ──────────────────────────────────────────────────────────
-
 local function OnClickReward(player: Player, batch: number?): ()
 	local maxBurst = cfg("MaxClickBurst", 30)
 	local refillRate = cfg("ClickRefillRate", 20)
@@ -127,12 +121,10 @@ local function OnClickReward(player: Player, batch: number?): ()
 		data.Currencies = { Primary = 0, Secondary = 0, Premium = 0 }
 	end
 
-	-- Primary currency gain
 	local gain = math.floor(getClickPower(data) * getIncomeMultiplier(player, data)) * clickCount
 	data.Currencies.Primary += gain
 	pushResourceDelta(player, {"Currencies", "Primary"}, data.Currencies.Primary)
 
-	-- Lifetime stats
 	addStat(data, "TotalClicks", clickCount)
 	addStat(data, "LifetimeEarned", gain)
 
@@ -159,8 +151,6 @@ local function OnClickReward(player: Player, batch: number?): ()
 		QuestService.AddProgress(player, "Click", clickCount)
 	end
 end
-
--- ─── Passive income ──────────────────────────────────────────────────────────
 
 local function accruePassive(): ()
 	local now = os.clock()
@@ -200,8 +190,6 @@ local function accruePassive(): ()
 	end
 end
 
--- ─── Lifecycle ───────────────────────────────────────────────────────────────
-
 function ClickService.Init(): ()
 	Players.PlayerAdded:Connect(function(player)
 		lastAccrual[player] = os.clock()
@@ -225,7 +213,6 @@ function ClickService.Start(): ()
 	clickReward.OnServerEvent:Connect(OnClickReward)
 	resourceValueRemote = remotes:WaitForChild(RemoteNames.UpdateResourceValue) :: RemoteEvent
 
-	-- Passive accrual heartbeat (tick interval from genre config)
 	local tickInterval = cfg("PassiveTickInterval", 1)
 	local acc = 0
 	RunService.Heartbeat:Connect(function(dt: number)

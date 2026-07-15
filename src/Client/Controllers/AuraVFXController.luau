@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Client/Controllers/AuraVFXController.luau
 -- Renders equipped-aura VFX on every character via attachment-based cloning
 -- by part-name matching: template Attachments (with their ParticleEmitters
 -- and lights) are cloned into the real character part of the same name, so
@@ -53,7 +52,7 @@ local templateStorage: Folder? = nil
 -- attribute change.
 local appliedAura: {[Player]: string} = {}
 
--- ─── Template construction ────────────────────────────────────────────────────
+-- Template construction
 
 local function buildEmitter(spec: AuraVFXTemplates.EmitterSpec): ParticleEmitter
 	local emitter = Instance.new("ParticleEmitter")
@@ -175,7 +174,7 @@ local function getTemplate(templateName: string): {TemplateEntry}?
 	return nil
 end
 
--- ─── Application ──────────────────────────────────────────────────────────────
+-- Application
 
 local function findBodyPart(character: Model, partName: string): BasePart?
 	local direct = character:FindFirstChild(partName)
@@ -243,7 +242,7 @@ local function applyAura(player: Player, auraId: string): ()
 	end
 end
 
--- ─── Lifecycle ────────────────────────────────────────────────────────────────
+-- Lifecycle
 
 local function watchPlayer(player: Player): ()
 	player:GetAttributeChangedSignal(EQUIPPED_ATTRIBUTE):Connect(function()

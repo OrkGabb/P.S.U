@@ -1,9 +1,6 @@
 --!strict
---@author OrkGabb
---@module SkillsController.luau
---@version 1.0
--- src/Client/Controllers/SkillsController.lua
--- Skills/Mastery UI Controller. Overhauled with premium glassmorphism styling to match Quests UI.
+-- @Author @OrkGabb
+-- Skills/Mastery UI Controller. Glassmorphism styling to match Quests UI.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -80,7 +77,7 @@ local function RefreshUI()
 		if level >= def.MaxLevel or cost == nil then
 			elements.CostLabel.Text = "MAX LEVEL"
 			elements.CostLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-			elements.Btn.BackgroundColor3 = Color3.fromRGB(40, 35, 45)
+			elements.Btn.BackgroundColor3 = Color3.fromRGB(34, 40, 49)
 			elements.Btn.Text = "MAXED"
 			if elements.BtnStroke then elements.BtnStroke.Color = Color3.fromRGB(60, 55, 65) end
 		else
@@ -106,7 +103,7 @@ local function RefreshUI()
 end
 
 function SkillsController.Init(): ()
-	-- Guarantee local events and folder exist programmatically during Init phase to prevent stalls
+	-- Pre-create the folder/events here so Start() never stalls waiting on WaitForChild
 	local folder = ReplicatedStorage:FindFirstChild("LocalEvents")
 	if not folder then
 		folder = Instance.new("Folder")
@@ -137,10 +134,7 @@ function SkillsController.Init(): ()
 end
 
 function SkillsController.Start(): ()
-	-- Gate: Skills/Mastery UI is only relevant for genres that have upgrade trees.
-	-- In FPS_Shooter mode this panel is out of scope and must not appear.
-	-- IsCategoryActive is the single check — if no upgrade-bearing genre is active,
-	-- return immediately without registering the HUD button or building any UI.
+	-- Only genres with upgrade trees get this panel; FPS_Shooter has none.
 	if not (FeatureResolver.IsCategoryActive("RPG_Adventure")
 		or FeatureResolver.IsCategoryActive("Clicker_Farm")
 		or FeatureResolver.IsCategoryActive("Pet_Simulator")) then
@@ -177,10 +171,11 @@ function SkillsController.Start(): ()
 
 	MainPanel = Instance.new("Frame")
 	MainPanel.Size = UDim2.new(0, 460, 0, 420)
-	-- Left side, vertically below center
-	MainPanel.AnchorPoint = Vector2.new(0, 0.5)
-	MainPanel.Position = UDim2.new(0, 12, 0.62, 0)
-	MainPanel.BackgroundColor3 = Color3.fromRGB(15, 14, 22)
+	-- Screen-centered: the old left/below-center placement sat on top of the
+	-- sidebar buttons and the HUD-collapse arrow.
+	MainPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+	MainPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
 	MainPanel.BorderSizePixel = 0
 	MainPanel.Visible = false
 	MainPanel.ClipsDescendants = true
@@ -188,7 +183,7 @@ function SkillsController.Start(): ()
 	Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
 
 	PanelScale = Instance.new("UIScale", MainPanel)
-	PanelScale.Scale = 0
+	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 
 	local camera = workspace.CurrentCamera
 	local targetScale = 1
@@ -217,14 +212,7 @@ function SkillsController.Start(): ()
 			gui.DisplayOrder = 60
 			BgShield.Visible = false
 			GetLocalEvent("NotifyMenuClosed"):Fire("Skills")
-			-- A switch-triggered close (another panel is taking over) uses a
-			-- fast start so the outgoing panel gets out of the way quickly; a
-			-- manual close keeps the slower, weightier Back/In easing.
-			local closeTween: TweenInfo = if reason == "switch"
-				then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-				else TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-			local tw = TweenService:Create(PanelScale, closeTween, {Scale = 0})
-			tw:Play()
+			local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
 			tw.Completed:Connect(function(state: Enum.PlaybackState)
 				-- A reopen cancels this tween (Completed still fires, state=Cancelled)
 				-- and bumps the generation; hide only if this close ran to completion
@@ -239,7 +227,6 @@ function SkillsController.Start(): ()
 	UIHelpers.CreateCloseButton(MainPanel, closeSkillsMenu)
 	BgShield.MouseButton1Up:Connect(function() closeSkillsMenu() end)
 
-	-- Header Title
 	local title = Instance.new("TextLabel", MainPanel)
 	title.Text = "MASTERY UPGRADES"
 	title.Size = UDim2.new(1, 0, 0, 50)
@@ -248,13 +235,12 @@ function SkillsController.Start(): ()
 	title.TextSize = 22
 	title.BackgroundTransparency = 1
 
-	-- List layout container
 	local list = Instance.new("ScrollingFrame", MainPanel)
 	list.Size = UDim2.new(1, -24, 1, -70)
 	list.Position = UDim2.new(0, 12, 0, 55)
 	list.BackgroundTransparency = 1
 	list.ScrollBarThickness = 4
-	list.ScrollBarImageColor3 = Color3.fromRGB(130, 90, 230)
+	list.ScrollBarImageColor3 = Color3.fromRGB(47, 217, 200)
 	list.BorderSizePixel = 0
 	list.CanvasSize          = UDim2.new(0, 0, 0, 0)
 	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -271,7 +257,6 @@ function SkillsController.Start(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local req = remotes:WaitForChild(RemoteNames.UpgradeRequest) :: RemoteEvent
 
-	-- Build skill upgrade cards
 	for id, def in pairs(UpgradeRegistry.Defs) do
 		if not FeatureResolver.IsCategoryActive(def.Category) then continue end
 		local card = Instance.new("Frame")
@@ -287,7 +272,6 @@ function SkillsController.Start(): ()
 		cardStroke.Thickness = 1
 		cardStroke.Transparency = 0.92
 		
-		-- Title
 		local n = Instance.new("TextLabel", card)
 		n.Text = def.Name:upper()
 		n.Size = UDim2.new(0.6, 0, 0, 26)
@@ -298,21 +282,19 @@ function SkillsController.Start(): ()
 		n.TextXAlignment = Enum.TextXAlignment.Left
 		n.BackgroundTransparency = 1
 
-		-- Level progress details
 		local lvl = Instance.new("TextLabel", card)
 		lvl.Size = UDim2.new(0, 90, 0, 26)
 		lvl.Position = UDim2.new(1, -105, 0, 8)
-		lvl.TextColor3 = Color3.fromRGB(180, 170, 200)
+		lvl.TextColor3 = Color3.fromRGB(165, 192, 196)
 		lvl.Font = Enum.Font.GothamBold
 		lvl.TextSize = 13
 		lvl.TextXAlignment = Enum.TextXAlignment.Right
 		lvl.BackgroundTransparency = 1
 
-		-- Premium progress bar track
 		local barBg = Instance.new("Frame", card)
 		barBg.Size = UDim2.new(1, -30, 0, 7)
 		barBg.Position = UDim2.new(0, 15, 0, 40)
-		barBg.BackgroundColor3 = Color3.fromRGB(10, 8, 16)
+		barBg.BackgroundColor3 = Color3.fromRGB(11, 13, 18)
 		barBg.BorderSizePixel = 0
 		Instance.new("UICorner", barBg).CornerRadius = UDim.new(0, 3)
 		
@@ -328,7 +310,6 @@ function SkillsController.Start(): ()
 			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 240, 255)),
 		})
 
-		-- Cost Capsule (Matches Quests UI horizontal reward style)
 		local costBadge = Instance.new("Frame", card)
 		costBadge.Size = UDim2.new(0, 115, 0, 26)
 		costBadge.Position = UDim2.new(0, 15, 0, 56)
@@ -364,7 +345,6 @@ function SkillsController.Start(): ()
 		cost.TextXAlignment = Enum.TextXAlignment.Left
 		cost.BackgroundTransparency = 1
 
-		-- Upgrade purchase button
 		local buy = Instance.new("TextButton", card)
 		buy.Size = UDim2.new(0, 130, 0, 40)
 		buy.Position = UDim2.new(1, -145, 0, 52)
@@ -415,10 +395,11 @@ function SkillsController.Start(): ()
 			MainPanel.Visible = true
 			BgShield.Visible = true
 			RefreshUI()
-			-- Retarget from the current scale (no reset to 0) so reopening during
-			-- a close animation continues smoothly instead of snapping shut first.
-			-- targetScale is kept fresh by the ViewportSize connection above.
-			TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
+			-- Retarget from the current scale/rotation (no reset to the resting
+			-- pose) so reopening during a close animation continues smoothly
+			-- instead of snapping shut first. targetScale is kept fresh by the
+			-- ViewportSize connection above.
+			UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
 
 			GetLocalEvent("NotifyMenuOpened"):Fire("Skills")
 		end
@@ -429,7 +410,7 @@ function SkillsController.Start(): ()
 
 	isOpen = false
 	MainPanel.Visible = false
-	PanelScale.Scale = 0
+	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 end
 
 return SkillsController

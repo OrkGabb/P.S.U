@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module LevelUpController.luau
---@version 1.0
+-- @Author @OrkGabb
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
@@ -25,7 +23,7 @@ function LevelUpController.Start(): ()
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(0, 300, 0, 120)
         frame.AnchorPoint = Vector2.new(0.5, 0.5)
-        frame.Position = UDim2.new(0.5, 0, 0.3, 0) -- Centered, slightly above the middle
+        frame.Position = UDim2.new(0.5, 0, 0.3, 0)
         frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
         frame.BackgroundTransparency = 0.1
         Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 15)
@@ -60,14 +58,12 @@ function LevelUpController.Start(): ()
         rewardText.Font = Enum.Font.GothamBold
         rewardText.TextSize = 16
 
-        -- Physics Engine (Bounce / Pop in)
         local scale = Instance.new("UIScale", frame)
         scale.Scale = 0
         frame.Parent = gui
 
         TweenService:Create(scale, TweenInfo.new(0.5, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {Scale = 1}):Play()
 
-        -- Automatic Destruction after 3 seconds
         task.delay(3, function()
             local tweenOut = TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
             tweenOut:Play()

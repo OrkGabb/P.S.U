@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module WeaponController.luau
---@version 1.0
--- src/Client/Controllers/WeaponController.luau
+-- @Author @OrkGabb
 -- FPS_Shooter Client Pipeline.
 --
 -- Key bindings (final):
@@ -41,10 +38,9 @@ local FeatureToggles       = require(game:GetService("ReplicatedStorage"):WaitFo
 
 local LocalPlayer = Players.LocalPlayer :: Player
 
--- ── Module ────────────────────────────────────────────────────────────────────
 local WeaponController = {}
 
--- ── Config (sourced from FeatureResolver) ─────────────────────────────────────
+-- Config, sourced from FeatureResolver
 local fpsConfig:        any    = FeatureResolver.GetCategoryConfig("FPS_Shooter")
 -- Crosshair is slightly adjusted to match the aesthetic layout.
 local CROSSHAIR_SIZE:   number = 8
@@ -153,7 +149,7 @@ if type(fpsConfig) == "table" then
 	end
 end
 
--- ── State ─────────────────────────────────────────────────────────────────────
+-- State
 local isActive:        boolean = false
 local isCursorLocked:  boolean = false  -- true = LockCenter + no icon; false = Default + icon
 local isScoreboardOpen: boolean = false -- true while Tab scoreboard is up
@@ -233,7 +229,6 @@ local weaponSoundsCache: { [string]: WeaponSounds } = {}
 local currentScopeImageId: string? = nil
 local scopeImageUI:        ImageLabel? = nil
 
--- ── Init ──────────────────────────────────────────────────────────────────────
 function WeaponController.Init(): ()
 	local config: any = FeatureResolver.GetCategoryConfig("FPS_Shooter")
 	if config and config.Enabled then
@@ -273,7 +268,6 @@ function WeaponController.Init(): ()
 	end
 end
 
--- ── HUD Updates ───────────────────────────────────────────────────────────────
 local function UpdateAmmoHUD(): ()
 	if not ammoUI then return end
 	if isReloading then
@@ -304,7 +298,6 @@ local function UpdateFireModeLabel(): ()
 	fireModeLabel.Text = FIRE_MODE_LABELS[currentFireMode] or "AUTO"
 end
 
--- ── Vignette ──────────────────────────────────────────────────────────────────
 local function SetVignetteVisible(visible: boolean): ()
 	if vignetteVisible == visible then return end
 	vignetteVisible = visible
@@ -316,7 +309,6 @@ local function SetVignetteVisible(visible: boolean): ()
 	end
 end
 
--- ── Sound Helpers ─────────────────────────────────────────────────────────────
 local function MakeSound(soundId: number?, parent: Instance): Sound?
 	if not soundId then return nil end
 	local sound: Sound = Instance.new("Sound")
@@ -332,7 +324,6 @@ local function PlaySound(sound: Sound?): ()
 	s:Play()
 end
 
--- ── Cursor State (SSoT) ───────────────────────────────────────────────────────
 -- SetCursorLocked is the SINGLE function allowed to write MouseBehavior or
 -- MouseIconEnabled anywhere in this controller. No other code path may touch
 -- either property directly.
@@ -353,7 +344,6 @@ local function SetCursorLocked(locked: boolean): ()
 	end
 end
 
--- ── Camera Kick (recoil via Humanoid.CameraOffset) ────────────────────────────
 local function ApplyCameraKick(): ()
 	local char: Model? = LocalPlayer.Character
 	if not char then return end
@@ -370,7 +360,6 @@ local function ApplyCameraKick(): ()
 	TweenService:Create(humanoid, ti, { CameraOffset = Vector3.zero }):Play()
 end
 
--- ── Reload Trigger ────────────────────────────────────────────────────────────
 -- Failsafe generation token: if the server rejects a reload request (spam
 -- window) no ammo sync ever arrives, which used to leave the HUD stuck on
 -- "Reloading..." forever. After the weapon's ReloadTime + grace, clear the
@@ -395,7 +384,6 @@ local function TriggerReload(): ()
 	end)
 end
 
--- ── Core Fire Logic ───────────────────────────────────────────────────────────
 local function ExecuteOneFire(): ()
 	if not isCursorLocked then return end  -- cursor unlocked = menu open, don't fire
 	if isReloading then return end
@@ -442,7 +430,7 @@ local function ExecuteBurst(): ()
 	isBurstFiring = false
 end
 
--- ── LMB Handler (fire ONLY) ──────────────────────────────────────────────────
+-- LMB handler: fire only, no ADS
 local function HandleFire(
 	_: string, state: Enum.UserInputState, _2: InputObject
 ): Enum.ContextActionResult
@@ -460,7 +448,6 @@ local function HandleFire(
 	return Enum.ContextActionResult.Sink
 end
 
--- ── Scope ─────────────────────────────────────────────────────────────────────
 local function EnterScope(): ()
 	if isScoped then return end
 	isScoped = true
@@ -536,7 +523,6 @@ local function HandleScopeFKey(
 	return Enum.ContextActionResult.Sink
 end
 
--- ── Reload Handler ────────────────────────────────────────────────────────────
 local function HandleReload(
 	_: string, state: Enum.UserInputState, _2: InputObject
 ): Enum.ContextActionResult
@@ -545,7 +531,6 @@ local function HandleReload(
 	return Enum.ContextActionResult.Sink
 end
 
--- ── Fire Mode Toggle (Z key) ──────────────────────────────────────────────────
 local function HandleFireModeToggle(
 	_: string, state: Enum.UserInputState, _2: InputObject
 ): Enum.ContextActionResult
@@ -572,7 +557,6 @@ local function HandleFireModeToggle(
 	return Enum.ContextActionResult.Sink
 end
 
--- ── Sprint ────────────────────────────────────────────────────────────────────
 -- Camera CFrame is NEVER written in RenderStepped -- sprint uses FOV bump only.
 local function HandleSprint(
 	_: string, state: Enum.UserInputState, _2: InputObject
@@ -610,7 +594,6 @@ local function HandleSprint(
 	return Enum.ContextActionResult.Pass
 end
 
--- ── Slide ─────────────────────────────────────────────────────────────────────
 local function HandleSlide(
 	_: string, state: Enum.UserInputState, _2: InputObject
 ): Enum.ContextActionResult
@@ -674,8 +657,6 @@ local function HandleSlide(
 
 	return Enum.ContextActionResult.Sink
 end
-
--- ── Weapon Switch ─────────────────────────────────────────────────────────────
 
 -- SWITCH TWEEN: 0.175 s total — lower current viewmodel (drop Y by 0.5), then raise new one.
 -- TweenService drives a numeric offset fed to ViewmodelController.SetTransitionOffset.
@@ -808,7 +789,6 @@ local function HandleWeaponNext(
 	return Enum.ContextActionResult.Sink
 end
 
--- ── Cursor Toggle (V key) ────────────────────────────────────────────────────
 -- V toggles locked <-> unlocked. SetCursorLocked is the single owner of
 -- MouseBehavior and MouseIconEnabled — no other code path writes these directly.
 local function HandleCursorToggle(
@@ -818,8 +798,6 @@ local function HandleCursorToggle(
 	SetCursorLocked(not isCursorLocked)
 	return Enum.ContextActionResult.Pass
 end
-
--- ── Scoreboard UI ─────────────────────────────────────────────────────────────
 
 local function BuildScoreboardRow(
 	parent:        Instance,
@@ -1003,7 +981,6 @@ local function HandleTabScoreboard(
 	return Enum.ContextActionResult.Sink
 end
 
--- ── FPS UI Setup ──────────────────────────────────────────────────────────────
 local function SetupFPSUI(): ()
 	local pGui     = LocalPlayer:WaitForChild("PlayerGui") :: PlayerGui
 	local existing = pGui:FindFirstChild("FPSGui")
@@ -1015,8 +992,6 @@ local function SetupFPSUI(): ()
 	screen.DisplayOrder   = 100
 	screen.IgnoreGuiInset = true
 	screen.Parent         = pGui
-
-	-- ── Crosshair ────────────────────────────────────────────────────────────
 
 	local dot             = Instance.new("Frame")
 	dot.Name              = "Crosshair"
@@ -1050,8 +1025,6 @@ local function SetupFPSUI(): ()
 	vLine.ZIndex                 = 99
 	vLine.Parent                 = screen
 
-	-- ── Scope Image ──────────────────────────────────────────────────────────
-
 	local sImage                 = Instance.new("ImageLabel")
 	sImage.Name                  = "ScopeImage"
 	sImage.Size                  = UDim2.new(1, 0, 1, 0)
@@ -1063,8 +1036,6 @@ local function SetupFPSUI(): ()
 	sImage.ZIndex                = 101
 	sImage.Parent                = screen
 	scopeImageUI = sImage
-
-	-- ── Ammo label ───────────────────────────────────────────────────────────
 
 	local ammo                   = Instance.new("TextLabel")
 	ammo.Name                    = "AmmoLabel"
@@ -1084,8 +1055,6 @@ local function SetupFPSUI(): ()
 	ammoStroke.Parent            = ammo
 	ammoUI = ammo
 
-	-- ── Weapon name label ─────────────────────────────────────────────────────
-
 	local wLabel                 = Instance.new("TextLabel")
 	wLabel.Name                  = "WeaponLabel"
 	wLabel.Size                  = UDim2.new(0, 160, 0, 30)
@@ -1094,7 +1063,7 @@ local function SetupFPSUI(): ()
 	wLabel.Text                  = (WEAPON_NAMES[currentWeaponKey] or currentWeaponKey):upper()
 	wLabel.Font                  = Enum.Font.GothamBold
 	wLabel.TextSize              = 14
-	wLabel.TextColor3            = Color3.fromRGB(200, 200, 255)
+	wLabel.TextColor3            = Color3.fromRGB(195, 238, 238)
 	wLabel.TextXAlignment        = Enum.TextXAlignment.Right
 	wLabel.ZIndex                = 100
 	wLabel.Parent                = screen
@@ -1103,8 +1072,6 @@ local function SetupFPSUI(): ()
 	wStroke.Color                = COLOR_DARK_BG
 	wStroke.Parent               = wLabel
 	weaponLabel = wLabel
-
-	-- ── Fire mode label (Z key cycle) ─────────────────────────────────────────
 
 	local fmLabel                = Instance.new("TextLabel")
 	fmLabel.Name                 = "FireModeLabel"
@@ -1123,8 +1090,6 @@ local function SetupFPSUI(): ()
 	fmStroke.Color               = COLOR_DARK_BG
 	fmStroke.Parent              = fmLabel
 	fireModeLabel = fmLabel
-
-	-- ── Vignette panels ───────────────────────────────────────────────────────
 
 	local function MakeVignettePanel(
 		name:       string,
@@ -1194,8 +1159,6 @@ local function SetupFPSUI(): ()
 		Vector2.new(1, 0.5),
 		black, black, 270
 	)
-
-	-- ── Scoreboard overlay ────────────────────────────────────────────────────
 
 	local backdrop                    = Instance.new("Frame")
 	backdrop.Name                     = "ScoreboardBackdrop"
@@ -1312,7 +1275,6 @@ local function SetupFPSUI(): ()
 	end)
 end
 
--- ── Start ─────────────────────────────────────────────────────────────────────
 function WeaponController.Start(): ()
 	if not isActive then
 		local pGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -1434,45 +1396,24 @@ function WeaponController.Start(): ()
 		end)
 	end)
 
-	-- ── Input bindings ──────────────────────────────────────────────────────
-
-	-- LMB -- fire ONLY (no ADS)
 	ContextActionService:BindAction("WeaponFire", HandleFire, true, Enum.UserInputType.MouseButton1)
 	ContextActionService:SetTitle("WeaponFire", "FIRE")
 	ContextActionService:SetImage("WeaponFire", "rbxassetid://6034281037")
 
-	-- RMB -- scope only
 	ContextActionService:BindAction("WeaponScope", HandleRmbScope, false, Enum.UserInputType.MouseButton2)
-
-	-- F -- alternate scope toggle
 	ContextActionService:BindAction("ScopeFKey", HandleScopeFKey, false, Enum.KeyCode.F)
 
-	-- R -- reload
 	ContextActionService:BindAction("WeaponReload", HandleReload, true, Enum.KeyCode.R)
 	ContextActionService:SetTitle("WeaponReload", "R")
 
-	-- Z -- fire mode cycle (Single -> Burst -> Full-Auto)
 	ContextActionService:BindAction("FireModeToggle", HandleFireModeToggle, false, Enum.KeyCode.Z)
-
-	-- LeftShift -- sprint
 	ContextActionService:BindAction("Sprint", HandleSprint, false, Enum.KeyCode.LeftShift)
-
-	-- C -- slide
 	ContextActionService:BindAction("Slide", HandleSlide, false, Enum.KeyCode.C)
-
-	-- Q -- weapon prev
 	ContextActionService:BindAction("WeaponPrev", HandleWeaponPrev, false, Enum.KeyCode.Q)
-
-	-- E -- weapon next
 	ContextActionService:BindAction("WeaponNext", HandleWeaponNext, false, Enum.KeyCode.E)
-
-	-- Tab -- scoreboard (also drives cursor lock/unlock)
 	ContextActionService:BindAction("Scoreboard", HandleTabScoreboard, false, Enum.KeyCode.Tab)
-
-	-- V -- manual cursor toggle
 	ContextActionService:BindAction("CursorToggle", HandleCursorToggle, false, Enum.KeyCode.V)
 
-	-- ── Mobile button sizing ─────────────────────────────────────────────────
 	task.defer(function(): ()
 		local fireBtn = ContextActionService:GetButton("WeaponFire")
 		if fireBtn then
@@ -1491,7 +1432,7 @@ function WeaponController.Start(): ()
 				1, -(MOBILE_FIRE_BTN_SIZE + MOBILE_RELOAD_BTN_SIZE + 40),
 				1, -(MOBILE_RELOAD_BTN_SIZE + 40)
 			)
-			reloadBtn.BackgroundColor3       = Color3.fromRGB(60, 60, 80)
+			reloadBtn.BackgroundColor3       = Color3.fromRGB(42, 62, 66)
 			reloadBtn.BackgroundTransparency = 0.3
 			local c        = Instance.new("UICorner")
 			c.CornerRadius = UDim.new(1, 0)
@@ -1499,7 +1440,6 @@ function WeaponController.Start(): ()
 		end
 	end)
 
-	-- ── RenderStepped ───────────────────────────────────────────────────────
 	-- SetCursorLocked is the ONLY path that writes MouseBehavior or MouseIconEnabled.
 	-- RenderStepped does NOT touch those properties directly.
 	RunService.RenderStepped:Connect(function(dt: number): ()

@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Client/Controllers/VisualEffectsController.luau
 -- Generic one-shot VFX playback. VFXService (server) fires EmitVFX with an
 -- effect id + target character; this controller clones the matching effect
 -- folder's emitters into the character's limbs and lets Debris reap them.
@@ -33,15 +32,12 @@ function VisualEffectsController.PlayVFX(effectId: string, character: Model): ()
     local clonedObjects: {Instance} = {}
     local maxLifetime = 0.5
 
-    -- Loop through the children folders inside that specific effect directory
     for _, limbFolder in ipairs(effectFolder:GetChildren()) do
         if not limbFolder:IsA("Folder") then continue end
 
-        -- If a folder name matches a limb of the character model
         local targetLimb = character:FindFirstChild(limbFolder.Name) :: BasePart?
         if not targetLimb or not targetLimb:IsA("BasePart") then continue end
 
-        -- Clone all its children (ParticleEmitters, Attachments, Beams, Trails, Lights) directly into the corresponding limb
         for _, asset in ipairs(limbFolder:GetChildren()) do
             if asset:IsA("ParticleEmitter") or asset:IsA("Attachment") or asset:IsA("Beam") or asset:IsA("Trail") or asset:IsA("Light") then
                 local clone = asset:Clone() :: Instance

@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module ItemService.luau
---@version 1.0
+-- @Author @OrkGabb
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -57,15 +55,13 @@ function ItemService.Start(): ()
                     Gen     = gen
                 }
 
-                -- Sync HUD
                 if syncEvent then
                     syncEvent:FireClient(player, ItemService.activeBuffs[player])
                 end
 
-                -- Sync full state instead of partial profile update to prevent resetting UI
+                -- Full state sync (not a partial profile update) to avoid resetting UI
                 DataSvc:SyncFullState(player)
 
-                -- Track quest progress for potion usage
                 local QuestService = require(ServerScriptService.Server.Services.QuestService)
                 if QuestService then
                     QuestService.AddProgress(player, "UsePotion", 1)
@@ -81,14 +77,12 @@ function ItemService.Start(): ()
                     if syncEvent then
                         syncEvent:FireClient(player, buffs)
                     end
-                    -- Update full state on expiration
                     DataSvc:SyncFullState(player)
                 end)
             end
         end)
     end
 
-    -- Memory safety: clean up volatile buffs when player leaves
     Players.PlayerRemoving:Connect(function(player)
         ItemService.activeBuffs[player] = nil
     end)

@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Server/Services/UpgradeService.luau
 -- Server-authoritative upgrade purchases. All cost math (formula, lookup-table
 -- and milestone gates) is delegated to UpgradeRegistry so validation here and
 -- display on the client can never disagree.
@@ -36,8 +35,6 @@ local function SanitizeUpgrades(player: Player)
         end
     end
 end
-
--- ─── Event Handlers ──────────────────────────────────────────────────────────
 
 local function OnUpgradeRequest(player: Player, upgradeId: string)
     if type(upgradeId) ~= "string" then return end
@@ -83,15 +80,13 @@ local function OnUpgradeRequest(player: Player, upgradeId: string)
         updateEvent:FireClient(player, profile.Data.Upgrades)
     end
 
-    -- Master sync after upgrade: synchronizes player state atomically
+    -- Syncs full state atomically after the upgrade
     DataService:SyncFullState(player)
 
     if QuestService then
         QuestService.AddProgress(player, "Upgrade", 1)
     end
 end
-
--- ─── Lifecycle ──────────────────────────────────────────────────────────────
 
 function UpgradeService.Init(): ()
     local remotes = ReplicatedStorage:WaitForChild("Remotes")

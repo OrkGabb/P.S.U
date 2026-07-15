@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module DashService.luau
---@version 1.0
+-- @Author @OrkGabb
 --- @description Server-side Dash ability system.
 ---   - Receives DashRequest RemoteEvent from the client.
 ---   - Validates cooldown server-side (never trusts client timing).
@@ -17,14 +15,7 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
---------------------------------------------------------------------------------
--- Shared imports
---------------------------------------------------------------------------------
 local FeatureResolver = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
-
---------------------------------------------------------------------------------
--- Types
---------------------------------------------------------------------------------
 
 type DashPlayerState = {
 	lastDashTime: number,       -- os.clock() of last granted dash
@@ -32,10 +23,7 @@ type DashPlayerState = {
 	connections: { RBXScriptConnection },
 }
 
---------------------------------------------------------------------------------
--- Constants (sourced from FeatureResolver — SSoT)
---------------------------------------------------------------------------------
-
+-- Constants sourced from FeatureResolver (SSoT)
 local cooldownRaw: any = FeatureResolver.GetConfigField("Dash", "Cooldown", 2.0)
 local COOLDOWN: number = type(cooldownRaw) == "number" and cooldownRaw or 2.0
 
@@ -47,17 +35,9 @@ local MAX_CHARGES: number = type(maxChargesRaw) == "number" and maxChargesRaw or
 
 local IMPULSE_DURATION: number = 0.2  -- seconds the VectorForce stays active
 
---------------------------------------------------------------------------------
--- Module
---------------------------------------------------------------------------------
-
 local DashService = {}
 
 local stateMap: { [Player]: DashPlayerState } = {}
-
---------------------------------------------------------------------------------
--- Internals
---------------------------------------------------------------------------------
 
 local function GetState(player: Player): DashPlayerState
 	local state: DashPlayerState? = stateMap[player]
@@ -94,7 +74,6 @@ local function ApplyImpulse(character: Model, direction: Vector3): ()
 		return
 	end
 
-	-- Normalise and scale the direction
 	local safeDirection: Vector3
 	if direction.Magnitude > 0.001 then
 		safeDirection = direction.Unit * FORCE
@@ -103,7 +82,6 @@ local function ApplyImpulse(character: Model, direction: Vector3): ()
 		safeDirection = rootPart.CFrame.LookVector * FORCE
 	end
 
-	-- Create attachment for the VectorForce
 	local attachment: Attachment = Instance.new("Attachment")
 	attachment.Name = "DashAttachment"
 	attachment.Parent = rootPart
@@ -116,7 +94,6 @@ local function ApplyImpulse(character: Model, direction: Vector3): ()
 	vectorForce.ApplyAtCenterOfMass = true
 	vectorForce.Parent = rootPart
 
-	-- Clean up after impulse duration
 	task.delay(IMPULSE_DURATION, function()
 		if vectorForce and vectorForce.Parent then
 			vectorForce:Destroy()
@@ -127,15 +104,12 @@ local function ApplyImpulse(character: Model, direction: Vector3): ()
 	end)
 end
 
---- Handles an incoming DashRequest from a client.
 local function OnDashRequest(player: Player, directionRaw: any): ()
-	-- ── Input sanitisation ───────────────────────────────────────────────
 	if typeof(directionRaw) ~= "Vector3" then
 		return
 	end
 	local direction: Vector3 = directionRaw :: Vector3
 
-	-- ── Character & health validation ────────────────────────────────────
 	local character: Model? = player.Character
 	if not character then
 		return
@@ -145,7 +119,7 @@ local function OnDashRequest(player: Player, directionRaw: any): ()
 		return
 	end
 
-	-- ── Cooldown validation (server-authoritative) ───────────────────────
+	-- Cooldown validation is server-authoritative
 	local state: DashPlayerState = GetState(player)
 	local now: number = os.clock()
 
@@ -157,14 +131,11 @@ local function OnDashRequest(player: Player, directionRaw: any): ()
 		return
 	end
 
-	-- ── Grant the dash ───────────────────────────────────────────────────
 	state.lastDashTime = now
 	state.activeCharges += 1
 
-	-- Apply physics impulse
 	ApplyImpulse(character, direction)
 
-	-- Notify client to play animation
 	local remotes: Folder? = ReplicatedStorage:FindFirstChild("Remotes") :: Folder?
 	if remotes then
 		local dashGranted: RemoteEvent? = remotes:FindFirstChild(RemoteNames.DashGranted) :: RemoteEvent?
@@ -173,7 +144,6 @@ local function OnDashRequest(player: Player, directionRaw: any): ()
 		end
 	end
 
-	-- Release the charge after cooldown
 	task.delay(COOLDOWN, function()
 		local s: DashPlayerState? = stateMap[player]
 		if s then
@@ -182,12 +152,7 @@ local function OnDashRequest(player: Player, directionRaw: any): ()
 	end)
 end
 
---------------------------------------------------------------------------------
--- Lifecycle
---------------------------------------------------------------------------------
-
 function DashService.Init(): ()
-	-- Player cleanup disposal
 	Players.PlayerRemoving:Connect(CleanupPlayer)
 end
 

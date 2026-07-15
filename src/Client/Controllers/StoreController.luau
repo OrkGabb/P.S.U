@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module StoreController.luau
---@version 1.0
--- src/Client/Controllers/StoreController.lua
+-- @Author @OrkGabb
 -- Dynamic, category-aware Premium Store Controller.
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -173,7 +170,7 @@ function StoreController.PlayPurchaseEffect(rewardType: string, amount: number, 
 	popup.Size             = UDim2.new(0, 360, 0, 130)
 	popup.Position         = UDim2.new(0.5, 0, 0.38, 0)
 	popup.AnchorPoint      = Vector2.new(0.5, 0.5)
-	popup.BackgroundColor3 = Color3.fromRGB(15, 12, 20)
+	popup.BackgroundColor3 = Color3.fromRGB(14, 17, 23)
 	popup.ZIndex           = 100
 	popup.Parent           = gui
 	Instance.new("UICorner", popup).CornerRadius = UDim.new(0, 16)
@@ -184,8 +181,8 @@ function StoreController.PlayPurchaseEffect(rewardType: string, amount: number, 
 
 	local popGrad = Instance.new("UIGradient", popup)
 	popGrad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 28, 45)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 10, 18)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(32, 38, 48)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 15, 20)),
 	})
 	popGrad.Rotation = 90
 
@@ -218,7 +215,7 @@ function StoreController.PlayPurchaseEffect(rewardType: string, amount: number, 
 	subtitleLbl.BackgroundTransparency  = 1
 	subtitleLbl.Font                    = Enum.Font.GothamMedium
 	subtitleLbl.TextSize                = 11
-	subtitleLbl.TextColor3              = Color3.fromRGB(180, 180, 200)
+	subtitleLbl.TextColor3              = Color3.fromRGB(172, 196, 200)
 	subtitleLbl.TextWrapped             = true
 	subtitleLbl.TextYAlignment          = Enum.TextYAlignment.Top
 	subtitleLbl.ZIndex                  = 101
@@ -275,7 +272,7 @@ function StoreController.RenderCategory(categoryName: string)
 	for _, item in ipairs(items) do
 		local card = Instance.new("Frame", GridContainer)
 		card.Size = UDim2.new(0, 180, 0, 240)
-		card.BackgroundColor3 = Color3.fromRGB(20, 16, 30)
+		card.BackgroundColor3 = Color3.fromRGB(20, 24, 31)
 		Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
 
 		local stroke = Instance.new("UIStroke", card)
@@ -285,8 +282,8 @@ function StoreController.RenderCategory(categoryName: string)
 
 		local grad = Instance.new("UIGradient", card)
 		grad.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 24, 45)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 12, 22)),
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 34, 43)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 21, 28)),
 		})
 		grad.Rotation = 90
 
@@ -355,7 +352,6 @@ function StoreController.RenderCategory(categoryName: string)
 					priceTxt.Text = "R$ " .. tostring(productInfo.PriceInRobux)
 				end
 			else
-				-- Internal virtual currency price
 				priceTxt.Text = tostring(item.Price)
 			end
 			
@@ -460,8 +456,9 @@ function StoreController.Start(): ()
 	BgShield = Instance.new("TextButton", gui) :: any
 	BgShield.Name                   = "InputSink"
 	BgShield.Size                   = UDim2.fromScale(1, 1)
-	BgShield.BackgroundTransparency = 0.5
-	BgShield.BackgroundColor3       = Color3.new(0, 0, 0)
+	-- Fully transparent: this only catches click-outside-to-close. It must not
+	-- tint the screen behind the panel.
+	BgShield.BackgroundTransparency = 1
 	BgShield.Text                   = ""
 	BgShield.AutoButtonColor        = false
 	BgShield.Visible                = false
@@ -471,7 +468,7 @@ function StoreController.Start(): ()
 	MainPanel = Instance.new("Frame", gui)
 	MainPanel.Size             = UDim2.new(0, 620, 0, 420)
 	MainPanel.Position         = UDim2.new(0.5, -310, 0.5, -210)
-	MainPanel.BackgroundColor3 = Color3.fromRGB(14, 11, 22)
+	MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
 	MainPanel.Active           = true
 	MainPanel.Visible          = false
 	Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
@@ -486,17 +483,17 @@ function StoreController.Start(): ()
 
 	local mpGrad = Instance.new("UIGradient", MainPanel)
 	mpGrad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 15, 35)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(10,  8, 18)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 24, 31)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 13, 18)),
 	})
 	mpGrad.Rotation = 135
 	
 	local mpStroke = Instance.new("UIStroke", MainPanel)
-	mpStroke.Color = Color3.fromRGB(90, 60, 150)
+	mpStroke.Color = Color3.fromRGB(27, 140, 130)
 	mpStroke.Thickness = 2.5
 
 	PanelScale       = Instance.new("UIScale", MainPanel)
-	PanelScale.Scale = 0
+	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 
 	local function closePanel(reason: string?)
 		if not isOpen then return end
@@ -506,14 +503,7 @@ function StoreController.Start(): ()
 		gui.DisplayOrder  = 60
 		BgShield.Visible  = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Store")
-		-- A switch-triggered close (another panel is taking over) uses a fast
-		-- start so the outgoing panel gets out of the way quickly; a manual
-		-- close keeps the slower, weightier Back/In easing.
-		local closeTween: TweenInfo = if reason == "switch"
-			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-			else TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-		local tw = TweenService:Create(PanelScale, closeTween, { Scale = 0 })
-		tw:Play()
+		local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
 		tw.Completed:Connect(function(state: Enum.PlaybackState)
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
 			-- and bumps the generation; hide only if this close ran to completion
@@ -552,8 +542,8 @@ function StoreController.Start(): ()
 	local function MakeTab(label: string, categoryId: string)
 		local btn = Instance.new("TextButton", tabBar)
 		btn.Size = UDim2.new(0, 150, 1, 0)
-		btn.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
-		btn.TextColor3 = Color3.fromRGB(200, 200, 210)
+		btn.BackgroundColor3 = Color3.fromRGB(24, 29, 38)
+		btn.TextColor3 = Color3.fromRGB(196, 214, 216)
 		btn.Text = label
 		btn.Font = Enum.Font.GothamBlack
 		btn.TextSize = 14
@@ -571,14 +561,14 @@ function StoreController.Start(): ()
 		btn.MouseButton1Click:Connect(function()
 			for _, t in ipairs(tabBar:GetChildren()) do
 				if t:IsA("TextButton") then
-					t.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
+					t.BackgroundColor3 = Color3.fromRGB(24, 29, 38)
 					t.TextColor3 = Color3.fromRGB(150, 150, 160)
 					local ul = t:FindFirstChildOfClass("Frame")
 					if ul then ul.BackgroundTransparency = 1 end
 				end
 			end
 			
-			btn.BackgroundColor3 = Color3.fromRGB(35, 28, 50)
+			btn.BackgroundColor3 = Color3.fromRGB(32, 38, 48)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			underline.BackgroundTransparency = 0
 			
@@ -629,16 +619,17 @@ function StoreController.Start(): ()
 			gui.DisplayOrder  = 61 -- render above the outgoing panel during a switch
 			MainPanel.Visible = true
 			BgShield.Visible  = true
-			-- Retarget from the current scale (no reset to 0) so reopening during
-			-- a close animation continues smoothly instead of snapping shut first.
-			TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			-- Retarget from the current scale/rotation (no reset to the resting
+			-- pose) so reopening during a close animation continues smoothly
+			-- instead of snapping shut first.
+			UIHelpers.SpiralOpen(MainPanel, PanelScale, 1)
 
 			GetLocalEvent("NotifyMenuOpened"):Fire("Store")
 
-			passBtn.BackgroundColor3        = Color3.fromRGB(35, 28, 50)
+			passBtn.BackgroundColor3        = Color3.fromRGB(32, 38, 48)
 			passBtn.TextColor3              = Color3.fromRGB(255, 255, 255)
 			passUl.BackgroundTransparency   = 0
-			boostBtn.BackgroundColor3       = Color3.fromRGB(25, 20, 35)
+			boostBtn.BackgroundColor3       = Color3.fromRGB(24, 29, 38)
 			boostBtn.TextColor3             = Color3.fromRGB(150, 150, 160)
 			boostUl.BackgroundTransparency  = 1
 

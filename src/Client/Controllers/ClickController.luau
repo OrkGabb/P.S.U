@@ -1,10 +1,5 @@
 --!strict
---@author OrkGabb
---@module ClickController.luau
---@version 1.0
--- src/Client/Controllers/ClickController.lua
--- Refactored: Layout Isolation (dedicated ScreenGui) and Immediate O(1) Emission
-
+-- @Author @OrkGabb
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -154,14 +149,13 @@ function ClickController.Start(): ()
 		return
 	end
 
-	-- ISOLATION GUI: Prevents particles from forcing layout updates on the MainInterface
+	-- Dedicated ScreenGui so particles don't force layout updates on the MainInterface
 	local particleGui = Instance.new("ScreenGui")
 	particleGui.Name = "ClickParticleGui"
 	particleGui.IgnoreGuiInset = true
 	particleGui.DisplayOrder = 100
 	particleGui.Parent = LocalPlayer.PlayerGui
 
-	-- PRE-ALLOCATE POOL
 	for i = 1, TEXT_POOL_SIZE do
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(0, 100, 0, 30)
@@ -188,7 +182,6 @@ function ClickController.Start(): ()
 		}
 	end
 
-	-- INPUT HANDLER (Immediate, Emits Particles Locally)
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
 
@@ -206,14 +199,13 @@ function ClickController.Start(): ()
 		end
 	end)
 
-	-- BATCH FLUSH
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	clickRewardRemote = remotes:WaitForChild(RemoteNames.ClickReward) :: RemoteEvent
 
 	RunService.Heartbeat:Connect(onHeartbeat)
 
-	-- ASYNC VALUE BINDINGS (floating text mirrors the server's click power;
-	-- both sides derive it from UpgradeRegistry.ComputeStat, so they agree)
+	-- Floating text mirrors the server's click power; both sides derive it
+	-- from UpgradeRegistry.ComputeStat, so they agree.
 	task.spawn(function()
 		local updateData = remotes:WaitForChild(RemoteNames.UpdateProfileData) :: RemoteEvent
 		updateData.OnClientEvent:Connect(function(data)
@@ -235,7 +227,6 @@ function ClickController.Start(): ()
 		end
 	end)
 
-	-- RENDER LOOP O(1)
 	RunService.RenderStepped:Connect(onRenderStepped)
 end
 

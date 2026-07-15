@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module MonetizationService.luau
---@version 1.0
--- src/Server/Services/MonetizationService.lua
+-- @Author @OrkGabb
 -- Secure Monetization System for Roblox.
 -- Support for Gamepasses (O(1) Cache) and Developer Products (Idempotent ProcessReceipt).
 
@@ -21,7 +18,6 @@ local MonetizationService = {}
 -- Gamepass cache for O(1) HasGamepass checks by genre services (e.g. AuraService)
 local OwnedGamepasses: {[Player]: {[string]: boolean}} = {}
 
--- Load configuration from StoreRegistry
 MonetizationService.GamepassIDs = StoreRegistry.GamepassIDs
 MonetizationService.DevProducts = StoreRegistry.DevProducts
 
@@ -31,14 +27,12 @@ type RewardConfig = {
     ItemId: string?
 }
 
--- ========================================================================
--- GAMEPASS LOGIC (PERMANENT)
--- ========================================================================
+-- Gamepass logic (permanent)
 
 function MonetizationService.HasGamepass(player: Player, passKey: string): boolean
     if OwnedGamepasses[player] and OwnedGamepasses[player][passKey] == true then return true end
     
-    -- Fallback to ProfileService (Crucial for Roblox Studio test purchases to persist locally)
+    -- Fallback to ProfileService — needed for Studio test purchases to persist locally
     local profile: any = DataService.Profiles[player]
     if profile and profile.Data and profile.Data.PurchaseHistory then
         local passId: number? = MonetizationService.GamepassIDs[passKey]
@@ -67,12 +61,8 @@ local function LoadPlayerGamepasses(player: Player): ()
     end
 end
 
--- ========================================================================
--- DEVELOPER PRODUCT LOGIC (CONSUMABLES) - SECURE IDEMPOTENT PROCESSRECEIPT
--- ========================================================================
-
+-- Developer product logic (consumables) — secure idempotent ProcessReceipt
 local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
-    -- 1. Find player in the current session
     local player: Player? = Players:GetPlayerByUserId(receiptInfo.PlayerId)
     if not player then
         -- Player purchased and left instantly. Return NotProcessedYet.
@@ -80,32 +70,28 @@ local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
         return Enum.ProductPurchaseDecision.NotProcessedYet
     end
 
-    -- 2. Find player profile (ProfileService session lock)
     local profile: any = DataService.Profiles[player]
     if not profile or not profile.Data then
         return Enum.ProductPurchaseDecision.NotProcessedYet
     end
 
-    -- 3. Dynamically inject purchase history table for legacy data profiles
+    -- Inject purchase history table for legacy data profiles that predate it
     if not profile.Data.PurchaseHistory then
         profile.Data.PurchaseHistory = {}
     end
 
-    -- 4. Duplication protection (Idempotency)
-    -- If this receipt has already been processed and saved, return PurchaseGranted
+    -- Idempotency: a receipt already processed and saved returns PurchaseGranted
     if profile.Data.PurchaseHistory[receiptInfo.PurchaseId] then
         return Enum.ProductPurchaseDecision.PurchaseGranted
     end
 
-    -- 5. Identify the Product
     local reward: RewardConfig = MonetizationService.DevProducts[receiptInfo.ProductId]
     if not reward then
         warn("[MonetizationService] Developer product not configured! ID: " .. tostring(receiptInfo.ProductId))
         -- Skip processing until developer updates configuration table
-        return Enum.ProductPurchaseDecision.NotProcessedYet 
+        return Enum.ProductPurchaseDecision.NotProcessedYet
     end
 
-    -- 6. Deliver the Reward
     if reward.Type == "Currency" then
         if not profile.Data.Currencies then
             profile.Data.Currencies = { ["Primary"] = 0, ["Secondary"] = 0, ["Premium"] = 0 }
@@ -156,13 +142,12 @@ local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
         -- the systems that own them, keyed off VIPExpiry — core grants none.
     end
 
-    -- 7. Mark as processed and force save (Master Sync)
+    -- Mark as processed and force a full state save
     profile.Data.PurchaseHistory[receiptInfo.PurchaseId] = true
     DataService:SyncFullState(player)
-    
+
     warn(string.format("[MonetizationService] Product %s delivered successfully to %s!", tostring(receiptInfo.ProductId), player.Name))
 
-    -- Dispatch visual notification with readable name
     local remotes: Folder? = ReplicatedStorage:FindFirstChild("Remotes") :: any
     if remotes and remotes:FindFirstChild(RemoteNames.NotifyPurchase) then
         local displayName: string = "REWARD"
@@ -185,10 +170,6 @@ local function ProcessReceipt(receiptInfo: any): Enum.ProductPurchaseDecision
     return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 
--- ========================================================================
--- INITIALIZATION
--- ========================================================================
-
 function MonetizationService.Init(): ()
     local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder
     if not remotes:FindFirstChild(RemoteNames.NotifyPurchase) then
@@ -209,10 +190,8 @@ function MonetizationService.Init(): ()
 end
 
 function MonetizationService.Start(): ()
-    -- Bind the idempotent handler to Roblox purchase engine
     MarketplaceService.ProcessReceipt = ProcessReceipt
 
-    -- Load player gamepasses on entry
     Players.PlayerAdded:Connect(LoadPlayerGamepasses)
     for _, player: Player in ipairs(Players:GetPlayers()) do
         task.spawn(LoadPlayerGamepasses, player)
@@ -278,7 +257,6 @@ function MonetizationService.Start(): ()
                 end
             end
 
-            -- Process the reward logic (just a simple example of adding an item or applying a boost)
             if itemInfo.Reward then
                 if itemInfo.Reward.Type == "Item" and itemInfo.Reward.ItemId then
                     DataService:AddItem(player, itemInfo.Reward.ItemId, itemInfo.Reward.Amount)
@@ -291,7 +269,6 @@ function MonetizationService.Start(): ()
         return false
     end
 
-    -- Handle in-game Gamepass purchases instantly
     MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player: Player, passId: number, wasPurchased: boolean): ()
         if not wasPurchased then return end
 
@@ -309,7 +286,6 @@ function MonetizationService.Start(): ()
                 if not OwnedGamepasses[player] then OwnedGamepasses[player] = {} end
                 OwnedGamepasses[player][key] = true
 
-                -- Force status sync for all gamepasses
                 DataService:SyncFullState(player)
 
                 if notifyEvt then

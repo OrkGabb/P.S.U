@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module ProfileController.luau
---@version 1.0
--- src/Client/Controllers/ProfileController.luau
+-- @Author @OrkGabb
 -- Dynamic metadata-driven Profile UI Controller.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -82,19 +79,19 @@ local function UpdateRebirthUI(): ()
 	local REBIRTH_LEVEL_REQ: number = 50 + (currentRebirths * 25)
 
 	if currentLevel >= REBIRTH_LEVEL_REQ then
-		RebirthButton.BackgroundColor3 = Color3.fromRGB(120, 50, 200) 
+		RebirthButton.BackgroundColor3 = Color3.fromRGB(26, 168, 158) 
 		RebirthBtnText.Text = "REBIRTH (LV " .. REBIRTH_LEVEL_REQ .. ")"
 		RebirthBtnText.TextColor3 = Color3.new(1, 1, 1)
 		
 		local stroke = RebirthButton:FindFirstChildOfClass("UIStroke")
-		if stroke then stroke.Color = Color3.fromRGB(80, 20, 140) end
+		if stroke then stroke.Color = Color3.fromRGB(18, 96, 92) end
 	else
-		RebirthButton.BackgroundColor3 = Color3.fromRGB(40, 35, 45) 
+		RebirthButton.BackgroundColor3 = Color3.fromRGB(34, 40, 49) 
 		RebirthBtnText.Text = "REQUIRES LEVEL " .. tostring(REBIRTH_LEVEL_REQ)
-		RebirthBtnText.TextColor3 = Color3.fromRGB(120, 110, 130)
+		RebirthBtnText.TextColor3 = Color3.fromRGB(110, 132, 136)
 		
 		local stroke = RebirthButton:FindFirstChildOfClass("UIStroke")
-		if stroke then stroke.Color = Color3.fromRGB(20, 15, 25) end
+		if stroke then stroke.Color = Color3.fromRGB(20, 24, 31) end
 	end
 end
 
@@ -123,10 +120,10 @@ function ProfileController.PlayCinematicEffect(): ()
 	popup.Text = "REBIRTH SUCCESSFUL"
 	popup.Font = Enum.Font.GothamBlack
 	popup.TextSize = 32
-	popup.TextColor3 = Color3.fromRGB(200, 150, 255)
+	popup.TextColor3 = Color3.fromRGB(150, 240, 230)
 	
 	local stroke = Instance.new("UIStroke", popup)
-	stroke.Color = Color3.fromRGB(50, 20, 100)
+	stroke.Color = Color3.fromRGB(14, 70, 68)
 	stroke.Thickness = 3
 
 	local scale = Instance.new("UIScale", popup)
@@ -161,7 +158,7 @@ local function CreateStatRow(parent: Instance, label: string, valueColor: Color3
 	titleLbl.Text = label
 	titleLbl.Font = Enum.Font.GothamBlack
 	titleLbl.TextSize = 13
-	titleLbl.TextColor3 = Color3.fromRGB(150, 140, 160)
+	titleLbl.TextColor3 = Color3.fromRGB(138, 160, 164)
 	titleLbl.TextXAlignment = Enum.TextXAlignment.Left
 
 	local valLbl = Instance.new("TextLabel", row)
@@ -240,7 +237,7 @@ local function GetStatColor(key: string): Color3
 	if keyUpper == "PRIMARY" or keyUpper == "COINS" or keyUpper == "GOLD" or keyUpper == "CASH" or keyUpper == "SECONDARY" or keyUpper == "AURACOINS" or keyUpper == "DIAMONDS" or keyUpper == "GEMS" or keyUpper == "KILLS" or keyUpper == "PREMIUM" then
 		return Color3.fromRGB(255, 215, 0)
 	elseif keyUpper == "LEVEL" or keyUpper == "EXPERIENCE" or keyUpper == "EXP" or keyUpper == "REBIRTHS" then
-		return Color3.fromRGB(130, 80, 255)
+		return Color3.fromRGB(47, 217, 200)
 	end
 	return Color3.fromRGB(220, 220, 220)
 end
@@ -273,20 +270,20 @@ local function ShowRebirthConfirmation(): ()
 	modal.Size = UDim2.fromOffset(360, 370)
 	modal.Position = UDim2.fromScale(0.5, 0.5)
 	modal.AnchorPoint = Vector2.new(0.5, 0.5)
-	modal.BackgroundColor3 = Color3.fromRGB(14, 10, 26)
+	modal.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
 	modal.BorderSizePixel = 0
 	modal.Parent = overlay
 	Instance.new("UICorner", modal).CornerRadius = UDim.new(0, 18)
 
 	local modalGrad = Instance.new("UIGradient", modal)
 	modalGrad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 14, 44)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 8, 20)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 29, 38)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 13, 18)),
 	})
 	modalGrad.Rotation = 135
 
 	local stroke = Instance.new("UIStroke", modal)
-	stroke.Color = Color3.fromRGB(140, 80, 255)
+	stroke.Color = Color3.fromRGB(47, 217, 200)
 	stroke.Thickness = 2.5
 
 	local modalScale = Instance.new("UIScale", modal)
@@ -294,7 +291,7 @@ local function ShowRebirthConfirmation(): ()
 
 	local accentBar = Instance.new("Frame", modal)
 	accentBar.Size = UDim2.new(1, 0, 0, 4)
-	accentBar.BackgroundColor3 = Color3.fromRGB(160, 90, 255)
+	accentBar.BackgroundColor3 = Color3.fromRGB(47, 217, 200)
 	accentBar.BorderSizePixel = 0
 	Instance.new("UICorner", accentBar).CornerRadius = UDim.new(0, 18)
 
@@ -304,10 +301,10 @@ local function ShowRebirthConfirmation(): ()
 	title.Text = "REBIRTH"
 	title.Font = Enum.Font.FredokaOne
 	title.TextSize = 26
-	title.TextColor3 = Color3.fromRGB(220, 180, 255)
+	title.TextColor3 = Color3.fromRGB(170, 245, 236)
 	title.BackgroundTransparency = 1
 	local titleStroke = Instance.new("UIStroke", title)
-	titleStroke.Color = Color3.fromRGB(80, 30, 130)
+	titleStroke.Color = Color3.fromRGB(18, 96, 92)
 	titleStroke.Thickness = 2
 
 	local reqBadge = Instance.new("Frame", modal)
@@ -397,11 +394,11 @@ local function ShowRebirthConfirmation(): ()
 	local cancel = Instance.new("TextButton", modal)
 	cancel.Size = UDim2.new(0.42, 0, 0, 38)
 	cancel.Position = UDim2.new(0, 14, 1, -52)
-	cancel.BackgroundColor3 = Color3.fromRGB(40, 36, 50)
+	cancel.BackgroundColor3 = Color3.fromRGB(34, 40, 49)
 	cancel.Text = "CANCEL"
 	cancel.Font = Enum.Font.GothamBold
 	cancel.TextSize = 13
-	cancel.TextColor3 = Color3.fromRGB(180, 170, 200)
+	cancel.TextColor3 = Color3.fromRGB(165, 192, 196)
 	cancel.AutoButtonColor = false
 	cancel.BorderSizePixel = 0
 	Instance.new("UICorner", cancel).CornerRadius = UDim.new(0, 9)
@@ -410,7 +407,7 @@ local function ShowRebirthConfirmation(): ()
 	proceed.Size = UDim2.new(0.48, 0, 0, 38)
 	proceed.Position = UDim2.new(1, -14, 1, -52)
 	proceed.AnchorPoint = Vector2.new(1, 0)
-	proceed.BackgroundColor3 = Color3.fromRGB(120, 50, 210)
+	proceed.BackgroundColor3 = Color3.fromRGB(26, 168, 158)
 	proceed.Text = "REBIRTH NOW"
 	proceed.Font = Enum.Font.FredokaOne
 	proceed.TextSize = 16
@@ -419,17 +416,17 @@ local function ShowRebirthConfirmation(): ()
 	proceed.BorderSizePixel = 0
 	Instance.new("UICorner", proceed).CornerRadius = UDim.new(0, 9)
 	local proceedStroke = Instance.new("UIStroke", proceed)
-	proceedStroke.Color = Color3.fromRGB(180, 100, 255)
+	proceedStroke.Color = Color3.fromRGB(90, 235, 222)
 	proceedStroke.Thickness = 2
 
 	local proceedScale = Instance.new("UIScale", proceed)
 	proceed.MouseEnter:Connect(function(): ()
 		TweenService:Create(proceedScale, TweenInfo.new(0.1), {Scale = 1.04}):Play()
-		TweenService:Create(proceed, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(145, 70, 235)}):Play()
+		TweenService:Create(proceed, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(40, 200, 188)}):Play()
 	end)
 	proceed.MouseLeave:Connect(function(): ()
 		TweenService:Create(proceedScale, TweenInfo.new(0.12), {Scale = 1}):Play()
-		TweenService:Create(proceed, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(120, 50, 210)}):Play()
+		TweenService:Create(proceed, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(26, 168, 158)}):Play()
 	end)
 	proceed.MouseButton1Down:Connect(function(): ()
 		TweenService:Create(proceedScale, TweenInfo.new(0.06), {Scale = 0.95}):Play()
@@ -472,7 +469,7 @@ local function ShowRebirthConfirmation(): ()
 						task.delay(2.5, function(): ()
 							if proceed and proceed.Parent then
 								proceed.Text = "REBIRTH NOW"
-								proceed.BackgroundColor3 = Color3.fromRGB(120, 50, 210)
+								proceed.BackgroundColor3 = Color3.fromRGB(26, 168, 158)
 								proceed:SetAttribute("Processing", nil)
 							end
 						end)
@@ -497,7 +494,7 @@ local function ShowRebirthConfirmation(): ()
 					task.delay(2, function(): ()
 						if proceed and proceed.Parent then
 							proceed.Text = "REBIRTH NOW"
-							proceed.BackgroundColor3 = Color3.fromRGB(120, 50, 210)
+							proceed.BackgroundColor3 = Color3.fromRGB(26, 168, 158)
 							proceed:SetAttribute("Processing", nil)
 						end
 					end)
@@ -531,8 +528,9 @@ function ProfileController.Start(): ()
 
 	BgShield = Instance.new("TextButton", gui)
 	BgShield.Size                   = UDim2.fromScale(1, 1)
-	BgShield.BackgroundTransparency = 0.5
-	BgShield.BackgroundColor3       = Color3.new(0, 0, 0)
+	-- Fully transparent: this only catches click-outside-to-close. It must not
+	-- tint the screen behind the panel.
+	BgShield.BackgroundTransparency = 1
 	BgShield.Text                   = ""
 	BgShield.AutoButtonColor        = false
 	BgShield.Visible                = false
@@ -545,15 +543,16 @@ function ProfileController.Start(): ()
 	MainPanel.Visible          = false
 	MainPanel.Parent           = gui
 	MainPanel.Size             = UDim2.new(0, 360, 0, 520)
-	-- Left side, vertically below center (AnchorPoint = (0, 0.5), X = 0 + margin, Y = 0.62)
-	MainPanel.AnchorPoint      = Vector2.new(0, 0.5)
-	MainPanel.Position         = UDim2.new(0, 12, 0.62, 0)
-	MainPanel.BackgroundColor3 = Color3.fromRGB(14, 11, 22)
+	-- Screen-centered: the old left/below-center placement sat on top of the
+	-- sidebar buttons and the HUD-collapse arrow.
+	MainPanel.AnchorPoint      = Vector2.new(0.5, 0.5)
+	MainPanel.Position         = UDim2.new(0.5, 0, 0.5, 0)
+	MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
 	MainPanel.Active           = true
 	Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
 
 	PanelScale       = Instance.new("UIScale", MainPanel)
-	PanelScale.Scale = 0
+	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 
 	local camera: Camera? = workspace.CurrentCamera
 	local targetScale: number = 1
@@ -584,14 +583,7 @@ function ProfileController.Start(): ()
 		gui.DisplayOrder  = 60
 		BgShield.Visible  = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Profile")
-		-- A switch-triggered close (another panel is taking over) uses a fast
-		-- start so the outgoing panel gets out of the way quickly; a manual
-		-- close keeps the slower, weightier Back/In easing.
-		local closeTween: TweenInfo = if reason == "switch"
-			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-			else TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-		local tw = TweenService:Create(PanelScale, closeTween, { Scale = 0 })
-		tw:Play()
+		local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
 		tw.Completed:Connect(function(state: Enum.PlaybackState): ()
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
 			-- and bumps the generation; hide only if this close ran to completion
@@ -629,24 +621,22 @@ function ProfileController.Start(): ()
 	listLayout.Padding = UDim.new(0, 8)
 	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-	-- Instantiate Baseline Profile Rows (Username, UserId, Account Age)
 	CreateStatRow(statsContainer, "USERNAME", Color3.fromRGB(220, 220, 220), 1).Text = LocalPlayer.Name
 	CreateStatRow(statsContainer, "USER ID", Color3.fromRGB(150, 150, 160), 2).Text = tostring(LocalPlayer.UserId)
 	CreateStatRow(statsContainer, "ACCOUNT AGE", Color3.fromRGB(100, 200, 255), 3).Text = tostring(LocalPlayer.AccountAge) .. " days"
 
-	-- Optional Rebirth UI Creation if RPG Adventure is active (isRPGActive declared above)
 	if isRPGActive then
 		RebirthButton = Instance.new("TextButton", MainPanel)
 		RebirthButton.Size             = UDim2.new(1, -40, 0, 50)
 		RebirthButton.Position         = UDim2.new(0.5, 0, 1, -15)
 		RebirthButton.AnchorPoint      = Vector2.new(0.5, 1)
-		RebirthButton.BackgroundColor3 = Color3.fromRGB(40, 35, 45)
+		RebirthButton.BackgroundColor3 = Color3.fromRGB(34, 40, 49)
 		RebirthButton.Text             = ""
 		RebirthButton.AutoButtonColor  = false
 		Instance.new("UICorner", RebirthButton).CornerRadius = UDim.new(0, 10)
 		
 		local rbStroke = Instance.new("UIStroke", RebirthButton)
-		rbStroke.Color = Color3.fromRGB(20, 15, 25)
+		rbStroke.Color = Color3.fromRGB(20, 24, 31)
 		rbStroke.Thickness = 2.5
 
 		local rbIcon = Instance.new("ImageLabel", RebirthButton)
@@ -663,7 +653,7 @@ function ProfileController.Start(): ()
 		RebirthBtnText.Text = "LOADING..."
 		RebirthBtnText.Font = Enum.Font.GothamBlack
 		RebirthBtnText.TextSize = 16
-		RebirthBtnText.TextColor3 = Color3.fromRGB(120, 110, 130)
+		RebirthBtnText.TextColor3 = Color3.fromRGB(110, 132, 136)
 		RebirthBtnText.TextXAlignment = Enum.TextXAlignment.Left
 
 		local btnScale = Instance.new("UIScale", RebirthButton)
@@ -671,7 +661,7 @@ function ProfileController.Start(): ()
 			local REBIRTH_LEVEL_REQ = 50 + (currentRebirths * 25)
 			if currentLevel >= REBIRTH_LEVEL_REQ then
 				TweenService:Create(btnScale, TweenInfo.new(0.1), {Scale = 1.03}):Play()
-				TweenService:Create(RebirthButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(140, 70, 220)}):Play()
+				TweenService:Create(RebirthButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(40, 200, 188)}):Play()
 			end
 		end)
 		
@@ -679,7 +669,7 @@ function ProfileController.Start(): ()
 			local REBIRTH_LEVEL_REQ = 50 + (currentRebirths * 25)
 			if currentLevel >= REBIRTH_LEVEL_REQ then
 				TweenService:Create(btnScale, TweenInfo.new(0.15), {Scale = 1}):Play()
-				TweenService:Create(RebirthButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(120, 50, 200)}):Play()
+				TweenService:Create(RebirthButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(26, 168, 158)}):Play()
 			end
 		end)
 
@@ -708,10 +698,11 @@ function ProfileController.Start(): ()
 			gui.DisplayOrder  = 61 -- render above the outgoing panel during a switch
 			MainPanel.Visible = true
 			BgShield.Visible  = true
-			-- Retarget from the current scale (no reset to 0) so reopening during
-			-- a close animation continues smoothly instead of snapping shut first.
-			-- targetScale is kept fresh by the ViewportSize connection above.
-			TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = targetScale }):Play()
+			-- Retarget from the current scale/rotation (no reset to the resting
+			-- pose) so reopening during a close animation continues smoothly
+			-- instead of snapping shut first. targetScale is kept fresh by the
+			-- ViewportSize connection above.
+			UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
 
 			GetLocalEvent("NotifyMenuOpened"):Fire("Profile")
 
@@ -729,7 +720,6 @@ function ProfileController.Start(): ()
 		updateData.OnClientEvent:Connect(function(data: any): ()
 			if not data then return end
 			
-			-- Cache currentLevel & currentRebirths
 			if data.Level then
 				currentLevel = data.Level
 			elseif data.Progression and data.Progression.Level then
@@ -742,7 +732,6 @@ function ProfileController.Start(): ()
 				currentRebirths = data.Progression.Rebirths
 			end
 
-			-- Dynamic Metadata-Driven row generation for active sub-genres
 			local activeCats = FeatureResolver.GetActiveCategories()
 			local hasActiveGenre = false
 			for _, cat in ipairs(activeCats) do
@@ -755,7 +744,6 @@ function ProfileController.Start(): ()
 			local isFPSActive = FeatureResolver.IsCategoryActive("FPS_Shooter")
 
 			if hasActiveGenre then
-				-- Process Currencies dictionary
 				if data.Currencies and type(data.Currencies) == "table" then
 					for key, val in pairs(data.Currencies) do
 						if type(val) == "number" or type(val) == "string" then
@@ -780,7 +768,6 @@ function ProfileController.Start(): ()
 					end
 				end
 
-				-- Process Progression dictionary
 				if data.Progression and type(data.Progression) == "table" then
 					for key, val in pairs(data.Progression) do
 						if type(val) == "number" or type(val) == "string" then

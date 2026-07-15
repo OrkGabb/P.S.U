@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Client/Controllers/PetController.luau
 -- Renders every player's equipped pet as a floating companion that follows
 -- its owner. Pets are anchored, non-colliding client-side models moved by an
 -- exponential-smoothing CFrame lerp each frame — no server physics, no
@@ -47,7 +46,7 @@ local function cfgNum(field: string, default: number): number
 	return if type(value) == "number" then value else default
 end
 
--- ─── Model construction ───────────────────────────────────────────────────────
+-- Model construction
 
 local function makePart(shape: Enum.PartType, size: Vector3, color: Color3, material: Enum.Material): Part
 	local part = Instance.new("Part")
@@ -184,7 +183,7 @@ local function buildPetModel(def: PetRegistry.PetDef, owner: Player): Model
 	return model
 end
 
--- ─── Follow loop ──────────────────────────────────────────────────────────────
+-- Follow loop
 
 local function getStorageFolder(): Folder
 	local existing = petsFolder
@@ -236,7 +235,7 @@ local function updatePet(player: Player, state: PetState, dt: number, now: numbe
 	state.Model:PivotTo(CFrame.lookAt(state.Position, state.Position + flatLook.Unit))
 end
 
--- ─── Equip application ────────────────────────────────────────────────────────
+-- Equip application
 
 local function clearPet(player: Player): ()
 	local state = activePets[player]
@@ -279,7 +278,7 @@ local function watchPlayer(player: Player): ()
 	end
 end
 
--- ─── Lifecycle ────────────────────────────────────────────────────────────────
+-- Lifecycle
 
 function PetController.Init(): ()
 end

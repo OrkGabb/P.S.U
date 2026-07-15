@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Client/Controllers/IndexController.luau
 -- Aura_Collector collection index: every aura in the game shown as a grid of
 -- unlocked/silhouetted slots with a details panel (rarity, boosts, real drop
 -- odds from the shared roll engine) and equip controls.
@@ -23,7 +22,7 @@ local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
 
 local FALLBACK_ICON = "rbxassetid://15059633013"
-local BIOME_FALLBACK_COLOR = Color3.fromRGB(80, 80, 100)
+local BIOME_FALLBACK_COLOR = Color3.fromRGB(56, 82, 86)
 
 -- UI-only styling per rarity tag (colors come from AuraRegistry.Rarities)
 local StrokeConfig: {[string]: {Thickness: number, Pulse: boolean}} = {
@@ -94,7 +93,7 @@ local selectedSlot: TextButton? = nil
 local selectedStroke: UIStroke? = nil
 local selectedBiomeFilter: string? = nil
 
--- ─── Helpers ──────────────────────────────────────────────────────────────────
+-- Helpers
 
 local function FormatSuffix(n: number): string
     if n ~= n or n == math.huge then return "?" end
@@ -201,7 +200,7 @@ local function StartStrokePulse(stroke: UIStroke, rarityColor: Color3): ()
     end)
 end
 
--- ─── Grid ─────────────────────────────────────────────────────────────────────
+-- Grid
 
 function IndexController.Refresh(collection: {[string]: number}): ()
     collectionCache = collection
@@ -323,7 +322,7 @@ function IndexController.Refresh(collection: {[string]: number}): ()
 
             local slot = Instance.new("TextButton", studBase)
             slot.Size = UDim2.new(1, 0, 1, 0)
-            slot.BackgroundColor3 = if isUnlocked then Color3.fromRGB(16, 12, 20) else Color3.fromRGB(12, 8, 20)
+            slot.BackgroundColor3 = if isUnlocked then Color3.fromRGB(15, 18, 24) else Color3.fromRGB(11, 13, 18)
             slot.BackgroundTransparency = if isUnlocked then 0 else 0.3
             slot.Text = ""
             slot.AutoButtonColor = false
@@ -333,11 +332,11 @@ function IndexController.Refresh(collection: {[string]: number}): ()
             slotGrad.Rotation = 90
             if isUnlocked then
                 slotGrad.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 20, 30)),
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 29, 38)),
                     ColorSequenceKeypoint.new(1, Color3.new(rColor.R * 0.15, rColor.G * 0.15, rColor.B * 0.15)),
                 })
             else
-                slotGrad.Color = ColorSequence.new(Color3.fromRGB(15, 10, 20))
+                slotGrad.Color = ColorSequence.new(Color3.fromRGB(14, 17, 23))
             end
 
             local studScale = Instance.new("UIScale", studBase)
@@ -353,7 +352,7 @@ function IndexController.Refresh(collection: {[string]: number}): ()
                     StartStrokePulse(stroke, rColor)
                 end
             else
-                stroke.Color = Color3.fromRGB(80, 60, 110)
+                stroke.Color = Color3.fromRGB(34, 86, 88)
             end
 
             if isUnlocked and ORNAMENT_TIERS[def.RarityTag] then
@@ -431,11 +430,11 @@ function IndexController.Refresh(collection: {[string]: number}): ()
                     StartOmniAnimation(nameLabel, "TextColor3")
                 end
             else
-                iconImg.ImageColor3 = Color3.fromRGB(20, 15, 30)
+                iconImg.ImageColor3 = Color3.fromRGB(20, 24, 31)
                 iconImg.ImageTransparency = 0.3
                 nameLabel.Text = "?"
                 nameLabel.Font = Enum.Font.GothamBlack
-                nameLabel.TextColor3 = Color3.fromRGB(160, 140, 200)
+                nameLabel.TextColor3 = Color3.fromRGB(150, 185, 190)
                 nameLabel.TextTransparency = 0.2
                 nameConstraint.MaxTextSize = 20
             end
@@ -470,7 +469,7 @@ function IndexController.Refresh(collection: {[string]: number}): ()
     end
 end
 
--- ─── Details panel ────────────────────────────────────────────────────────────
+-- Details panel
 
 function IndexController.UpdateDetailsPanel(): ()
     if not selectedAuraId or not DetailsPanel then return end
@@ -536,7 +535,7 @@ function IndexController.UpdateDetailsPanel(): ()
     end
 end
 
--- ─── Lifecycle ────────────────────────────────────────────────────────────────
+-- Lifecycle
 
 function IndexController.Init(): () end
 
@@ -562,24 +561,24 @@ function IndexController.Start(): ()
     MainPanel = Instance.new("Frame")
     MainPanel.Size = UDim2.new(0, 620, 0, 420)
     MainPanel.Position = UDim2.new(0.5, -310, 0.5, -210)
-    MainPanel.BackgroundColor3 = Color3.fromRGB(14, 11, 22)
+    MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
     MainPanel.Active = true
     MainPanel.Visible = false
     Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
 
     local mpGrad = Instance.new("UIGradient", MainPanel)
     mpGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 15, 35)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 8, 18)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 24, 31)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 13, 18)),
     })
     mpGrad.Rotation = 135
 
     local mpStroke = Instance.new("UIStroke", MainPanel)
-    mpStroke.Color = Color3.fromRGB(90, 60, 150)
+    mpStroke.Color = Color3.fromRGB(27, 140, 130)
     mpStroke.Thickness = 2
 
     PanelScale = Instance.new("UIScale", MainPanel)
-    PanelScale.Scale = 0
+    UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 
     local function closePanel(reason: string?): ()
         -- Guard only on logical state: dropping a close request during an
@@ -591,14 +590,7 @@ function IndexController.Start(): ()
         gui.DisplayOrder = 60
         BgShield.Visible = false
         GetLocalEvent("NotifyMenuClosed"):Fire("Index")
-        -- A switch-triggered close (another panel is taking over) uses a fast
-        -- start so the outgoing panel gets out of the way quickly; a manual
-        -- close keeps the slower, weightier Back/In easing.
-        local closeTween: TweenInfo = if reason == "switch"
-            then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            else TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-        local tw = TweenService:Create(PanelScale, closeTween, { Scale = 0 })
-        tw:Play()
+        local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
         tw.Completed:Connect(function(state: Enum.PlaybackState)
             -- A reopen cancels this tween (Completed still fires, state=Cancelled)
             -- and bumps the generation; hide only if this close ran to completion
@@ -663,7 +655,7 @@ function IndexController.Start(): ()
         local btn = Instance.new("TextButton", tabBar)
         btn.Size = UDim2.new(0, 0, 1, 0)
         btn.AutomaticSize = Enum.AutomaticSize.X
-        btn.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
+        btn.BackgroundColor3 = Color3.fromRGB(24, 29, 38)
         btn.TextColor3 = accentColor
         btn.Text = label
         btn.Font = Enum.Font.GothamBlack
@@ -689,18 +681,18 @@ function IndexController.Start(): ()
                 if t:IsA("TextButton") then
                     local ul = t:FindFirstChild("Underline") :: Frame?
                     if ul then ul.BackgroundTransparency = 1 end
-                    t.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
+                    t.BackgroundColor3 = Color3.fromRGB(24, 29, 38)
                 end
             end
             underline.BackgroundTransparency = 0
-            btn.BackgroundColor3 = Color3.fromRGB(35, 28, 50)
+            btn.BackgroundColor3 = Color3.fromRGB(32, 38, 48)
         end)
         return btn, underline
     end
 
-    local allBtn, allUl = MakeTab("ALL", nil, Color3.fromRGB(200, 180, 255))
+    local allBtn, allUl = MakeTab("ALL", nil, Color3.fromRGB(170, 245, 236))
     allUl.BackgroundTransparency = 0
-    allBtn.BackgroundColor3 = Color3.fromRGB(35, 28, 50)
+    allBtn.BackgroundColor3 = Color3.fromRGB(32, 38, 48)
 
     for biomeId, biomeDef in pairs(AuraRegistry.Biomes) do
         MakeTab(string.upper(biomeDef.DisplayName), biomeId, biomeDef.Color or BIOME_FALLBACK_COLOR)
@@ -717,14 +709,14 @@ function IndexController.Start(): ()
     DetailsPanel = Instance.new("Frame", MainPanel)
     DetailsPanel.Size = UDim2.new(0.4, -20, 1, -70)
     DetailsPanel.Position = UDim2.new(0.6, 5, 0, 55)
-    DetailsPanel.BackgroundColor3 = Color3.fromRGB(18, 13, 30)
+    DetailsPanel.BackgroundColor3 = Color3.fromRGB(19, 23, 30)
     Instance.new("UICorner", DetailsPanel).CornerRadius = UDim.new(0, 12)
-    Instance.new("UIStroke", DetailsPanel).Color = Color3.fromRGB(80, 50, 130)
+    Instance.new("UIStroke", DetailsPanel).Color = Color3.fromRGB(26, 90, 90)
 
     local dpGrad = Instance.new("UIGradient", DetailsPanel)
     dpGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(26, 18, 44)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 10, 22)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 29, 38)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 21, 28)),
     })
     dpGrad.Rotation = 160
 
@@ -786,7 +778,7 @@ function IndexController.Start(): ()
     dLore.TextScaled = true
     dLore.Text = ""
     dLore.Visible = false
-    dLore.TextColor3 = Color3.fromRGB(180, 180, 200)
+    dLore.TextColor3 = Color3.fromRGB(172, 196, 200)
     dLore.TextXAlignment = Enum.TextXAlignment.Left
     Instance.new("UITextSizeConstraint", dLore).MaxTextSize = 12
 
@@ -822,7 +814,6 @@ function IndexController.Start(): ()
     equipBtn.TextColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", equipBtn).CornerRadius = UDim.new(0, 8)
 
-    -- ── Open/close wiring ─────────────────────────────────────────────────────
     GetLocalEvent("ToggleIndex").Event:Connect(function(reason: string?)
         if isOpen then
             closePanel(reason)
@@ -832,9 +823,10 @@ function IndexController.Start(): ()
             gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
             MainPanel.Visible = true
             BgShield.Visible = true
-            -- Retarget from the current scale (no reset to 0) so reopening during
-            -- a close animation continues smoothly instead of snapping shut first.
-            TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+            -- Retarget from the current scale/rotation (no reset to the resting
+            -- pose) so reopening during a close animation continues smoothly
+            -- instead of snapping shut first.
+            UIHelpers.SpiralOpen(MainPanel, PanelScale, 1)
             IndexController.UpdateDetailsPanel()
             GetLocalEvent("NotifyMenuOpened"):Fire("Index")
         end
@@ -843,7 +835,6 @@ function IndexController.Start(): ()
     -- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
     -- handler, which fires ToggleIndex when another menu opens.
 
-    -- ── Equip wiring ──────────────────────────────────────────────────────────
     equipBtn.MouseButton1Click:Connect(function()
         if not selectedAuraId then return end
         equipBtn.Text = "WAITING..."

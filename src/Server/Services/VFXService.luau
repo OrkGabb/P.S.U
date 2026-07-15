@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module VFXService.luau
---@version 1.0
--- src/Server/Services/VFXService.luau
+-- @Author @OrkGabb
 -- Server-side Visual Effects Service. Emits lightweight, compressed structural replication data.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,11 +10,9 @@ local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver
 local VFXService = {}
 
 function VFXService.Init(): ()
-    -- VFXService Init
 end
 
 function VFXService.Start(): ()
-    -- VFXService Start
 end
 
 function VFXService.EmitVFX(player: Player?, effectId: string, origin: any, target: any)

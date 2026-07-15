@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module DailyService.luau
---@version 2.0
--- src/Server/Services/DailyService.luau
+-- @Author @OrkGabb
 -- Server-authoritative daily reward claims. Mirrors QuestService's pattern:
 -- validates against DailyRegistry (the SSoT for reward data), persists
 -- claim state on the profile, and pushes state to the client via
@@ -132,10 +129,6 @@ local function OnClaimRequest(player: Player): ()
 	DataService:SyncFullState(player)
 	PushState(player, profile)
 end
-
---------------------------------------------------------------------------------
--- Lifecycle
---------------------------------------------------------------------------------
 
 function DailyService.Init(): ()
 	local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder

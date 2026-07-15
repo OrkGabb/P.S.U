@@ -1,9 +1,6 @@
 --!strict
---@author OrkGabb
---@module InteractiveWorldController.luau
---@version 1.0
--- src/Client/Controllers/InteractiveWorldController.lua
--- Physical World Controller. Links ProximityPrompts on map NPCs to their corresponding premium UIs.
+-- @Author @OrkGabb
+-- Links ProximityPrompts on map NPCs to their corresponding premium UIs.
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage      = game:GetService("ReplicatedStorage")
@@ -24,9 +21,6 @@ local function GetLocalEvent(eventName: string): BindableEvent
     return evt
 end
 
--- ========================================================================
--- NPC AND ALTAR MAPPING TO UI PANELS
--- ========================================================================
 local PromptObjectMapping: {[string]: string} = {
     ["Forge Master"]      = "ToggleForge",
     ["Forge Table"]       = "ToggleForge",
@@ -49,7 +43,6 @@ local PromptObjectMapping: {[string]: string} = {
 local function OnPromptTriggered(prompt: ProximityPrompt, player: Player)
     if player ~= LocalPlayer then return end
 
-    -- 1. Check for attribute metadata
     local menuToggle = prompt:GetAttribute("MenuToggle")
     if type(menuToggle) == "string" and menuToggle ~= "" then
         GetLocalEvent(menuToggle):Fire()
@@ -71,7 +64,6 @@ local function OnPromptTriggered(prompt: ProximityPrompt, player: Player)
         return
     end
 
-    -- 2. Check for CollectionService tags
     for _, tag in ipairs(CollectionService:GetTags(prompt)) do
         if string.sub(tag, 1, 7) == "Toggle_" then
             local eventName = string.sub(tag, 8)
@@ -80,7 +72,6 @@ local function OnPromptTriggered(prompt: ProximityPrompt, player: Player)
         end
     end
 
-    -- 3. Fallback to mapped metadata based on object text
     local objectText: string = prompt.ObjectText
     local mappedEvent = PromptObjectMapping[objectText]
     if mappedEvent then
@@ -107,12 +98,7 @@ local function OnPromptTriggered(prompt: ProximityPrompt, player: Player)
     end
 end
 
--- ========================================================================
--- LIFECYCLE
--- ========================================================================
-
 function InteractiveWorldController.Init(): ()
-    -- Attach centralized O(1) prompt interaction listener
     ProximityPromptService.PromptTriggered:Connect(OnPromptTriggered)
 end
 

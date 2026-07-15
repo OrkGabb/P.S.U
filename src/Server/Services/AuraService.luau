@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Server/Services/AuraService.luau
 -- Aura_Collector genre service: server-authoritative RNG rolls (with pity and
 -- luck/speed masteries), aura collection, equip management and idle income.
 --
@@ -44,13 +43,10 @@ local lastIncome: {[Player]: number} = {}
 type AutoRollState = { IsActive: boolean }
 local autoRollPlayers: {[Player]: AutoRollState} = {}
 
--- ─── Config (SSoT: FeatureToggles.Genres.Aura_Collector) ─────────────────────
-
+-- Config (SSoT: FeatureToggles.Genres.Aura_Collector)
 local function cfg(field: string, default: number): number
 	return FeatureResolver.GetConfigField(GENRE_KEY, field, default)
 end
-
--- ─── Genre data ───────────────────────────────────────────────────────────────
 
 type AuraGenreData = {
 	Collection: {[string]: number},
@@ -74,8 +70,6 @@ local function getAuraData(player: Player): AuraGenreData?
 	if type(genreData.UnlockedBiomes) ~= "table" then genreData.UnlockedBiomes = { Default = true } end
 	return genreData :: AuraGenreData
 end
-
--- ─── Multiplier helpers ───────────────────────────────────────────────────────
 
 local function getMasteryBonus(data: {[string]: any}, masteryId: string): number
 	local upgrades = data.Upgrades
@@ -131,16 +125,12 @@ local function getLuckMultiplier(player: Player, data: {[string]: any}): number
 	return luck
 end
 
--- ─── Equip ────────────────────────────────────────────────────────────────────
-
 local function setEquipped(player: Player, auraData: AuraGenreData, auraId: string, manual: boolean): ()
 	auraData.Equipped = auraId
 	auraData.ManualEquip = manual
 	player:SetAttribute(EQUIPPED_ATTRIBUTE, auraId)
 	NetworkService.FireClient(player, RemoteNames.UpdateEquipped, auraId)
 end
-
--- ─── Roll ─────────────────────────────────────────────────────────────────────
 
 local function processRoll(player: Player, spinId: number?): ()
 	local data = DataService:GetProfileData(player)
@@ -228,8 +218,6 @@ local function processRoll(player: Player, spinId: number?): ()
 	NetworkService.FireClient(player, RemoteNames.UpdateClient, rolled.Id, auraData.Equipped, biomeId, spinId)
 end
 
--- ─── Idle income ──────────────────────────────────────────────────────────────
-
 local function accrueIncome(): ()
 	local interval = cfg("IncomeInterval", 1)
 	local base = cfg("IncomeBase", 10)
@@ -272,8 +260,6 @@ local function accrueIncome(): ()
 		end
 	end
 end
-
--- ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 function AuraService.Init(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
@@ -363,7 +349,6 @@ function AuraService.Start(): ()
 			setEquipped(player, auraData, "None", true)
 			return
 		end
-		-- Only owned auras can be equipped
 		if (auraData.Collection[auraId] or 0) <= 0 then return end
 		setEquipped(player, auraData, auraId, true)
 	end)
@@ -418,7 +403,6 @@ function AuraService.Start(): ()
 	local function onPlayerAdded(player: Player): ()
 		lastIncome[player] = os.clock()
 		task.spawn(function()
-			-- Wait for the profile, then publish equipped state
 			for _ = 1, 40 do
 				local auraData = getAuraData(player)
 				if auraData then
@@ -442,7 +426,6 @@ function AuraService.Start(): ()
 		lastIncome[player] = nil
 	end)
 
-	-- Idle income heartbeat
 	task.spawn(function()
 		while true do
 			task.wait(cfg("IncomeInterval", 1))

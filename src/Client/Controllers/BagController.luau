@@ -1,9 +1,6 @@
 --!strict
---@author OrkGabb
---@module BagController.luau
---@version 1.0
--- src/Client/Controllers/BagController.lua
--- Inventory UI Controller. Implements professional glassmorphism card layouts, detail badges, and slot hover micro-interactions.
+-- @Author @OrkGabb
+-- Inventory UI Controller. Glassmorphism card layouts, detail badges, and slot hover micro-interactions.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +10,7 @@ local LocalPlayer = Players.LocalPlayer
 local ItemRegistry = require(ReplicatedStorage.Shared.Modules.ItemRegistry)
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
+local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
 
 local BagController = {}
 local MainPanel: Frame
@@ -29,7 +27,6 @@ local inventoryCache: {[string]: number} = {}
 local selectedItemId: string? = nil
 local activeBuffsCache: {[string]: any} = {}
 
--- ─── Formatting Helpers ──────────────────────────────────────────────────────
 local function GetLocalEvent(name: string): BindableEvent
     local folder = ReplicatedStorage:FindFirstChild("LocalEvents") or Instance.new("Folder")
     folder.Name = "LocalEvents"
@@ -40,7 +37,6 @@ local function GetLocalEvent(name: string): BindableEvent
     return evt :: BindableEvent
 end
 
--- ─── UI Refresh ──────────────────────────────────────────────────────────────
 function BagController.Refresh()
     if not GridContainer then return end
 
@@ -61,7 +57,7 @@ function BagController.Refresh()
 
         local slot = Instance.new("TextButton", GridContainer)
         slot.Size = UDim2.new(0, 85, 0, 85)
-        slot.BackgroundColor3 = isSelected and Color3.fromRGB(36, 28, 54) or Color3.fromRGB(22, 17, 32)
+        slot.BackgroundColor3 = isSelected and Color3.fromRGB(32, 38, 48) or Color3.fromRGB(20, 24, 31)
         slot.Text = ""
         slot.AutoButtonColor = false
         Instance.new("UICorner", slot).CornerRadius = UDim.new(0, 12)
@@ -70,11 +66,10 @@ function BagController.Refresh()
         stroke.Color = isSelected and Color3.fromRGB(255, 255, 255) or (itemData.Color or Color3.fromRGB(60, 60, 70))
         stroke.Thickness = isSelected and 2.5 or 1.5
 
-        -- Slot background gradient
         local slotGrad = Instance.new("UIGradient", slot)
         slotGrad.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, isSelected and Color3.fromRGB(44, 32, 68) or Color3.fromRGB(28, 22, 40)),
-            ColorSequenceKeypoint.new(1, isSelected and Color3.fromRGB(24, 18, 38) or Color3.fromRGB(16, 14, 24)),
+            ColorSequenceKeypoint.new(0, isSelected and Color3.fromRGB(38, 46, 58) or Color3.fromRGB(26, 31, 40)),
+            ColorSequenceKeypoint.new(1, isSelected and Color3.fromRGB(24, 29, 38) or Color3.fromRGB(18, 21, 28)),
         })
         slotGrad.Rotation = 135
 
@@ -82,7 +77,7 @@ function BagController.Refresh()
         slot.MouseEnter:Connect(function()
             TweenService:Create(slotScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1.05}):Play()
             if not isSelected then
-                TweenService:Create(stroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(150, 120, 220)}):Play()
+                TweenService:Create(stroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(110, 225, 215)}):Play()
             end
         end)
         slot.MouseLeave:Connect(function()
@@ -92,7 +87,6 @@ function BagController.Refresh()
             end
         end)
 
-        -- Icon image
         if itemData.IconId then
             local icon = Instance.new("ImageLabel", slot)
             icon.Size = UDim2.fromScale(0.8, 0.8)
@@ -108,7 +102,6 @@ function BagController.Refresh()
             Instance.new("UICorner", blob).CornerRadius = UDim.new(1, 0)
         end
 
-        -- Active Indicator Capsule
         local activeBuff = activeBuffsCache[itemId]
         local isBuffActive = activeBuff and activeBuff.EndTime > os.time()
 
@@ -130,12 +123,11 @@ function BagController.Refresh()
         activeTxt.TextSize = 7
         activeTxt.TextColor3 = Color3.new(1, 1, 1)
 
-        -- Sleek Semi-Transparent Quantity Capsule Badge
         local amountBadge = Instance.new("Frame", slot)
         amountBadge.Size = UDim2.new(0, 30, 0, 16)
         amountBadge.Position = UDim2.new(1, -4, 1, -4)
         amountBadge.AnchorPoint = Vector2.new(1, 1)
-        amountBadge.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
+        amountBadge.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
         amountBadge.BackgroundTransparency = 0.25
         amountBadge.ZIndex = 10
         Instance.new("UICorner", amountBadge).CornerRadius = UDim.new(0, 4)
@@ -156,7 +148,7 @@ function BagController.Refresh()
 
         slot.MouseButton1Click:Connect(function()
             selectedItemId = itemId
-            BagController.Refresh() -- Refresh to update selection frame border
+            BagController.Refresh()
         end)
     end
     
@@ -166,7 +158,6 @@ function BagController.Refresh()
     BagController.UpdateDetailsPanel()
 end
 
--- ─── Details Panel Rendering ─────────────────────────────────────────────────
 function BagController.UpdateDetailsPanel()
     if not DetailsPanel then return end
 
@@ -190,7 +181,6 @@ function BagController.UpdateDetailsPanel()
     local itemData = ItemRegistry.Potions[selectedItemId]
     if not itemData then return end
 
-    -- Update Preview Potion Icon
     if dPreview then
         dPreview.Visible = true
         local pIcon = dPreview:FindFirstChild("Icon") :: ImageLabel?
@@ -201,17 +191,15 @@ function BagController.UpdateDetailsPanel()
         end
         local pGlow = dPreview:FindFirstChild("Glow") :: Frame?
         if pGlow then
-            pGlow.BackgroundColor3 = itemData.Color or Color3.fromRGB(130, 90, 230)
+            pGlow.BackgroundColor3 = itemData.Color or Color3.fromRGB(47, 217, 200)
         end
     end
 
-    -- Update Item Title
     if dTitle then
         dTitle.Text = itemData.Name:upper()
         dTitle.TextColor3 = itemData.Color or Color3.fromRGB(255, 255, 255)
     end
 
-    -- Update Detail Pills
     if dPillContainer then
         dPillContainer.Visible = true
         
@@ -254,7 +242,7 @@ function BagController.UpdateDetailsPanel()
             local sec = timeLeft % 60
             useBtn.Text = string.format("ACTIVE (%02d:%02d)", min, sec)
             useBtn.BackgroundColor3 = Color3.fromRGB(80, 78, 88)
-            if uStroke then uStroke.Color = Color3.fromRGB(40, 38, 48) end
+            if uStroke then uStroke.Color = Color3.fromRGB(36, 42, 52) end
         else
             useBtn.Text = "USE ITEM"
             useBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 50)
@@ -263,7 +251,6 @@ function BagController.UpdateDetailsPanel()
     end
 end
 
--- ─── Init / Start ────────────────────────────────────────────────────────────
 function BagController.Init(): () end
 
 function BagController.Start(): ()
@@ -297,30 +284,29 @@ function BagController.Start(): ()
     BgShield.Active = true
     -- (click-to-close is connected below, once closePanel exists)
 
-    -- Main Panel
     MainPanel = Instance.new("Frame", gui)
     MainPanel.Size = UDim2.new(0, 620, 0, 420)
     MainPanel.AnchorPoint = Vector2.new(0.5, 0.5)
     MainPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
-    MainPanel.BackgroundColor3 = Color3.fromRGB(15, 14, 22)
+    MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
     MainPanel.BorderSizePixel = 0
     MainPanel.Active = true 
     MainPanel.Visible = false
     Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
     
     local stroke = Instance.new("UIStroke", MainPanel)
-    stroke.Color = Color3.fromRGB(90, 60, 150)
+    stroke.Color = Color3.fromRGB(27, 140, 130)
     stroke.Thickness = 2.5
 
     local panelGrad = Instance.new("UIGradient", MainPanel)
     panelGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 16, 38)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 8, 16)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 29, 38)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 13, 18)),
     })
     panelGrad.Rotation = 135
 
     PanelScale = Instance.new("UIScale", MainPanel)
-    PanelScale.Scale = 0
+    UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 
     local camera = workspace.CurrentCamera
     local targetScale = 1
@@ -349,14 +335,7 @@ function BagController.Start(): ()
         gui.DisplayOrder = 60
         BgShield.Visible = false
         GetLocalEvent("NotifyMenuClosed"):Fire("Bag")
-        -- A switch-triggered close (another panel is taking over) uses a fast
-        -- start so the outgoing panel gets out of the way quickly; a manual
-        -- close keeps the slower, weightier Back/In easing.
-        local closeTween: TweenInfo = if reason == "switch"
-            then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            else TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-        local tw = TweenService:Create(PanelScale, closeTween, {Scale = 0})
-        tw:Play()
+        local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
         tw.Completed:Connect(function(state: Enum.PlaybackState)
             -- A reopen cancels this tween (Completed still fires, state=Cancelled)
             -- and bumps the generation; hide only if this close ran to completion
@@ -407,16 +386,15 @@ function BagController.Start(): ()
     panelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
     
     local titleStroke = Instance.new("UIStroke", panelTitle)
-    titleStroke.Color = Color3.fromRGB(130, 90, 230)
+    titleStroke.Color = Color3.fromRGB(47, 217, 200)
     titleStroke.Thickness = 1.5
 
-    -- Left: Scrollable Items Grid
     GridContainer = Instance.new("ScrollingFrame", MainPanel)
     GridContainer.Size = UDim2.new(0.6, -15, 1, -70)
     GridContainer.Position = UDim2.new(0, 12, 0, 55)
     GridContainer.BackgroundTransparency = 1
     GridContainer.ScrollBarThickness = 4
-    GridContainer.ScrollBarImageColor3 = Color3.fromRGB(130, 90, 230)
+    GridContainer.ScrollBarImageColor3 = Color3.fromRGB(47, 217, 200)
     GridContainer.BorderSizePixel = 0
     GridContainer.CanvasSize          = UDim2.new(0, 0, 0, 0)
     GridContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -429,26 +407,24 @@ function BagController.Start(): ()
     gridPad.PaddingLeft = UDim.new(0, 6)
     gridPad.PaddingTop = UDim.new(0, 6)
 
-    -- Right: Details Frame Panel
     DetailsPanel = Instance.new("Frame", MainPanel)
     DetailsPanel.Size = UDim2.new(0.4, -15, 1, -70)
     DetailsPanel.Position = UDim2.new(0.6, 5, 0, 55)
-    DetailsPanel.BackgroundColor3 = Color3.fromRGB(22, 17, 32)
+    DetailsPanel.BackgroundColor3 = Color3.fromRGB(20, 24, 31)
     DetailsPanel.BorderSizePixel = 0
     Instance.new("UICorner", DetailsPanel).CornerRadius = UDim.new(0, 12)
     
     local dStroke = Instance.new("UIStroke", DetailsPanel)
-    dStroke.Color = Color3.fromRGB(60, 48, 85)
+    dStroke.Color = Color3.fromRGB(30, 68, 70)
     dStroke.Thickness = 1.5
 
     local detailsGrad = Instance.new("UIGradient", DetailsPanel)
     detailsGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(26, 20, 40)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 12, 22)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 29, 38)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 21, 28)),
     })
     detailsGrad.Rotation = 135
 
-    -- Title Inside Details
     local dTitle = Instance.new("TextLabel", DetailsPanel)
     dTitle.Name = "Title"
     dTitle.Size = UDim2.new(1, -20, 0, 32)
@@ -459,18 +435,17 @@ function BagController.Start(): ()
     dTitle.TextSize = 14
     dTitle.TextColor3 = Color3.fromRGB(120, 120, 130)
 
-    -- Preview Image Frame
     local dPreview = Instance.new("Frame", DetailsPanel)
     dPreview.Name = "PreviewFrame"
     dPreview.Size = UDim2.new(0, 72, 0, 72)
     dPreview.Position = UDim2.new(0.5, -36, 0, 42)
-    dPreview.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
+    dPreview.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
     dPreview.BackgroundTransparency = 0.5
     dPreview.BorderSizePixel = 0
     Instance.new("UICorner", dPreview).CornerRadius = UDim.new(0, 10)
     
     local dpStroke = Instance.new("UIStroke", dPreview)
-    dpStroke.Color = Color3.fromRGB(50, 45, 65)
+    dpStroke.Color = Color3.fromRGB(44, 52, 62)
     dpStroke.Thickness = 1
 
     local glow = Instance.new("Frame", dPreview)
@@ -478,7 +453,7 @@ function BagController.Start(): ()
     glow.Size = UDim2.new(0.7, 0, 0.7, 0)
     glow.Position = UDim2.new(0.15, 0, 0.15, 0)
     glow.BackgroundTransparency = 0.6
-    glow.BackgroundColor3 = Color3.fromRGB(130, 90, 230)
+    glow.BackgroundColor3 = Color3.fromRGB(47, 217, 200)
     Instance.new("UICorner", glow).CornerRadius = UDim.new(1, 0)
 
     local previewIcon = Instance.new("ImageLabel", dPreview)
@@ -488,15 +463,13 @@ function BagController.Start(): ()
     previewIcon.BackgroundTransparency = 1
     previewIcon.ScaleType = Enum.ScaleType.Fit
     
-    -- Horizontal Divider
     local divider = Instance.new("Frame", DetailsPanel)
     divider.Name = "Divider"
     divider.Size = UDim2.new(0.85, 0, 0, 1)
     divider.Position = UDim2.new(0.075, 0, 0, 124)
-    divider.BackgroundColor3 = Color3.fromRGB(70, 55, 100)
+    divider.BackgroundColor3 = Color3.fromRGB(34, 80, 82)
     divider.BorderSizePixel = 0
 
-    -- Structured detail capsules container
     local dPillContainer = Instance.new("Frame", DetailsPanel)
     dPillContainer.Name = "PillContainer"
     dPillContainer.Size = UDim2.new(1, -20, 0, 96)
@@ -512,13 +485,13 @@ function BagController.Start(): ()
         pill.Name = name
         pill.LayoutOrder = layoutOrder
         pill.Size = UDim2.new(1, 0, 0, 24)
-        pill.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
+        pill.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
         pill.BackgroundTransparency = 0.4
         pill.BorderSizePixel = 0
         Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 6)
 
         local pillStroke = Instance.new("UIStroke", pill)
-        pillStroke.Color = Color3.fromRGB(50, 40, 75)
+        pillStroke.Color = Color3.fromRGB(26, 64, 66)
         pillStroke.Thickness = 1
 
         local lbl = Instance.new("TextLabel", pill)
@@ -527,7 +500,7 @@ function BagController.Start(): ()
         lbl.BackgroundTransparency = 1
         lbl.Font = Enum.Font.GothamBold
         lbl.TextSize = 10
-        lbl.TextColor3 = Color3.fromRGB(190, 180, 205)
+        lbl.TextColor3 = Color3.fromRGB(176, 200, 204)
         lbl.TextXAlignment = Enum.TextXAlignment.Left
 
         return pill
@@ -537,7 +510,6 @@ function BagController.Start(): ()
     CreateDetailPill("BoostPill", 2)
     CreateDetailPill("DurationPill", 3)
 
-    -- Use Button
     local useBtnC = Instance.new("Frame", DetailsPanel)
     useBtnC.Name = "UseBtnContainer"
     useBtnC.Size = UDim2.new(0, 160, 0, 45)
@@ -570,7 +542,6 @@ function BagController.Start(): ()
 
     useBtn.MouseButton1Click:Connect(function()
         if selectedItemId then
-            -- Spam protection active buff check using synchronized os.time()
             local activeBuff = activeBuffsCache[selectedItemId]
             if activeBuff and activeBuff.EndTime > os.time() then
                 useBtn.Text = "ALREADY ACTIVE"
@@ -586,7 +557,7 @@ function BagController.Start(): ()
             if consumeEvent then
                 useBtn.Text = "USING..."
                 useBtn.BackgroundColor3 = Color3.fromRGB(80, 78, 88)
-                uStroke.Color = Color3.fromRGB(40, 38, 48)
+                uStroke.Color = Color3.fromRGB(36, 42, 52)
                 consumeEvent:FireServer(selectedItemId)
 
                 local tw = TweenService:Create(useBtnC, TweenInfo.new(0.1, Enum.EasingStyle.Bounce), {Position = UDim2.new(0.5, -80, 1, -50)})
@@ -605,8 +576,6 @@ function BagController.Start(): ()
         end
     end)
 
-    -- ─── Networking & Events Connect ─────────────────────────────────────────
-
     GetLocalEvent("ToggleBag").Event:Connect(function(reason: string?)
         if isOpen then
             closePanel(reason)
@@ -616,32 +585,45 @@ function BagController.Start(): ()
             gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
             MainPanel.Visible = true
             BgShield.Visible = true
-            -- Retarget from the current scale (no reset to 0) so reopening during
-            -- a close animation continues smoothly instead of snapping shut first.
-            -- targetScale is kept fresh by the ViewportSize connection above.
-            TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
+            -- Retarget from the current scale/rotation (no reset to the resting
+            -- pose) so reopening during a close animation continues smoothly
+            -- instead of snapping shut first. targetScale is kept fresh by the
+            -- ViewportSize connection above.
+            UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
 
             GetLocalEvent("NotifyMenuOpened"):Fire("Bag")
             BagController.UpdateDetailsPanel()
         end
     end)
 
-    remotes:WaitForChild("UpdateInventory").OnClientEvent:Connect(function(newInventory)
-        inventoryCache = newInventory
-        BagController.Refresh()
-    end)
-
-    remotes:WaitForChild(RemoteNames.SyncActiveBuffs).OnClientEvent:Connect(function(buffs)
-        activeBuffsCache = buffs
-        if isOpen then
+    -- Bounded waits: the bag now loads core-only (no genre), and in that mode the
+    -- server never publishes these remotes. An unbounded WaitForChild here hung
+    -- Start forever, so everything below it (the buff-duration loop) never ran.
+    local updateInventory = remotes:WaitForChild("UpdateInventory", 5) :: RemoteEvent?
+    if updateInventory then
+        updateInventory.OnClientEvent:Connect(function(newInventory)
+            inventoryCache = newInventory
             BagController.Refresh()
-        end
-    end)
+        end)
+    else
+        warn("[BagController] UpdateInventory remote not found after 5s — inventory stays empty (expected with no genre enabled).")
+    end
+
+    local syncBuffs = remotes:WaitForChild(RemoteNames.SyncActiveBuffs, 5) :: RemoteEvent?
+    if syncBuffs then
+        syncBuffs.OnClientEvent:Connect(function(buffs)
+            activeBuffsCache = buffs
+            if isOpen then
+                BagController.Refresh()
+            end
+        end)
+    else
+        warn("[BagController] SyncActiveBuffs remote not found after 5s — buff list stays empty.")
+    end
 
     -- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
     -- handler, which fires ToggleBag when another menu opens.
 
-    -- Real-time details button & remaining duration updates loop
     task.spawn(function()
         while true do
             task.wait(1)

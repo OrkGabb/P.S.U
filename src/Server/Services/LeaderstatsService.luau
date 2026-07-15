@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module LeaderstatsService.luau
---@version 1.0
+-- @Author @OrkGabb
 --- @description Dynamic, abstract schema leaderstats system.
 
 local Players: Players = game:GetService("Players")
@@ -52,7 +50,6 @@ local function SetupLeaderstats(player: Player): ()
 	expValue.Value = 0
 	expValue.Parent = leaderstats
 
-	-- Start dynamic replication loop
 	task.spawn(function(): ()
 		while player:IsDescendantOf(Players) and DataService.Profiles[player] do
 			local currentProfile: any = DataService.Profiles[player]

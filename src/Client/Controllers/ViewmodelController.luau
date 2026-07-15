@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module ViewmodelController.luau
---@version 1.1
--- src/Client/Controllers/ViewmodelController.luau
+-- @Author @OrkGabb
 -- Manages the first-person viewmodel: clone, parent to camera, expose state.
 --
 -- RENDER AUTHORITY: this module does NOT run its own RenderStepped loop.
@@ -16,17 +13,16 @@
 -- before a previous clone completes, the stale clone is silently discarded.
 -- The stale viewmodel is destroyed BEFORE cloning the new one — two models never coexist.
 --
--- FIX BUG 6: LocalTransparencyModifier is applied ONLY to BasePart instances.
--- Decal is not a BasePart and the property does not exist on it; applying via any-cast
--- silently fails — that was why the body remained visible.
--- Accessory Handles are BaseParts nested under Accessory instances, not direct children
--- of the character; GetDescendants() already reaches them, but the IsA("BasePart") guard
--- now correctly excludes Decal/SpecialMesh etc. that have no such property.
--- The DescendantAdded listener covers parts that stream in after CharacterAdded fires.
+-- LocalTransparencyModifier is applied ONLY to BasePart instances. Decal is
+-- not a BasePart and the property doesn't exist on it; applying via any-cast
+-- silently failed, which is why the body used to stay visible. Accessory
+-- Handles are BaseParts nested under Accessory instances, not direct children
+-- of the character, but GetDescendants() already reaches them. The
+-- DescendantAdded listener covers parts that stream in after CharacterAdded fires.
 --
--- FIX STRAY MESH REGRESSION: the orphaned-part window between vm.Parent and
--- activeViewmodel assignment is closed — the old model is destroyed synchronously
--- inside a single atomic block with the generation check immediately before parenting.
+-- The orphaned-part window between vm.Parent and activeViewmodel assignment
+-- is closed by destroying the old model synchronously, inside a single atomic
+-- block with the generation check immediately before parenting.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -34,8 +30,6 @@ local Shared          = ReplicatedStorage:WaitForChild("Shared") :: Folder
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
 
 local ViewmodelController = {}
-
--- ── State ─────────────────────────────────────────────────────────────────────
 
 local activeViewmodel: Model? = nil
 
@@ -45,15 +39,11 @@ local _equipGeneration: number = 0
 
 local currentAimOffset = Vector3.new()
 
--- Transition state (weapon-switch lower/raise tween).
--- WeaponController drives this via SetTransitionOffset.
+-- Transition state (weapon-switch lower/raise tween), driven by WeaponController via SetTransitionOffset.
 local _transitionOffset: number = 0  -- Y offset applied on top of currentAimOffset
 
--- ── Helpers ───────────────────────────────────────────────────────────────────
-
--- WHY: LocalTransparencyModifier only exists on BasePart.
--- Applying it to a Decal via (part :: any) silently fails in runtime — Decal has
--- no such property — which is why the previous code left the character visible.
+-- LocalTransparencyModifier only exists on BasePart; applying it to a Decal
+-- via (part :: any) silently fails, which is why the character used to stay visible.
 local function HidePart(part: Instance): ()
 	if part:IsA("BasePart") then
 		(part :: BasePart).LocalTransparencyModifier = 1
@@ -61,15 +51,12 @@ local function HidePart(part: Instance): ()
 end
 
 local function HideCharacter(char: Model): ()
-	-- Scan all descendants already present at connection time
 	for _, part in ipairs(char:GetDescendants()) do
 		HidePart(part)
 	end
 	-- Cover parts that stream in after CharacterAdded fires (e.g. accessories)
 	char.DescendantAdded:Connect(HidePart)
 end
-
--- ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 function ViewmodelController.Init(): ()
 	if not FeatureResolver.IsCategoryActive("FPS_Shooter") then return end
@@ -80,10 +67,10 @@ function ViewmodelController.Start(): ()
 
 	local Players = game:GetService("Players")
 
-	-- Enforce true first person. Without this the camera stays default
-	-- third-person: the locally-hidden character plus a camera-parented
-	-- viewmodel looks broken from any zoomed-out distance, and the crosshair
-	-- no longer corresponds to the shot origin.
+	-- Without forcing first person, the camera stays default third-person:
+	-- the locally-hidden character plus a camera-parented viewmodel looks
+	-- broken from any zoomed-out distance, and the crosshair no longer
+	-- corresponds to the shot origin.
 	Players.LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 
 	Players.LocalPlayer.CharacterAdded:Connect(function(char: Model): ()
@@ -97,10 +84,7 @@ function ViewmodelController.Start(): ()
 	end
 end
 
--- ── ClearViewmodel ────────────────────────────────────────────────────────────
--- Destroys any currently parented viewmodel.
 -- Always called before cloning a new model so two models never coexist.
-
 function ViewmodelController.ClearViewmodel(): ()
 	if activeViewmodel then
 		activeViewmodel:Destroy()
@@ -108,15 +92,12 @@ function ViewmodelController.ClearViewmodel(): ()
 	end
 end
 
--- ── SetTransitionOffset ───────────────────────────────────────────────────────
 -- Called by WeaponController during weapon-switch tween.
 -- offset: Y world-space drop (negative = lower, 0 = normal).
-
 function ViewmodelController.SetTransitionOffset(offset: number): ()
 	_transitionOffset = offset
 end
 
--- ── LoadViewmodel ─────────────────────────────────────────────────────────────
 -- Atomic equip pattern:
 --   1. Increment generation token immediately (synchronous).
 --   2. Destroy the current viewmodel before any other work (synchronous).
@@ -125,18 +106,15 @@ end
 --   5. Check token again; if stale, destroy clone and return.
 --   6. Parent to camera and start render loop.
 -- There is no yield between steps 5 and 6, so no orphaned-part window exists.
-
 function ViewmodelController.LoadViewmodel(weaponKey: string): ()
 	if not FeatureResolver.IsCategoryActive("FPS_Shooter") then return end
 
-	-- Step 1: increment generation token (synchronous)
 	_equipGeneration += 1
 	local myGeneration: number = _equipGeneration
 
-	-- Step 2: destroy existing model before any other work (synchronous)
+	-- Destroy existing model before any other work (synchronous)
 	ViewmodelController.ClearViewmodel()
 
-	-- Resolve folder name from config
 	local fpsConfig = FeatureResolver.GetCategoryConfig("FPS_Shooter")
 	local wCfg = fpsConfig and fpsConfig.Weapons and fpsConfig.Weapons[weaponKey]
 	if not wCfg then
@@ -150,10 +128,9 @@ function ViewmodelController.LoadViewmodel(weaponKey: string): ()
 		return
 	end
 
-	-- Resolve aim offset from config (done once per equip, not per frame)
+	-- Resolved once per equip, not per frame
 	currentAimOffset = typeof(wCfg.AimOffset) == "Vector3" and wCfg.AimOffset or Vector3.new()
 
-	-- Locate the template
 	local viewmodelsFolder = ReplicatedStorage:FindFirstChild("Viewmodels")
 	if not viewmodelsFolder then
 		warn("[ViewmodelController] Viewmodels folder not found in ReplicatedStorage")
@@ -166,16 +143,13 @@ function ViewmodelController.LoadViewmodel(weaponKey: string): ()
 		return
 	end
 
-	-- Check generation token before cloning (no yield has occurred, but keep the guard
-	-- in place for any future async loading extension).
+	-- No yield has occurred yet, but check again anyway before cloning
 	if myGeneration ~= _equipGeneration then
 		return
 	end
 
-	-- Step 3: clone (synchronous)
 	local vm: Model = (modelTemplate :: Model):Clone()
 
-	-- Set PrimaryPart
 	local rootPart = vm:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if rootPart then
 		vm.PrimaryPart = rootPart
@@ -184,7 +158,6 @@ function ViewmodelController.LoadViewmodel(weaponKey: string): ()
 		vm.PrimaryPart = vm:FindFirstChildWhichIsA("BasePart") :: BasePart?
 	end
 
-	-- Disable collision / shadows on all parts
 	for _, child in ipairs(vm:GetDescendants()) do
 		if child:IsA("BasePart") then
 			local part = child :: BasePart
@@ -195,15 +168,14 @@ function ViewmodelController.LoadViewmodel(weaponKey: string): ()
 		end
 	end
 
-	-- Step 4: FINAL generation check immediately before parenting.
-	-- This closes the window between clone completion and parenting.
-	-- If another equip arrived, destroy the clone and exit cleanly — no orphan.
+	-- Final generation check immediately before parenting closes the window
+	-- between clone completion and parenting. If another equip arrived,
+	-- destroy the clone and exit cleanly — no orphan.
 	if myGeneration ~= _equipGeneration then
 		vm:Destroy()
 		return
 	end
 
-	-- Parent to camera
 	local camera = workspace.CurrentCamera
 	if not camera then
 		warn("[ViewmodelController] No CurrentCamera found")
@@ -215,7 +187,6 @@ function ViewmodelController.LoadViewmodel(weaponKey: string): ()
 		vm:PivotTo(camera.CFrame)
 	end
 
-	-- Atomic: parent and record activeViewmodel in the same expression boundary.
 	-- No code path can call ClearViewmodel() between these two lines because
 	-- there is no yield or task boundary here.
 	vm.Parent     = camera
@@ -223,12 +194,11 @@ function ViewmodelController.LoadViewmodel(weaponKey: string): ()
 
 	print("[ViewmodelController] Viewmodel loaded: " .. tostring(folderName))
 
-	-- Reset transition offset for new weapon.
-	-- Per-frame positioning is owned by WeaponController (single render authority).
+	-- Per-frame positioning is owned by WeaponController (single render authority)
 	_transitionOffset = 0
 end
 
--- ── Offset accessors (consumed by WeaponController's render pass) ─────────────
+-- Offset accessors, consumed by WeaponController's render pass.
 
 -- Per-weapon ADS offset from config (applied while scoped).
 function ViewmodelController.GetAimOffset(): Vector3
@@ -240,10 +210,7 @@ function ViewmodelController.GetTransitionOffset(): number
 	return _transitionOffset
 end
 
--- ── GetActiveViewmodel ─────────────────────────────────────────────────────────
--- Returns the currently parented viewmodel Model, or nil if none is loaded.
 -- WeaponController uses this to apply procedural sway/bob each RenderStepped.
-
 function ViewmodelController.GetActiveViewmodel(): Model?
 	return activeViewmodel
 end

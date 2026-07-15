@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module DataService.luau
---@version 1.0
--- src/Server/Services/DataService.lua
+-- @Author @OrkGabb
 
 local Players: Players = game:GetService("Players")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")

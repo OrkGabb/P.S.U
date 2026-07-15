@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module AdminService.luau
---@version 1.0
--- src/Server/Services/AdminService.luau
+-- @Author @OrkGabb
 -- Secure Administration Service. Gated by FeatureResolver to remain completely inactive under fallback.
 
 local Players = game:GetService("Players")
@@ -16,9 +13,7 @@ local DataService = require(ServerScriptService.Server.Services.DataService) :: 
 
 local AdminService = {}
 
--- ========================================================================
--- SECURITY: Single Source of Truth for Administrators.
--- ========================================================================
+-- Single source of truth for administrators.
 local ADMIN_IDS: {number} = {
 	538185175, -- TR4_Gabriel
 }
@@ -61,9 +56,7 @@ local function SendFeedback(player: Player, action: string, success: boolean, ms
 	if adminRemote then adminRemote:FireClient(player, action, success, msg) end
 end
 
--- ========================================================================
--- ACTION COMMANDS REGISTRY
--- ========================================================================
+-- Action commands registry
 
 type ActionHandler = (player: Player, args: {any}) -> (boolean, string?)
 local Actions: {[string]: ActionHandler} = {}
@@ -147,9 +140,7 @@ Actions["reset_player"] = function(player, args)
 	return true, target.Name .. " has been reset"
 end
 
--- ========================================================================
--- LIFECYCLE & REMOTE CREATION
--- ========================================================================
+-- Lifecycle & remote creation
 function AdminService.Init(): ()
 	if not FeatureResolver.IsCategoryActive("Admin") then
 		print("[INFO] AdminService: Aborted initialization (Zero-Footprint Mode).")

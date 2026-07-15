@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module ChatTagController.luau
---@version 1.0
--- src/Client/Controllers/ChatTagController.lua
+-- @Author @OrkGabb
 -- Client-side controller that prepends a [VIP] tag on chat messages.
 -- Uses TextChatService.OnIncomingMessage (the correct client-side callback)
 -- and caches VIP lookups per-player to avoid excessive remote calls.
@@ -14,9 +11,8 @@ local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 
 local ChatTagController = {}
 
--- Cache: UserId -> { isVIP: boolean, checkedAt: number }
 local VIPCache: {[number]: { isVIP: boolean, checkedAt: number }} = {}
-local CACHE_TTL = 60 -- Re-check every 60 seconds
+local CACHE_TTL = 60
 local TIMEOUT_CACHE_TTL = 30 -- Shorter re-check after a timeout, so a stuck handler doesn't stall every message for INVOKE_TIMEOUT seconds
 
 local CheckVIPRemote: RemoteFunction? = nil
@@ -29,7 +25,6 @@ local function GetVIPStatus(userId: number): boolean
         return cached.isVIP
     end
 
-    -- Query the server
     if not CheckVIPRemote then return false end
 
     -- Run the InvokeServer call on its own thread and bound how long we wait
@@ -74,7 +69,6 @@ function ChatTagController.Start(): ()
         return
     end
 
-    -- TextChatService.OnIncomingMessage is the correct client-side hook
     TextChatService.OnIncomingMessage = function(message: TextChatMessage)
         local props = Instance.new("TextChatMessageProperties")
 
@@ -89,7 +83,6 @@ function ChatTagController.Start(): ()
     end
 end
 
--- Clean up cache when players leave
 Players.PlayerRemoving:Connect(function(player: Player)
     VIPCache[player.UserId] = nil
 end)

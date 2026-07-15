@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module LevelService.luau
---@version 1.0
+-- @Author @OrkGabb
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
@@ -47,14 +45,13 @@ function LevelService.AddExp(player: Player, amount: number)
     local leveledUp = false
     local totalReward = 0
 
-    -- Cascade: If the player gains a lot of EXP, they level up multiple times and accumulate the money from all levels.
+    -- Cascade: a big EXP gain can level up multiple times; rewards accumulate across all of them.
     while prog.Experience >= maxExp do
         prog.Experience -= maxExp
         prog.Level = (prog.Level or 1) + 1
         maxExp = LevelService.GetMaxExp(prog.Level)
         leveledUp = true
-        
-        -- Scaled Reward
+
         totalReward += (prog.Level * 5000)
     end
 
@@ -65,7 +62,6 @@ function LevelService.AddExp(player: Player, amount: number)
         if leveledUp then
             setLeaderstat(ls, { "Level" }, prog.Level)
 
-            -- Direct currency injection to abstract fields
             if not profile.Data.Currencies then
                 profile.Data.Currencies = { ["Primary"] = 0, ["Secondary"] = 0, ["Premium"] = 0 }
             end
@@ -77,7 +73,7 @@ function LevelService.AddExp(player: Player, amount: number)
             local primaryName: string = FeatureResolver.GetCurrencyNames().Primary
             setLeaderstat(ls, { primaryName, "Coins" }, profile.Data.Currencies.Primary)
 
-            -- Triggering the Event to the UI (Only 1 trigger, even if leveling up 5 levels)
+            -- Fires once even if the cascade above leveled up multiple times
             local remotes = ReplicatedStorage:WaitForChild("Remotes")
             local levelUpEvent = remotes:FindFirstChild(RemoteNames.LevelUpFX) :: RemoteEvent
             if levelUpEvent then

@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module MatchStatsController.luau
---@version 1.0
--- src/Client/Controllers/MatchStatsController.luau
+-- @Author @OrkGabb
 -- Thin client-side cache for in-match K/D/A data broadcast by MatchStatsService.
 -- WeaponController reads the cached scoreboard to populate the Tab overlay.
 
@@ -14,8 +11,7 @@ local Remotes     = ReplicatedStorage:WaitForChild("Remotes")  :: Folder
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
 local RemoteNames     = require(Shared:WaitForChild("Network"):WaitForChild("RemoteNames"))     :: any
 
--- ── Types (mirrors MatchStatsService.ScoreboardEntry) ────────────────────────
-
+-- Mirrors MatchStatsService.ScoreboardEntry
 export type ScoreboardEntry = {
 	UserId:      number,
 	DisplayName: string,
@@ -23,8 +19,6 @@ export type ScoreboardEntry = {
 	Deaths:      number,
 	Assists:     number,
 }
-
--- ── Module ────────────────────────────────────────────────────────────────────
 
 local MatchStatsController = {}
 
@@ -34,9 +28,6 @@ local cachedScoreboard: { ScoreboardEntry } = {}
 -- Callbacks registered by WeaponController to react to scoreboard updates
 local _onUpdateCallbacks: { () -> () } = {}
 
--- ── Public API ────────────────────────────────────────────────────────────────
-
--- Returns the most-recently received scoreboard snapshot.
 function MatchStatsController.GetScoreboard(): { ScoreboardEntry }
 	return cachedScoreboard
 end
@@ -56,20 +47,15 @@ function MatchStatsController.FetchScoreboard(): { ScoreboardEntry }
 	return cachedScoreboard
 end
 
--- Registers a callback to be fired whenever the cached scoreboard is updated.
 function MatchStatsController.OnUpdate(callback: () -> ()): ()
 	table.insert(_onUpdateCallbacks, callback)
 end
-
--- ── Init ──────────────────────────────────────────────────────────────────────
 
 function MatchStatsController.Init(): ()
 	local cfg: any = FeatureResolver.GetCategoryConfig("MatchStats")
 	if not (cfg and cfg.Enabled) then return end
 	isActive = true
 end
-
--- ── Start ─────────────────────────────────────────────────────────────────────
 
 function MatchStatsController.Start(): ()
 	if not isActive then return end

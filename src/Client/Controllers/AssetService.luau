@@ -1,10 +1,5 @@
 --!strict
---@author OrkGabb
---@module AssetService.luau
---@version 1.0
--- src/Client/Controllers/AssetService.lua
--- Client-side asset configuration and utility service.
-
+-- @Author @OrkGabb
 local InsertService = game:GetService("InsertService")
 
 export type IconData = {
@@ -64,12 +59,10 @@ local AssetService = {
     } :: {[string]: FloatingConfig},
 }
 
--- Public API: returns icon metadata { SpriteOffset, PixelShift, Scale } by icon name
 function AssetService.GetIconData(iconName: string): IconData?
     return AssetService.IconMap[iconName]
 end
 
--- Public API: applies the sprite sheet configuration directly to an ImageLabel or ImageButton
 function AssetService.ApplyIcon(guiObject: ImageLabel | ImageButton, iconName: string): ()
     local data: IconData? = AssetService.IconMap[iconName]
     assert(data, "[AssetService] Icon not found: " .. iconName)
@@ -82,7 +75,6 @@ function AssetService.ApplyIcon(guiObject: ImageLabel | ImageButton, iconName: s
     img.Size            = UDim2.new(data.Scale.X, 0, data.Scale.Y, 0)
 end
 
--- Helper to load viewmodel assets safely
 function AssetService.LoadViewmodel(assetId: number?): Model?
     if not assetId then return nil end
     local ok, result = pcall(function()
@@ -99,7 +91,6 @@ function AssetService.LoadViewmodel(assetId: number?): Model?
     return result :: Model
 end
 
--- Helper to load sound assets safely
 function AssetService.LoadSound(soundId: number?): Sound?
     if not soundId then return nil end
     local ok, result = pcall(function()

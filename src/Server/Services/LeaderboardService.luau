@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module LeaderboardService.luau
---@version 1.0
--- src/Server/Services/LeaderboardService.luau
+-- @Author @OrkGabb
 -- Global ranked leaderboard system using OrderedDataStore.
 -- Boards (top 100 cached, refreshed every 60s).
 

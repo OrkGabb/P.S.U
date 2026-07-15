@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module QuestsController.luau
---@version 1.0
--- src/Client/Controllers/QuestsController.lua
+-- @Author @OrkGabb
 -- Dynamic Quests UI Controller.
 
 local Players = game:GetService("Players")
@@ -174,22 +171,22 @@ function QuestsController.Start(): ()
     local panelGradient = Instance.new("UIGradient", MainPanel)
     panelGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 22))
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 21, 28))
     })
 
     local stroke = Instance.new("UIStroke", MainPanel)
-    stroke.Color = Color3.fromRGB(90, 60, 150)
+    stroke.Color = Color3.fromRGB(27, 140, 130)
     stroke.Thickness = 2.5
     
     local strokeGradient = Instance.new("UIGradient", stroke)
     strokeGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 120, 150)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(112, 138, 144)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 40, 50))
     })
 
     PanelScale = Instance.new("UIScale", MainPanel)
-    PanelScale.Scale = 0
+    UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 
     local function closeQuestsMenu(reason: string?)
         if isOpen then
@@ -199,14 +196,7 @@ function QuestsController.Start(): ()
             gui.DisplayOrder = 60
             BgShield.Visible = false
             GetLocalEvent("NotifyMenuClosed"):Fire("Quests")
-            -- A switch-triggered close (another panel is taking over) uses a
-            -- fast start so the outgoing panel gets out of the way quickly; a
-            -- manual close keeps the slower, weightier Back/In easing.
-            local closeTween: TweenInfo = if reason == "switch"
-                then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                else TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-            local tw = TweenService:Create(PanelScale, closeTween, {Scale = 0})
-            tw:Play()
+            local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
             tw.Completed:Connect(function(state: Enum.PlaybackState)
                 -- A reopen cancels this tween (Completed still fires, state=Cancelled)
                 -- and bumps the generation; hide only if this close ran to completion
@@ -232,7 +222,7 @@ function QuestsController.Start(): ()
     local titleGradient = Instance.new("UIGradient", title)
     titleGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 255))
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(195, 238, 238))
     })
 
     local divider = Instance.new("Frame", MainPanel)
@@ -247,7 +237,7 @@ function QuestsController.Start(): ()
     list.Position = UDim2.new(0, 15, 0, 65)
     list.BackgroundTransparency = 1
     list.ScrollBarThickness = 6
-    list.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
+    list.ScrollBarImageColor3 = Color3.fromRGB(56, 82, 86)
     list.ScrollBarImageTransparency = 0.5
     list.BorderSizePixel = 0
     list.CanvasSize          = UDim2.new(0, 0, 0, 0)
@@ -260,18 +250,18 @@ function QuestsController.Start(): ()
     for _, def in ipairs(QuestRegistry.Quests) do
         local row = Instance.new("Frame")
         row.Size = UDim2.new(1, -10, 0, 110)
-        row.BackgroundColor3 = Color3.fromRGB(22, 17, 32)
+        row.BackgroundColor3 = Color3.fromRGB(20, 24, 31)
         row.Parent = list
         Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
         
         local rowGradient = Instance.new("UIGradient", row)
         rowGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 20, 44)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(16, 12, 24))
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(26, 31, 40)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 21, 28))
         })
 
         local rowStroke = Instance.new("UIStroke", row)
-        rowStroke.Color = Color3.fromRGB(60, 48, 85)
+        rowStroke.Color = Color3.fromRGB(30, 68, 70)
         rowStroke.Thickness = 1.5
         
         local n = Instance.new("TextLabel", row)
@@ -370,11 +360,11 @@ function QuestsController.Start(): ()
         local expBadge = Instance.new("Frame", badgeContainer)
         expBadge.Size = UDim2.new(0, 0, 1, 0)
         expBadge.AutomaticSize = Enum.AutomaticSize.X
-        expBadge.BackgroundColor3 = Color3.fromRGB(30, 25, 45)
+        expBadge.BackgroundColor3 = Color3.fromRGB(28, 34, 43)
         expBadge.BackgroundTransparency = 0.3
         Instance.new("UICorner", expBadge).CornerRadius = UDim.new(0, 6)
         local expStroke = Instance.new("UIStroke", expBadge)
-        expStroke.Color = Color3.fromRGB(120, 60, 200)
+        expStroke.Color = Color3.fromRGB(26, 168, 158)
         expStroke.Thickness = 1
 
         local expBadgeLayout = Instance.new("UIListLayout", expBadge)
@@ -397,7 +387,7 @@ function QuestsController.Start(): ()
         expTxt.Size = UDim2.new(0, 0, 1, 0)
         expTxt.AutomaticSize = Enum.AutomaticSize.X
         expTxt.BackgroundTransparency = 1
-        expTxt.TextColor3 = Color3.fromRGB(180, 120, 255)
+        expTxt.TextColor3 = Color3.fromRGB(90, 235, 222)
         expTxt.Font = Enum.Font.GothamBold
         expTxt.TextSize = 11
         expTxt.TextXAlignment = Enum.TextXAlignment.Left
@@ -486,10 +476,11 @@ function QuestsController.Start(): ()
             MainPanel.Visible = true
             BgShield.Visible = true
             RefreshUI()
-            -- Retarget from the current scale (no reset to 0) so reopening during
-            -- a close animation continues smoothly instead of snapping shut first.
-            -- targetScale is kept fresh by the ViewportSize connection above.
-            TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
+            -- Retarget from the current scale/rotation (no reset to the resting
+            -- pose) so reopening during a close animation continues smoothly
+            -- instead of snapping shut first. targetScale is kept fresh by the
+            -- ViewportSize connection above.
+            UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
 
             GetLocalEvent("NotifyMenuOpened"):Fire("Quests")
         end
@@ -515,7 +506,7 @@ function QuestsController.Start(): ()
 
     isOpen = false
     MainPanel.Visible = false
-    PanelScale.Scale = 0
+    UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 end
 
 return QuestsController

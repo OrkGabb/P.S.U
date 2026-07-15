@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module MatchStatsService.luau
---@version 1.0
--- src/Server/Services/MatchStatsService.luau
+-- @Author @OrkGabb
 -- In-match session K/D/A tracker. No DataStore — match-scoped only.
 -- Exposes a RemoteFunction (MatchStatsRequest) for Tab-scoreboard fetches and
 -- broadcasts MatchStatsSync RemoteEvent to all clients on any stat change.
@@ -16,8 +13,6 @@ local Remotes     = ReplicatedStorage:WaitForChild("Remotes")  :: Folder
 
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
 local RemoteNames     = require(Shared:WaitForChild("Network"):WaitForChild("RemoteNames"))     :: any
-
--- ── Types ─────────────────────────────────────────────────────────────────────
 
 export type PlayerStats = {
 	Kills:   number,
@@ -33,8 +28,6 @@ export type ScoreboardEntry = {
 	Assists:     number,
 }
 
--- ── Module ────────────────────────────────────────────────────────────────────
-
 local MatchStatsService = {}
 
 local isActive:         boolean = false
@@ -43,12 +36,8 @@ local pendingSync:      boolean = false
 
 local statsMap: { [Player]: PlayerStats } = {}
 
--- ── Remotes ───────────────────────────────────────────────────────────────────
-
 local statsSyncRemote:    RemoteEvent?    = nil
 local statsRequestRemote: RemoteFunction? = nil
-
--- ── Helpers ───────────────────────────────────────────────────────────────────
 
 local function GetStats(player: Player): PlayerStats
 	local s: PlayerStats? = statsMap[player]
@@ -90,8 +79,6 @@ local function ScheduleSync(): ()
 	end)
 end
 
--- ── Public API (called by WeaponService) ─────────────────────────────────────
-
 -- killer: Player who fired the killing shot. victim: Player | nil (NPC kill).
 function MatchStatsService.RecordKill(killer: Player, victim: Player?): ()
 	if not isActive then return end
@@ -114,8 +101,6 @@ function MatchStatsService.RecordAssist(assister: Player): ()
 	ScheduleSync()
 end
 
--- ── Init ──────────────────────────────────────────────────────────────────────
-
 function MatchStatsService.Init(): ()
 	local cfg: any = FeatureResolver.GetCategoryConfig("MatchStats")
 	if not (cfg and cfg.Enabled) then return end
@@ -124,7 +109,6 @@ function MatchStatsService.Init(): ()
 	local debounceRaw: any = FeatureResolver.GetConfigField("MatchStats", "SyncDebounce", 0.5)
 	syncDebounce = type(debounceRaw) == "number" and debounceRaw or 0.5
 
-	-- Create RemoteEvent for broadcast
 	local existingSync: Instance? = Remotes:FindFirstChild(RemoteNames.MatchStatsSync)
 	if existingSync and existingSync:IsA("RemoteEvent") then
 		statsSyncRemote = existingSync :: RemoteEvent
@@ -135,7 +119,6 @@ function MatchStatsService.Init(): ()
 		statsSyncRemote = r
 	end
 
-	-- Create RemoteFunction for Tab scoreboard fetch
 	local existingReq: Instance? = Remotes:FindFirstChild(RemoteNames.MatchStatsRequest)
 	if existingReq and existingReq:IsA("RemoteFunction") then
 		statsRequestRemote = existingReq :: RemoteFunction
@@ -155,8 +138,6 @@ function MatchStatsService.Init(): ()
 
 	print("[MatchStatsService] Initialized. Sync debounce:", syncDebounce, "s")
 end
-
--- ── Start ─────────────────────────────────────────────────────────────────────
 
 function MatchStatsService.Start(): ()
 	if not isActive then return end

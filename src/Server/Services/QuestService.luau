@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module QuestService.luau
---@version 1.0
--- src/Server/Services/QuestService.lua
+-- @Author @OrkGabb
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
@@ -111,7 +108,6 @@ local function OnClaimRequest(player: Player, questId: string)
 
         LevelService.AddExp(player, finalEXP)
 
-        -- Sync full state to update HUD on client
         DataService:SyncFullState(player)
 
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")

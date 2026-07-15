@@ -1,12 +1,8 @@
 --!strict
 -- @Author @OrkGabb
--- src/Client/Controllers/AudioController.luau
--- Generic audio playback controller. Genre-agnostic: everything it plays is
--- resolved through AudioRegistry for the active genre, so enabling a different
--- genre changes the soundscape with zero code changes here.
---
---   AudioController.PlaySFX("Click")  — fire-and-forget named effect
---   BGM playlist loops automatically if the active genre defines tracks.
+-- Genre-agnostic: everything it plays is resolved through AudioRegistry for
+-- the active genre, so enabling a different genre changes the soundscape
+-- with zero code changes here.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
@@ -37,8 +33,7 @@ local function getSfxSound(name: string): Sound?
 	return sound
 end
 
--- Plays a named sound effect for the active genre. Unknown names are a no-op
--- so genre code can call this unconditionally.
+-- Unknown names are a no-op so genre code can call this unconditionally.
 function AudioController.PlaySFX(name: string): ()
 	local sound = getSfxSound(name)
 	if not sound then

@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Server/Services/PetService.luau
 -- Pet_Simulator genre service: server-authoritative egg hatches (weighted
 -- RNG via the shared RollEngine core), pet inventory, equip management and
 -- the flat idle income that funds hatches.
@@ -40,13 +39,10 @@ local PetService = {}
 local hatchCooldowns: {[Player]: number} = {}
 local lastIncome: {[Player]: number} = {}
 
--- ─── Config (SSoT: FeatureToggles.Genres.Pet_Simulator) ──────────────────────
-
+-- Config (SSoT: FeatureToggles.Genres.Pet_Simulator)
 local function cfg(field: string, default: number): number
 	return FeatureResolver.GetConfigField(GENRE_KEY, field, default)
 end
-
--- ─── Genre data ───────────────────────────────────────────────────────────────
 
 type PetGenreData = {
 	Inventory: {[string]: number},
@@ -63,14 +59,10 @@ local function getPetData(player: Player): PetGenreData?
 	return genreData :: PetGenreData
 end
 
--- ─── Equip ────────────────────────────────────────────────────────────────────
-
 local function setEquipped(player: Player, petData: PetGenreData, petId: string): ()
 	petData.Equipped = petId
 	player:SetAttribute(EQUIPPED_ATTRIBUTE, petId)
 end
-
--- ─── Hatch ────────────────────────────────────────────────────────────────────
 
 local function processHatch(player: Player, eggId: any): ()
 	if type(eggId) ~= "string" then return end
@@ -119,8 +111,7 @@ local function processHatch(player: Player, eggId: any): ()
 	NetworkService.FireClient(player, RemoteNames.HatchResult, rolled.Id, eggId, isNew)
 end
 
--- ─── Idle income (flat — pets never multiply it) ─────────────────────────────
-
+-- Idle income is flat — pets never multiply it
 local function accrueIncome(): ()
 	local interval = cfg("IncomeInterval", 1)
 	local base = cfg("IncomeBase", 12)
@@ -137,8 +128,6 @@ local function accrueIncome(): ()
 		data.Currencies.Primary = (data.Currencies.Primary or 0) + base
 	end
 end
-
--- ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 function PetService.Init(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
@@ -168,7 +157,6 @@ function PetService.Start(): ()
 			setEquipped(player, petData, "None")
 			return
 		end
-		-- Only owned pets can be equipped
 		if (petData.Inventory[petId] or 0) <= 0 then return end
 		setEquipped(player, petData, petId)
 	end)
@@ -199,7 +187,6 @@ function PetService.Start(): ()
 		lastIncome[player] = nil
 	end)
 
-	-- Idle income heartbeat
 	task.spawn(function()
 		while true do
 			task.wait(cfg("IncomeInterval", 1))

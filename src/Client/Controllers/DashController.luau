@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module DashController.luau
---@version 1.0
+-- @Author @OrkGabb
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
@@ -10,7 +8,6 @@ local ContextActionService = game:GetService("ContextActionService")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
 
--- Treat the rest of the codebase as fixed external context
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver"))
 local DebugUtility = require(Shared:WaitForChild("Modules"):WaitForChild("DebugUtility")) :: any
@@ -20,7 +17,6 @@ local dashRequestEvent: RemoteEvent? = nil
 
 local DashController = {}
 
--- Animation Resolution Registry
 local activeAnimations: {[string]: string} = {
 	DashForward = "rbxassetid://5989939664",
 	DashAlternative = "rbxassetid://3084314259",
@@ -31,16 +27,13 @@ local lastDashTime: number = 0
 local currentChargesRaw: any = FeatureResolver.GetConfigField("Dash", "MaxCharges", 3)
 local currentCharges: number = type(currentChargesRaw) == "number" and currentChargesRaw or 3
 
--- Resolves the dash animation based on configuration
 local function getAnimationId(): string
 	local keyRaw: any = FeatureResolver.GetConfigField("Dash", "ActiveAnimationKey", "DashForward")
 	local key: string = type(keyRaw) == "string" and keyRaw or "DashForward"
 	return activeAnimations[key] or activeAnimations.DashForward
 end
 
--- Debug Vector Visualizations
 local function drawPhysicsVectors(origin: Vector3, direction: Vector3)
-	-- Red cylinder ring at origin
 	local ring = Instance.new("Part")
 	ring.Name = "DashDebugRing"
 	ring.Shape = Enum.PartType.Cylinder
@@ -53,7 +46,6 @@ local function drawPhysicsVectors(origin: Vector3, direction: Vector3)
 	ring.Parent = Workspace
 	Debris:AddItem(ring, 1)
 
-	-- Neon-green vector line for force direction
 	local line = Instance.new("Part")
 	line.Name = "DashDebugVector"
 	line.Anchored = true
@@ -68,7 +60,6 @@ local function drawPhysicsVectors(origin: Vector3, direction: Vector3)
 	Debris:AddItem(line, 1)
 end
 
--- Dash Execution Pipeline
 local function performDash()
 	if isDashing then return end
 	
@@ -76,7 +67,6 @@ local function performDash()
 	local cooldownRaw: any = FeatureResolver.GetConfigField("Dash", "Cooldown", 2.0)
 	local cooldown: number = type(cooldownRaw) == "number" and cooldownRaw or 2.0
 	
-	-- Simulated charge and cooldown management
 	if currentCharges <= 0 then
 		if now - lastDashTime < cooldown then
 			return
@@ -109,21 +99,17 @@ local function performDash()
 	
 	local impulse = moveDirection * forceMagnitude * humanoidRootPart.AssemblyMass
 	
-	-- Apply physical impulse
 	humanoidRootPart:ApplyImpulse(impulse)
-	
-	-- Network & Authority: Fire validated dash request to server
+
 	if dashRequestEvent then
 		dashRequestEvent:FireServer(moveDirection)
 	end
-	
-	-- Hookups: Debug Visualizations
+
 	local debugRaw: any = FeatureResolver.GetConfigField("DebugConfig", "DrawPhysicsVectors", false)
 	if type(debugRaw) == "boolean" and debugRaw then
 		drawPhysicsVectors(humanoidRootPart.Position, moveDirection * forceMagnitude)
 	end
-	
-	-- Animation Resolution
+
 	local animId = getAnimationId()
 	local animator = humanoid:FindFirstChildOfClass("Animator")
 	if animator then
@@ -133,13 +119,11 @@ local function performDash()
 		track:Play()
 	end
 	
-	-- Simulated completion duration
 	task.delay(0.3, function()
 		isDashing = false
 	end)
 end
 
--- Auto-Generating Mobile UI
 local function setupMobileUI()
 	if not UserInputService.TouchEnabled then return end
 	local mobileEnabledRaw: any = FeatureResolver.GetConfigField("Dash", "MobileEnabled", true)
@@ -200,7 +184,6 @@ function DashController.Start(): ()
 	
 	setupMobileUI()
 	
-	-- Dual-Binding Keyboards
 	local desktopKeybindsRaw: any = FeatureResolver.GetConfigField("Dash", "DesktopKeybinds", {Enum.KeyCode.Q, Enum.KeyCode.LeftShift})
 	local desktopKeybinds: {Enum.KeyCode} = type(desktopKeybindsRaw) == "table" and desktopKeybindsRaw or {Enum.KeyCode.Q, Enum.KeyCode.LeftShift}
 	

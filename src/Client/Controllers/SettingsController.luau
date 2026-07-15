@@ -1,19 +1,16 @@
 --!strict
---@author OrkGabb
---@module SettingsController.luau
---@version 1.0
--- src/Client/Controllers/SettingsController.lua
+-- @Author @OrkGabb
 -- Feature-aware settings controller. Exposes metadata-driven configurations dynamically.
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService      = game:GetService("TweenService")
 local Lighting          = game:GetService("Lighting")
 local LocalPlayer       = Players.LocalPlayer
 
 local FeatureResolver   = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
 local SettingsRegistry  = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("SettingsRegistry")) :: any
 local UIHelpers         = require(script.Parent.Parent.UI.UIHelpers)
+local UITheme           = require(script.Parent.Parent.UI.UITheme)
 
 local SettingsController = {}
 
@@ -72,7 +69,7 @@ local EXPENSIVE_MATERIALS = {
 	[Enum.Material.Foil] = true,
 }
 
--- ─── Suppression Helpers ─────────────────────────────────────────────────────
+-- Suppression Helpers
 
 local function SuppressAttachment(attachment: Attachment, snapList: {ParticleSnap})
 	for _, child in ipairs(attachment:GetChildren()) do
@@ -125,7 +122,7 @@ local function RestoreSnapList(snapList: {ParticleSnap})
 	table.clear(snapList)
 end
 
--- ─── Low-End Mode ────────────────────────────────────────────────────────────
+-- Low-End Mode
 
 local function StopDescendantWatcher()
 	if _descendantConn then
@@ -275,7 +272,7 @@ local function ApplyLowEnd(on: boolean)
 	end
 end
 
--- ─── Others' VFX ──────────────────────────────────────────────────────────────
+-- Others' VFX
 
 local _otherCharConns: {[number]: RBXScriptConnection} = {}
 
@@ -347,13 +344,6 @@ function ApplyOthersVFX(show: boolean)
 	end
 end
 
--- ─── Metadata-Driven Settings Definition ──────────────────────────────────────
-
--- ─── Metadata-Driven Settings Definition ──────────────────────────────────────
--- Using injected SettingsRegistry
-
--- ─── Init / Start ─────────────────────────────────────────────────────────────
-
 function SettingsController.Init(): ()
 	GetLocalEvent("ToggleSettings")
 	GetLocalEvent("ToggleFloatingText")
@@ -409,17 +399,24 @@ function SettingsController.Start(): ()
 	mainPanel.Size                   = UDim2.new(0, 380, 0, 370)
 	mainPanel.AnchorPoint            = Vector2.new(0.5, 0.5)
 	mainPanel.Position               = UDim2.new(0.5, 0, 0.5, 0)
-	mainPanel.BackgroundColor3       = Color3.fromRGB(10, 10, 12)
-	mainPanel.BackgroundTransparency = 0.2
+	mainPanel.BackgroundColor3       = UITheme.PanelBackground
+	mainPanel.BackgroundTransparency = 0.05
 	mainPanel.BorderSizePixel        = 0
-	Instance.new("UICorner", mainPanel).CornerRadius = UDim.new(0, 12)
+	Instance.new("UICorner", mainPanel).CornerRadius = UDim.new(0, 16)
+
+	local panelGrad = Instance.new("UIGradient", mainPanel)
+	panelGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, UITheme.PanelGradientTop),
+		ColorSequenceKeypoint.new(1, UITheme.PanelGradientBottom),
+	})
+	panelGrad.Rotation = 135
+
 	local stroke     = Instance.new("UIStroke", mainPanel)
-	stroke.Color     = Color3.fromRGB(255, 255, 255)
-	stroke.Thickness = 1
-	stroke.Transparency = 0.85
+	stroke.Color     = UITheme.Accent
+	stroke.Thickness = 2
 
 	panelScale       = Instance.new("UIScale", mainPanel)
-	panelScale.Scale = 0
+	UIHelpers.PrimeSpiral(mainPanel, panelScale)
 
 	local title                  = Instance.new("TextLabel", mainPanel)
 	title.Size                   = UDim2.new(1, 0, 0, 50)
@@ -437,14 +434,7 @@ function SettingsController.Start(): ()
 		gui.DisplayOrder = 60
 		BgShield.Visible = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Settings")
-		-- A switch-triggered close (another panel is taking over) uses a fast
-		-- start so the outgoing panel gets out of the way quickly; a manual
-		-- close keeps the slower, weightier Back/In easing.
-		local closeTween: TweenInfo = if reason == "switch"
-			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-			else TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-		local tw = TweenService:Create(panelScale, closeTween, { Scale = 0 })
-		tw:Play()
+		local tw = UIHelpers.SpiralClose(mainPanel, panelScale, reason)
 		tw.Completed:Connect(function(state: Enum.PlaybackState)
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
 			-- and bumps the generation; hide only if this close ran to completion
@@ -464,7 +454,7 @@ function SettingsController.Start(): ()
 	listFrame.BackgroundTransparency      = 1
 	listFrame.BorderSizePixel             = 0
 	listFrame.ScrollBarThickness          = 4
-	listFrame.ScrollBarImageColor3        = Color3.fromRGB(70, 70, 85)
+	listFrame.ScrollBarImageColor3        = Color3.fromRGB(48, 70, 74)
 	listFrame.CanvasSize                  = UDim2.new(0, 0, 0, 0) 
 	listFrame.AutomaticCanvasSize         = Enum.AutomaticSize.Y
 	listFrame.ScrollingDirection          = Enum.ScrollingDirection.Y
@@ -475,13 +465,11 @@ function SettingsController.Start(): ()
 
 	local rowLayoutIndex = 1
 
-	-- Render dynamically resolved settings from registry
 	for _, setting in ipairs(SettingsRegistry) do
 		-- Genre-gated rows only appear when their category is active
 		if setting.RequiresCategory and not FeatureResolver.IsCategoryActive(setting.RequiresCategory) then
 			continue
 		end
-		-- Initialize default state if nil
 		if SettingsState[setting.Id] == nil then
 			SettingsState[setting.Id] = setting.Default
 		end
@@ -586,9 +574,10 @@ function SettingsController.Start(): ()
 			gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
 			mainPanel.Visible = true
 			BgShield.Visible  = true
-			-- Retarget from the current scale (no reset to 0) so reopening during
-			-- a close animation continues smoothly instead of snapping shut first.
-			TweenService:Create(panelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			-- Retarget from the current scale/rotation (no reset to the resting
+			-- pose) so reopening during a close animation continues smoothly
+			-- instead of snapping shut first.
+			UIHelpers.SpiralOpen(mainPanel, panelScale, 1)
 			GetLocalEvent("NotifyMenuOpened"):Fire("Settings")
 		end
 	end)

@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module WeaponService.luau
---@version 1.0
--- src/Server/Services/WeaponService.luau
+-- @Author @OrkGabb
 -- FPS_Shooter Server Authority: validates hitscan, manages session ammo, enforces anti-exploit.
 -- Supports per-weapon config registry, weapon switching, sprint, and slide mechanics.
 -- Server-authoritative hitbox zone classification with quadratic distance-based damage falloff.
@@ -21,8 +18,6 @@ local RemoteNames     = require(Shared:WaitForChild("Network"):WaitForChild("Rem
 -- (Full inline path: the `Shared` local's `:: Folder` cast hides the instance
 -- tree from the analyzer, which breaks type-aware require resolution.)
 local FeatureToggles  = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("FeatureToggles"))
-
--- ── Types ─────────────────────────────────────────────────────────────────────
 
 -- Alias of the shared config-entry type (SSoT: FeatureToggles.luau). The server
 -- reads only the damage-model subset, but aliasing the full shared shape keeps
@@ -48,9 +43,9 @@ type PlayerSession = {
 	standHipHeight: number?,
 }
 
--- ── Hitbox Zone Classification ───────────────────────────────────────────────
--- R15 names: Head → HEAD, UpperTorso/LowerTorso → TORSO, everything else → LIMB.
--- Multipliers come from per-weapon config (DDD); these string constants are internal only.
+-- Hitbox zone classification. R15 names: Head → HEAD, UpperTorso/LowerTorso → TORSO,
+-- everything else → LIMB. Multipliers come from per-weapon config (DDD); these
+-- string constants are internal only.
 
 local ZONE_HEAD:  string = "head"
 local ZONE_TORSO: string = "torso"
@@ -67,8 +62,6 @@ local function ClassifyZone(partName: string): string
 	end
 	return ZONE_LIMB
 end
-
--- ── Config ────────────────────────────────────────────────────────────────────
 
 local fpsConfig: any   = FeatureResolver.GetCategoryConfig("FPS_Shooter")
 local MAX_RAY_DISTANCE = 500
@@ -102,8 +95,6 @@ else
 	DEFAULT_WEAPON   = "AR-GUN"
 end
 
--- ── State ─────────────────────────────────────────────────────────────────────
-
 local WeaponService = {}
 local isActive      = false
 
@@ -111,8 +102,7 @@ local _sessions:      { [Player]: PlayerSession } = {}
 local _lastFireTime:  { [Player]: number }        = {}
 local _lastReloadReq: { [Player]: number }        = {}
 
--- ── Remotes (injected in Init) ─────────────────────────────────────────────────
-
+-- Remotes (injected in Init)
 local fireRemote:            RemoteEvent? = nil
 local reloadRemote:          RemoteEvent? = nil
 local ammoSyncRemote:        RemoteEvent? = nil
@@ -136,8 +126,6 @@ local function GetMatchStats(): any
 	end
 	return _matchStatsService
 end
-
--- ── Helpers ───────────────────────────────────────────────────────────────────
 
 local function GetRoot(player: Player): BasePart?
 	local char = player.Character
@@ -210,7 +198,7 @@ local function ApplyWalkSpeed(player: Player): ()
 	h.WalkSpeed = speed
 end
 
--- ── Server-side damage calculation ───────────────────────────────────────────
+-- Server-side damage calculation:
 -- Falloff:     BaseDamage * (1 - clamp(distance, 0, MaxRange) / MaxRange)^2
 -- FinalDamage: Falloff * zoneMultiplier  (HEAD = HeadshotMultiplier, LIMB = LimbMultiplier, TORSO = 1.0)
 
@@ -229,7 +217,6 @@ local function ComputeDamage(
 	return falloff * mult
 end
 
--- Perturbs a unit direction vector by a random angle within angleDeg degrees.
 local function PerturbDirection(dir: Vector3, angleDeg: number): Vector3
 	if angleDeg <= 0 then return dir end
 	local angleRad = math.rad(angleDeg)
@@ -238,8 +225,6 @@ local function PerturbDirection(dir: Vector3, angleDeg: number): Vector3
 	local spreadY = (math.random() - 0.5) * 2 * angleRad
 	return (lookCF * CFrame.Angles(spreadX, spreadY, 0)).LookVector
 end
-
--- ── Init ──────────────────────────────────────────────────────────────────────
 
 function WeaponService.Init(): ()
 	local config = FeatureResolver.GetCategoryConfig("FPS_Shooter")
@@ -269,8 +254,6 @@ function WeaponService.Init(): ()
 
 	print("[WeaponService] FPS_Shooter active. Remotes injected.")
 end
-
--- ── Start ─────────────────────────────────────────────────────────────────────
 
 function WeaponService.Start(): ()
 	if not isActive then return end
@@ -307,17 +290,16 @@ function WeaponService.Start(): ()
 
 	Players.PlayerAdded:Connect(OnPlayerAdded)
 
-	-- ── Fire Handler ────────────────────────────────────────────────────────────
-	-- The server performs its OWN raycast from the shooter's HumanoidRootPart.
-	-- Client supplies an aim direction (derived from its camera look vector).
-	-- Zone classification and damage are computed entirely server-side.
+	-- Fire handler: the server performs its OWN raycast from the shooter's
+	-- HumanoidRootPart. Client supplies an aim direction (derived from its
+	-- camera look vector). Zone classification and damage are computed
+	-- entirely server-side.
 
 	if fireRemote then
 		fireRemote.OnServerEvent:Connect(function(
 			player:        Player,
 			aimDirection:  any   -- Vector3 unit direction from client camera look vector
 		): ()
-			-- Validate payload type
 			if typeof(aimDirection) ~= "Vector3" then return end
 
 			local session = _sessions[player]
@@ -327,7 +309,6 @@ function WeaponService.Start(): ()
 			if activeAmmo.isReloading then return end
 			if activeAmmo.current <= 0 then return end
 
-			-- Reject dead players
 			local shooterHumanoid: Humanoid? = GetHumanoid(player)
 			if not shooterHumanoid or shooterHumanoid.Health <= 0 then return end
 
@@ -343,7 +324,6 @@ function WeaponService.Start(): ()
 			local spreadDeg:         number  = (cfg and cfg.SpreadDegrees)     or 0
 			local isShotgun:         boolean = pelletCount >= 1
 
-			-- Rate-limit
 			local now      = os.clock()
 			local lastFire = _lastFireTime[player] or 0
 			if now - lastFire < (fireRate - 0.05) then return end
@@ -360,7 +340,6 @@ function WeaponService.Start(): ()
 			if dirMag < 0.5 or dirMag > 2 then return end
 			local baseDir: Vector3 = clientDir.Unit
 
-			-- Consume ammo
 			activeAmmo.current -= 1
 			SyncAmmo(player)
 
@@ -398,7 +377,6 @@ function WeaponService.Start(): ()
 				if not hit or not hit.Instance then return end
 
 				local hitPart = hit.Instance
-				-- Verify the hit part belongs to a character model with a Humanoid
 				local model    = hitPart:FindFirstAncestorOfClass("Model")
 				local humanoid = model and model:FindFirstChildOfClass("Humanoid") :: Humanoid?
 				if not humanoid or humanoid.Health <= 0 then return end
@@ -419,7 +397,6 @@ function WeaponService.Start(): ()
 
 				humanoid:TakeDamage(finalDamage)
 
-				-- Hit confirmation remotes
 				if hitConfirmRemote then
 					hitConfirmRemote:FireClient(player, zone)
 				end
@@ -427,7 +404,6 @@ function WeaponService.Start(): ()
 					headshotConfirmRemote:FireClient(player)
 				end
 
-				-- Kill detection
 				if humanoid.Health <= 0 then
 					local victim: Player? = Players:GetPlayerFromCharacter(model)
 					local stats = GetMatchStats()
@@ -451,8 +427,7 @@ function WeaponService.Start(): ()
 		end)
 	end
 
-	-- ── Reload Handler ──────────────────────────────────────────────────────────
-
+	-- Reload handler
 	if reloadRemote then
 		reloadRemote.OnServerEvent:Connect(function(player: Player): ()
 			local session = _sessions[player]
@@ -467,7 +442,6 @@ function WeaponService.Start(): ()
 
 			if activeAmmo.current >= maxAmmo then return end
 
-			-- Prevent reload-spam exploit
 			local now     = os.clock()
 			local lastReq = _lastReloadReq[player] or 0
 			if now - lastReq < (reloadTime - 0.1) then return end
@@ -494,8 +468,7 @@ function WeaponService.Start(): ()
 		end)
 	end
 
-	-- ── Weapon Switch Handler ───────────────────────────────────────────────────
-
+	-- Weapon switch handler
 	if switchRemote then
 		switchRemote.OnServerEvent:Connect(function(player: Player, weaponKey: any): ()
 			if type(weaponKey) ~= "string" then return end
@@ -517,8 +490,7 @@ function WeaponService.Start(): ()
 		end)
 	end
 
-	-- ── Sprint Handler ──────────────────────────────────────────────────────────
-
+	-- Sprint handler
 	if sprintRemote then
 		sprintRemote.OnServerEvent:Connect(function(player: Player, sprintingRaw: any): ()
 			if type(sprintingRaw) ~= "boolean" then return end
@@ -532,8 +504,7 @@ function WeaponService.Start(): ()
 		end)
 	end
 
-	-- ── Slide Handler ───────────────────────────────────────────────────────────
-
+	-- Slide handler
 	if slideRemote then
 		slideRemote.OnServerEvent:Connect(function(player: Player): ()
 			local session = _sessions[player]
@@ -569,8 +540,7 @@ function WeaponService.Start(): ()
 		end)
 	end
 
-	-- ── Crouch Handler ──────────────────────────────────────────────────────────
-
+	-- Crouch handler
 	if crouchRemote then
 		crouchRemote.OnServerEvent:Connect(function(player: Player, isCrouchingRaw: any): ()
 			if type(isCrouchingRaw) ~= "boolean" then return end
@@ -589,8 +559,6 @@ function WeaponService.Start(): ()
 		end)
 	end
 end
-
--- ── Cleanup ───────────────────────────────────────────────────────────────────
 
 Players.PlayerRemoving:Connect(function(player: Player): ()
 	_sessions[player]      = nil
