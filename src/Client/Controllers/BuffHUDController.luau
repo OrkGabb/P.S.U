@@ -1,9 +1,6 @@
 --!strict
---@author OrkGabb
---@module BuffHUDController.luau
---@version 1.0
--- src/Client/Controllers/BuffHUDController.lua
--- Potion Buff active duration HUD controller. Compact layout with viewport scale constraints and auto-hiding during menu views.
+-- @Author @OrkGabb
+-- Potion buff active-duration HUD. Compact layout with viewport scale constraints and auto-hiding during menu views.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -110,7 +107,6 @@ function BuffHUDController.Start(): ()
     layout.Padding = UDim.new(0, 4)
     layout.SortOrder = Enum.SortOrder.Name
 
-    -- ── Networking ────────────────────────────────────────────────────────────
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
     local syncEvent = remotes:WaitForChild(RemoteNames.SyncActiveBuffs, 10) :: RemoteEvent?
     if syncEvent then
@@ -120,11 +116,9 @@ function BuffHUDController.Start(): ()
         end)
     end
 
-    -- ── Countdown loop ────────────────────────────────────────────────────────
     RunService.RenderStepped:Connect(onRenderStepped)
 end
 
--- ── Refresh ───────────────────────────────────────────────────────────────────
 function BuffHUDController.Refresh()
     for _, child in ipairs(container:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
@@ -135,7 +129,6 @@ function BuffHUDController.Refresh()
         local itemDef = ItemRegistry.Potions[itemId]
         if not itemDef then continue end
 
-        -- Compact frame dimensions (95x20)
         local f = Instance.new("Frame", container)
         f.Name = itemId
         f.Size = UDim2.new(0, 95, 0, 20)

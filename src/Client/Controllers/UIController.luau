@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module UIController.luau
---@version 1.0
--- src/Client/Controllers/UIController.luau
+-- @Author @OrkGabb
 -- Central UI coordinator that dynamically instantiates the baseline HUD and exposes a dynamic registration API.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,6 +11,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared") :: Folder
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
 local AssetRegistry = require(Shared:WaitForChild("Config"):WaitForChild("AssetRegistry")) :: any
 local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
+local UITheme = require(script.Parent.Parent.UI.UITheme)
 local AssetService = require(script.Parent:WaitForChild("AssetService")) :: any
 
 local LocalPlayer: Player = Players.LocalPlayer
@@ -38,7 +36,6 @@ type ConfigData = {
 	[string]: any
 }
 
--- Cached instances
 local mainUI: ScreenGui? = nil
 local sidebarFrame: Frame? = nil
 local floatingFrame: Frame? = nil
@@ -73,7 +70,6 @@ local currentOpenMenuId: string? = nil
 
 local tweenInfo: TweenInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
--- Local event caching
 local function GetLocalEvent(eventName: string): BindableEvent
 	local folder: Folder? = ReplicatedStorage:FindFirstChild("LocalEvents") :: Folder?
 	if not folder then
@@ -120,23 +116,17 @@ local function ToggleUpgradePanel(reason: string?): ()
 	local gen = upgradePanelAnimGen
 
 	if upgradePanelOpen then
-		-- Retarget from the current scale (no reset to 0) so reopening during a
-		-- close animation continues smoothly instead of snapping shut first.
+		-- Retarget from the current scale/rotation (no reset to the resting pose)
+		-- so reopening during a close animation continues smoothly instead of
+		-- snapping shut first.
 		panel.Visible = true
 		if upgradePanelShield then upgradePanelShield.Visible = true end
-		TweenService:Create(panelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+		UIHelpers.SpiralOpen(panel, panelScale, 1)
 		GetLocalEvent("NotifyMenuOpened"):Fire("Upgrades")
 	else
 		if upgradePanelShield then upgradePanelShield.Visible = false end
 		GetLocalEvent("NotifyMenuClosed"):Fire("Upgrades")
-		-- A switch-triggered close (another panel is taking over) uses a fast
-		-- start so the outgoing panel gets out of the way quickly; a manual
-		-- close keeps the slower, weightier Back/In easing.
-		local closeTween: TweenInfo = if reason == "switch"
-			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-			else TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-		local tw = TweenService:Create(panelScale, closeTween, {Scale = 0})
-		tw:Play()
+		local tw = UIHelpers.SpiralClose(panel, panelScale, reason)
 		tw.Completed:Connect(function(state: Enum.PlaybackState): ()
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
 			-- and bumps the generation; hide only if this close ran to completion
@@ -165,7 +155,6 @@ function UIController.Start(): ()
 end
 
 function UIController.InitializeDynamicHUD(): ()
-	-- Instantly create layout structures in memory to avoid lifecycle race conditions
 	local dynamicInterface = Instance.new("ScreenGui")
 	dynamicInterface.Name = "MainInterface"
 	dynamicInterface.ResetOnSpawn = false
@@ -173,7 +162,6 @@ function UIController.InitializeDynamicHUD(): ()
 	dynamicInterface.DisplayOrder = 100
 	mainUI = dynamicInterface
 
-	-- Sidebar frame baseline container
 	local sFrame = Instance.new("Frame")
 	sFrame.Name = "SidebarFrame"
 	sFrame.AnchorPoint = Vector2.new(0, 0.5)
@@ -189,39 +177,49 @@ function UIController.InitializeDynamicHUD(): ()
 	sLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	sLayout.Parent = sFrame
 
-	-- Toggle Arrow
 	local arrow = Instance.new("TextButton")
 	arrow.Name = "SidebarToggleArrow"
 	arrow.Size = UDim2.new(0, 28, 0, 64)
 	arrow.AnchorPoint = Vector2.new(0, 0.5)
-	arrow.BackgroundColor3 = Color3.fromRGB(28, 28, 33)
-	arrow.BackgroundTransparency = 0.3
+	-- Opaque with an accent stroke: at 0.3 transparency over near-black this read
+	-- as a smudge against the world and was reported as missing.
+	arrow.BackgroundColor3 = UITheme.PanelBackground
+	arrow.BackgroundTransparency = 0
 	arrow.Text = "◀"
 	arrow.Font = Enum.Font.GothamBlack
-	arrow.TextSize = 14
-	arrow.TextColor3 = Color3.fromRGB(180, 180, 190)
+	arrow.TextSize = 16
+	arrow.TextColor3 = UITheme.Accent
 	arrow.AutoButtonColor = false
 	arrow.ZIndex = 10
 	arrow.Parent = dynamicInterface
 	arrowBtn = arrow
 
 	local arrowCorner = Instance.new("UICorner")
-	arrowCorner.CornerRadius = UDim.new(0, 5)
+	arrowCorner.CornerRadius = UDim.new(0, 6)
 	arrowCorner.Parent = arrow
 
+	local arrowStroke = Instance.new("UIStroke")
+	arrowStroke.Color = UITheme.AccentDeep
+	arrowStroke.Thickness = 1.5
+	arrowStroke.Parent = arrow
+
+	-- Hover/press shift the fill and glyph color, never the transparency: the
+	-- arrow stays fully opaque so it can't fade back into the world.
 	arrow.MouseEnter:Connect(function(): ()
 		TweenService:Create(arrow, TweenInfo.new(0.12),
-			{BackgroundTransparency = 0.1, TextColor3 = Color3.fromRGB(230, 230, 240)}):Play()
+			{BackgroundColor3 = UITheme.CardBackground, TextColor3 = UITheme.AccentBright}):Play()
 	end)
 	arrow.MouseLeave:Connect(function(): ()
 		TweenService:Create(arrow, TweenInfo.new(0.15),
-			{BackgroundTransparency = 0.3, TextColor3 = Color3.fromRGB(180, 180, 190)}):Play()
+			{BackgroundColor3 = UITheme.PanelBackground, TextColor3 = UITheme.Accent}):Play()
 	end)
 	arrow.MouseButton1Down:Connect(function(): ()
-		TweenService:Create(arrow, TweenInfo.new(0.06), {BackgroundTransparency = 0.0}):Play()
+		TweenService:Create(arrow, TweenInfo.new(0.06),
+			{BackgroundColor3 = UITheme.AccentDeep}):Play()
 	end)
 	arrow.MouseButton1Up:Connect(function(): ()
-		TweenService:Create(arrow, TweenInfo.new(0.12), {BackgroundTransparency = 0.3}):Play()
+		TweenService:Create(arrow, TweenInfo.new(0.12),
+			{BackgroundColor3 = UITheme.CardBackground}):Play()
 	end)
 	arrow.MouseButton1Click:Connect(function(): ()
 		SetSidebarVisible(not sidebarVisible)
@@ -240,7 +238,6 @@ function UIController.InitializeDynamicHUD(): ()
 	sFrame.ChildRemoved:Connect(checkSidebarArrowVisibility)
 	checkSidebarArrowVisibility()
 
-	-- Floating buttons container
 	local fFrame = Instance.new("Frame")
 	fFrame.Name = "FloatingFrame"
 	fFrame.AnchorPoint = Vector2.new(1, 1)
@@ -257,7 +254,7 @@ function UIController.InitializeDynamicHUD(): ()
 	fLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 	fLayout.Parent = fFrame
 
-	-- Top-right buttons container (for Settings gear icon) — absolute top-right corner
+	-- Top-right buttons container (Settings gear icon)
 	local trFrame = Instance.new("Frame")
 	trFrame.Name = "TopRightFrame"
 	trFrame.AnchorPoint = Vector2.new(1, 0)
@@ -376,7 +373,7 @@ function UIController.RegisterHUDButton(config: HUDButtonConfig): HUDButtonHandl
 	btnCorner.Parent = btn
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(70, 70, 85)
+	stroke.Color = Color3.fromRGB(48, 70, 74)
 	stroke.Thickness = 1.5
 	stroke.Parent = btn
 
@@ -411,7 +408,6 @@ function UIController.RegisterHUDButton(config: HUDButtonConfig): HUDButtonHandl
 		label.Parent = btn
 	end
 
-	-- Badge Notification Dot
 	local dot = Instance.new("Frame")
 	dot.Name = "NotifDot"
 	dot.Size = UDim2.new(0, 12, 0, 12)
@@ -479,7 +475,6 @@ function UIController.InitializeDynamicPanels(): ()
 		return
 	end
 
-	-- Procedurally build the UpgradePanel UI hierarchy
 	local dynamicInterface = mainUI
 	if not dynamicInterface then return end
 
@@ -488,8 +483,9 @@ function UIController.InitializeDynamicPanels(): ()
 	local shield = Instance.new("TextButton")
 	shield.Name = "InputSink"
 	shield.Size = UDim2.fromScale(1, 1)
-	shield.BackgroundColor3 = Color3.new(0, 0, 0)
-	shield.BackgroundTransparency = 0.5
+	-- Fully transparent: this only catches click-outside-to-close. It must not
+	-- tint the screen behind the panel.
+	shield.BackgroundTransparency = 1
 	shield.Text = ""
 	shield.AutoButtonColor = false
 	shield.Visible = false
@@ -505,7 +501,7 @@ function UIController.InitializeDynamicPanels(): ()
 	panel.Size = UDim2.new(0, 620, 0, 420)
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.new(0.5, 0, 0.5, 0)
-	panel.BackgroundColor3 = Color3.fromRGB(15, 14, 22)
+	panel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
 	panel.BorderSizePixel = 0
 	panel.Active = true
 	panel.Visible = false
@@ -517,24 +513,23 @@ function UIController.InitializeDynamicPanels(): ()
 	panelCorner.Parent = panel
 
 	local panelStroke = Instance.new("UIStroke")
-	panelStroke.Color = Color3.fromRGB(90, 60, 150)
+	panelStroke.Color = Color3.fromRGB(27, 140, 130)
 	panelStroke.Thickness = 2.5
 	panelStroke.Parent = panel
 
 	local panelGrad = Instance.new("UIGradient")
 	panelGrad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 16, 38)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 8, 16)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 29, 38)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 13, 18)),
 	})
 	panelGrad.Rotation = 135
 	panelGrad.Parent = panel
 
 	local panelScale = Instance.new("UIScale")
-	panelScale.Scale = 0
 	panelScale.Parent = panel
+	UIHelpers.PrimeSpiral(panel, panelScale)
 	upgradePanelScale = panelScale
 
-	-- Close Button
 	UIHelpers.CreateCloseButton(panel, ToggleUpgradePanel)
 
 	local panelTitle = Instance.new("TextLabel")
@@ -547,18 +542,17 @@ function UIController.InitializeDynamicPanels(): ()
 	panelTitle.Parent = panel
 
 	local titleStroke = Instance.new("UIStroke")
-	titleStroke.Color = Color3.fromRGB(130, 90, 230)
+	titleStroke.Color = Color3.fromRGB(47, 217, 200)
 	titleStroke.Thickness = 1.5
 	titleStroke.Parent = panelTitle
 
-	-- Scrolling frame container
 	local container = Instance.new("ScrollingFrame")
 	container.Name = "Container"
 	container.Size = UDim2.new(1, -24, 1, -70)
 	container.Position = UDim2.new(0, 12, 0, 55)
 	container.BackgroundTransparency = 1
 	container.ScrollBarThickness = 4
-	container.ScrollBarImageColor3 = Color3.fromRGB(130, 90, 230)
+	container.ScrollBarImageColor3 = Color3.fromRGB(47, 217, 200)
 	container.BorderSizePixel = 0
 	container.CanvasSize = UDim2.new(0, 0, 0, 0)
 	container.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -569,11 +563,10 @@ function UIController.InitializeDynamicPanels(): ()
 	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	listLayout.Parent = container
 
-	-- Template Upgrade Node
 	local template = Instance.new("Frame")
 	template.Name = "Template"
 	template.Size = UDim2.new(1, 0, 0, 60)
-	template.BackgroundColor3 = Color3.fromRGB(22, 17, 32)
+	template.BackgroundColor3 = Color3.fromRGB(20, 24, 31)
 	template.BorderSizePixel = 0
 	template.Visible = false
 	template.Parent = container
@@ -581,7 +574,7 @@ function UIController.InitializeDynamicPanels(): ()
 	templateCorner.CornerRadius = UDim.new(0, 10)
 	templateCorner.Parent = template
 	local templateStroke = Instance.new("UIStroke")
-	templateStroke.Color = Color3.fromRGB(60, 48, 85)
+	templateStroke.Color = Color3.fromRGB(30, 68, 70)
 	templateStroke.Thickness = 1.5
 	templateStroke.Parent = template
 
@@ -615,7 +608,6 @@ function UIController.InitializeDynamicPanels(): ()
 	buyStroke.Thickness = 1.5
 	buyStroke.Parent = buyBtn
 
-	-- Build upgrade list
 	for categoryId: string, _ in pairs(upgradeConfigs) do
 		local newNode = template:Clone()
 		newNode.Name = categoryId
@@ -630,7 +622,6 @@ function UIController.InitializeDynamicPanels(): ()
 		newNode.Parent = container
 	end
 
-	-- Connect keyboard shortcut & events
 	local toggleEvent: BindableEvent = GetLocalEvent("ToggleUpgradePanel")
 	toggleEvent.Event:Connect(ToggleUpgradePanel)
 

@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module TopBarController.luau
---@version 2.0
--- src/Client/Controllers/TopBarController.luau
+-- @Author @OrkGabb
 -- Sleek premium top-right HUD. Generic slot-renderer: draws every resource
 -- HUDResourceRegistry tags for the "TopBar" slot, in registry-defined Order.
 --
@@ -214,7 +211,7 @@ function TopBarController.Start(): ()
 	Container.Size = UDim2.new(0, 126, 0, 20 * #visibleResources + 8 + 4 * (#visibleResources - 1))
 	Container.Position = UDim2.new(1, -14, 0, 10)
 	Container.AnchorPoint = Vector2.new(1, 0)
-	Container.BackgroundColor3 = Color3.fromRGB(15, 10, 25)
+	Container.BackgroundColor3 = Color3.fromRGB(17, 20, 27)
 	Container.BackgroundTransparency = 0.35
 	Container.Parent = gui
 
@@ -223,7 +220,7 @@ function TopBarController.Start(): ()
 	corner.Parent = Container
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(80, 60, 120)
+	stroke.Color = Color3.fromRGB(34, 86, 88)
 	stroke.Thickness = 1.8
 	stroke.Transparency = 0.2
 	stroke.Parent = Container

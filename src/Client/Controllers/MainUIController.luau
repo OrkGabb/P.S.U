@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Client/Controllers/MainUIController.luau
 -- Aura_Collector roll UI: roll button with escalating rarity feedback
 -- ("juice"), always-available odds panel, biome selector and the optional
 -- auto-roll toggle (Monetization-gated).
@@ -66,7 +65,7 @@ local State = {
 local _rollBtnTweenToken = 0
 local currentSpinId = 0
 
--- ─── Small helpers ────────────────────────────────────────────────────────────
+-- Small helpers
 
 local function GetLocalEvent(eventName: string): BindableEvent
 	local folder: Instance? = ReplicatedStorage:FindFirstChild("LocalEvents")
@@ -141,7 +140,7 @@ local function RollButtonIdleText(): string
 	return string.format("ROLL (%s)", FormatSuffix(GetCurrentCost()))
 end
 
--- ─── Controller ───────────────────────────────────────────────────────────────
+-- Controller
 
 function MainUIController.Init(): () end
 
@@ -163,7 +162,7 @@ function MainUIController.Start(): ()
 	mainInterface.DisplayOrder = 10
 	mainInterface.Parent = LocalPlayer.PlayerGui
 
-	-- ── HUD-hide (screenshot) toggle ──────────────────────────────────────────
+	-- HUD-hide (screenshot) toggle
 	local screenshotGui = Instance.new("ScreenGui")
 	screenshotGui.Name = "ScreenshotGui"
 	screenshotGui.ResetOnSpawn = false
@@ -182,7 +181,7 @@ function MainUIController.Start(): ()
 	Instance.new("UICorner", eyeBtn).CornerRadius = UDim.new(0, 8)
 
 	local eyeStroke = Instance.new("UIStroke", eyeBtn)
-	eyeStroke.Color = Color3.fromRGB(60, 60, 75)
+	eyeStroke.Color = Color3.fromRGB(44, 64, 68)
 	eyeStroke.Thickness = 2
 
 	local isHudHidden = false
@@ -209,7 +208,7 @@ function MainUIController.Start(): ()
 			pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false) end)
 		else
 			eyeBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-			eyeStroke.Color = Color3.fromRGB(60, 60, 75)
+			eyeStroke.Color = Color3.fromRGB(44, 64, 68)
 			for gui, wasEnabled in pairs(hiddenGuisCache) do
 				if gui and gui.Parent then
 					gui.Enabled = wasEnabled
@@ -220,7 +219,7 @@ function MainUIController.Start(): ()
 		end
 	end)
 
-	-- ── Roll vignette ─────────────────────────────────────────────────────────
+	-- Roll vignette
 	local vignetteGui = Instance.new("ScreenGui")
 	vignetteGui.Name = "JuiceVignetteGui"
 	vignetteGui.ResetOnSpawn = false
@@ -238,7 +237,7 @@ function MainUIController.Start(): ()
 	vignetteFrame.BorderSizePixel = 0
 	vignetteFrame.Parent = vignetteGui
 
-	-- ── Roll-reveal stingers (AudioRegistry-driven) ───────────────────────────
+	-- Roll-reveal stingers (AudioRegistry-driven)
 	local stale = SoundService:FindFirstChild("JuiceSounds")
 	if stale then stale:Destroy() end
 	local juiceSoundsFolder = Instance.new("Folder")
@@ -262,7 +261,7 @@ function MainUIController.Start(): ()
 	end
 	buildSound("RollOmniSwell")
 
-	-- ── Roll button ───────────────────────────────────────────────────────────
+	-- Roll button
 	local rollButton = Instance.new("TextButton")
 	rollButton.Name = "RollButton"
 	rollButton.Text = RollButtonIdleText()
@@ -293,7 +292,7 @@ function MainUIController.Start(): ()
 	local scale = Instance.new("UIScale", rollButton)
 	local rollButtonDefaultPos = rollButton.Position
 
-	-- ── Odds panel (visible odds — same engine the server rolls with) ────────
+	-- Odds panel (visible odds — same engine the server rolls with)
 	local oddsToggle = Instance.new("TextButton")
 	oddsToggle.Name = "OddsToggle"
 	oddsToggle.Size = UDim2.new(0, 70, 0, 30)
@@ -317,11 +316,11 @@ function MainUIController.Start(): ()
 	oddsPanel.Size = UDim2.new(0, 250, 0, 320)
 	oddsPanel.AnchorPoint = Vector2.new(0.5, 1)
 	oddsPanel.Position = UDim2.new(0.5, 210, 1, -85)
-	oddsPanel.BackgroundColor3 = Color3.fromRGB(14, 11, 22)
+	oddsPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
 	oddsPanel.Visible = false
 	oddsPanel.Parent = mainInterface
 	Instance.new("UICorner", oddsPanel).CornerRadius = UDim.new(0, 12)
-	Instance.new("UIStroke", oddsPanel).Color = Color3.fromRGB(90, 60, 150)
+	Instance.new("UIStroke", oddsPanel).Color = Color3.fromRGB(27, 140, 130)
 
 	local oddsTitle = Instance.new("TextLabel", oddsPanel)
 	oddsTitle.Size = UDim2.new(1, 0, 0, 30)
@@ -383,7 +382,7 @@ function MainUIController.Start(): ()
 			chanceLabel.Font = Enum.Font.Gotham
 			chanceLabel.TextSize = 12
 			chanceLabel.TextXAlignment = Enum.TextXAlignment.Right
-			chanceLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+			chanceLabel.TextColor3 = Color3.fromRGB(196, 214, 216)
 			chanceLabel.Text = if entry.Chance > 0
 				then "1 in " .. FormatSuffix(1 / entry.Chance)
 				else "—"
@@ -399,7 +398,7 @@ function MainUIController.Start(): ()
 		end
 	end)
 
-	-- ── Biome selector ────────────────────────────────────────────────────────
+	-- Biome selector
 	local biomeBar = Instance.new("Frame")
 	biomeBar.Name = "BiomeBar"
 	biomeBar.Size = UDim2.new(0, 0, 0, 30)
@@ -434,12 +433,12 @@ function MainUIController.Start(): ()
 			local isActive = (biomeId == State.CurrentBiome)
 			local unlocked = State.UnlockedBiomes[biomeId] == true
 			btn.BackgroundColor3 = if isActive
-				then Color3.fromRGB(35, 28, 50)
-				elseif unlocked then Color3.fromRGB(25, 20, 35)
-				else Color3.fromRGB(18, 14, 24)
+				then Color3.fromRGB(32, 38, 48)
+				elseif unlocked then Color3.fromRGB(24, 29, 38)
+				else Color3.fromRGB(18, 21, 28)
 			btn.TextColor3 = if unlocked
-				then (biome.Color or Color3.fromRGB(200, 180, 255))
-				else Color3.fromRGB(130, 120, 150)
+				then (biome.Color or Color3.fromRGB(170, 245, 236))
+				else Color3.fromRGB(118, 142, 148)
 		end
 	end
 
@@ -481,7 +480,7 @@ function MainUIController.Start(): ()
 		end
 	end
 
-	-- ── Juice (rarity feedback) ───────────────────────────────────────────────
+	-- Juice (rarity feedback)
 	local juiceActive = false
 
 	local function TweenButtonColor(color: Color3, duration: number): ()
@@ -615,7 +614,7 @@ function MainUIController.Start(): ()
 		end
 	end
 
-	-- ── Auto-roll toggle (Monetization-gated) ─────────────────────────────────
+	-- Auto-roll toggle (Monetization-gated)
 	local autoToggle: TextButton? = nil
 
 	local function SetAutoRoll(isActive: boolean): ()
@@ -741,7 +740,7 @@ function MainUIController.Start(): ()
 		end
 	end)
 
-	-- ── Roll input ────────────────────────────────────────────────────────────
+	-- Roll input
 	rollButton.MouseEnter:Connect(function()
 		if not State.IsSpinning and not State.IsRevealing and not State.AutoRoll then
 			TweenService:Create(scale, TweenInfo.new(0.1), {Scale = 1.05}):Play()
@@ -810,7 +809,7 @@ function MainUIController.Start(): ()
 		end)
 	end)
 
-	-- ── External toggles / server events ──────────────────────────────────────
+	-- External toggles / server events
 	GetLocalEvent("ToggleGachaButton").Event:Connect(function(isVisible: boolean)
 		if isHudHidden then
 			hiddenGuisCache[mainInterface] = isVisible
@@ -871,7 +870,7 @@ function MainUIController.Start(): ()
 		return order >= 6 -- "MYTHIC+"
 	end
 
-	-- ── Roll result / reveal ──────────────────────────────────────────────────
+	-- Roll result / reveal
 	updateClient.OnClientEvent:Connect(function(rolledId: any, _equippedId: any, rolledBiomeId: any, spinId: any)
 		if type(rolledId) ~= "string" then return end
 		if rolledBiomeId ~= State.CurrentBiome then return end

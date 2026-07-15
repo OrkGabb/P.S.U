@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module DailyUIController.luau
---@version 2.0
--- src/Client/Controllers/DailyUIController.luau
+-- @Author @OrkGabb
 -- Daily Reward panel: 31-day grid, claim flow, notification-dot sync.
 -- Follows the exact structural pattern of QuestsController (panel scale
 -- tween, BgShield overlay, NotifyMenuOpened/Closed coordination) so the
@@ -15,7 +12,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local DailyRegistry = require(ReplicatedStorage.Shared.Modules.DailyRegistry)
 local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
@@ -76,16 +72,14 @@ local function GetButtonStroke(btn: TextButton): UIStroke
 	return stroke
 end
 
---------------------------------------------------------------------------------
 -- Panel construction
---------------------------------------------------------------------------------
 
 local function BuildDayCell(day: number, layoutOrder: number): Frame
 	local cell = Instance.new("Frame")
 	cell.Name = "Day" .. tostring(day)
 	cell.Size = UDim2.new(0, 56, 0, 56)
 	cell.LayoutOrder = layoutOrder
-	cell.BackgroundColor3 = Color3.fromRGB(30, 25, 45)
+	cell.BackgroundColor3 = Color3.fromRGB(28, 34, 43)
 	cell.BackgroundTransparency = 0.1
 
 	local corner = Instance.new("UICorner")
@@ -93,7 +87,7 @@ local function BuildDayCell(day: number, layoutOrder: number): Frame
 	corner.Parent = cell
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(80, 60, 120)
+	stroke.Color = Color3.fromRGB(34, 86, 88)
 	stroke.Thickness = 1.2
 	stroke.Transparency = 0.3
 	stroke.Parent = cell
@@ -104,7 +98,7 @@ local function BuildDayCell(day: number, layoutOrder: number): Frame
 	dayLabel.Position = UDim2.new(0, 0, 0, 2)
 	dayLabel.BackgroundTransparency = 1
 	dayLabel.Text = "DAY " .. tostring(day)
-	dayLabel.TextColor3 = Color3.fromRGB(180, 170, 200)
+	dayLabel.TextColor3 = Color3.fromRGB(165, 192, 196)
 	dayLabel.Font = Enum.Font.GothamBold
 	dayLabel.TextSize = 8
 	dayLabel.Parent = cell
@@ -145,8 +139,9 @@ local function BuildPanel(): ()
 	BgShield = Instance.new("TextButton")
 	BgShield.Name = "BgShield"
 	BgShield.Size = UDim2.fromScale(1, 1)
-	BgShield.BackgroundColor3 = Color3.new(0, 0, 0)
-	BgShield.BackgroundTransparency = 0.5
+	-- Fully transparent: this only catches click-outside-to-close. It must not
+	-- tint the screen behind the panel.
+	BgShield.BackgroundTransparency = 1
 	BgShield.Text = ""
 	BgShield.AutoButtonColor = false
 	BgShield.Visible = false
@@ -158,22 +153,22 @@ local function BuildPanel(): ()
 	MainPanel.Size = UDim2.new(0, 480, 0, 380)
 	MainPanel.Position = UDim2.fromScale(0.5, 0.5)
 	MainPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-	MainPanel.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
+	MainPanel.BackgroundColor3 = Color3.fromRGB(19, 23, 30)
 	MainPanel.BackgroundTransparency = 0.05
 	MainPanel.Visible = false
 	MainPanel.ZIndex = 2
 	MainPanel.Parent = gui
 
 	PanelScale = Instance.new("UIScale")
-	PanelScale.Scale = 0
 	PanelScale.Parent = MainPanel
+	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 14)
 	corner.Parent = MainPanel
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(100, 70, 150)
+	stroke.Color = Color3.fromRGB(27, 140, 130)
 	stroke.Thickness = 2
 	stroke.Parent = MainPanel
 
@@ -221,7 +216,7 @@ local function BuildPanel(): ()
 	StatusLabel.Position = UDim2.new(0, 16, 1, -70)
 	StatusLabel.BackgroundTransparency = 1
 	StatusLabel.Text = ""
-	StatusLabel.TextColor3 = Color3.fromRGB(180, 170, 200)
+	StatusLabel.TextColor3 = Color3.fromRGB(165, 192, 196)
 	StatusLabel.Font = Enum.Font.Gotham
 	StatusLabel.TextSize = 12
 	StatusLabel.Parent = MainPanel
@@ -244,9 +239,7 @@ local function BuildPanel(): ()
 	end)
 end
 
---------------------------------------------------------------------------------
 -- Render state
---------------------------------------------------------------------------------
 
 local function RefreshUI(): ()
 	if not isOpen then return end
@@ -273,11 +266,11 @@ local function RefreshUI(): ()
 			cellData.Cell.BackgroundColor3 = Color3.fromRGB(20, 60, 35)
 			cellData.Icon.ImageColor3 = Color3.fromRGB(120, 255, 160)
 		elseif day == nextDay and canClaim then
-			cellData.Cell.BackgroundColor3 = Color3.fromRGB(60, 45, 90)
+			cellData.Cell.BackgroundColor3 = Color3.fromRGB(28, 72, 74)
 			cellData.Icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
 		else
-			cellData.Cell.BackgroundColor3 = Color3.fromRGB(30, 25, 45)
-			cellData.Icon.ImageColor3 = Color3.fromRGB(90, 80, 110)
+			cellData.Cell.BackgroundColor3 = Color3.fromRGB(28, 34, 43)
+			cellData.Icon.ImageColor3 = Color3.fromRGB(62, 88, 92)
 		end
 	end
 
@@ -294,9 +287,7 @@ local function RefreshUI(): ()
 	end
 end
 
---------------------------------------------------------------------------------
 -- Open / close (mirrors QuestsController's panel-scale pattern)
---------------------------------------------------------------------------------
 
 closeDailyMenu = function(reason: string?): ()
 	if not isOpen then return end
@@ -309,14 +300,7 @@ closeDailyMenu = function(reason: string?): ()
 	-- still animating shut.
 	BgShield.Visible = false
 	GetLocalEvent("NotifyMenuClosed"):Fire("Daily")
-	-- A switch-triggered close (another panel is taking over) uses a fast
-	-- start so the outgoing panel gets out of the way quickly; a manual close
-	-- keeps the slower, weightier Quart/In easing.
-	local closeTween: TweenInfo = if reason == "switch"
-		then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		else TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-	local tw = TweenService:Create(PanelScale, closeTween, {Scale = 0})
-	tw:Play()
+	local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
 	tw.Completed:Connect(function(state: Enum.PlaybackState)
 		-- A reopen cancels this tween (Completed still fires, state=Cancelled)
 		-- and bumps the generation; hide only if this close ran to completion
@@ -327,9 +311,7 @@ closeDailyMenu = function(reason: string?): ()
 	end)
 end
 
---------------------------------------------------------------------------------
 -- Lifecycle
---------------------------------------------------------------------------------
 
 function DailyUIController.Init(): ()
 	local remotes = ReplicatedStorage:WaitForChild("Remotes", 0.1) :: Folder?
@@ -392,9 +374,10 @@ function DailyUIController.Start(): ()
 			MainPanel.Visible = true
 			BgShield.Visible = true
 			RefreshUI()
-			-- Retarget from the current scale (no reset to 0) so reopening during
-			-- a close animation continues smoothly instead of snapping shut first.
-			TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
+			-- Retarget from the current scale/rotation (no reset to the resting
+			-- pose) so reopening during a close animation continues smoothly
+			-- instead of snapping shut first.
+			UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
 
 			GetLocalEvent("NotifyMenuOpened"):Fire("Daily")
 		end

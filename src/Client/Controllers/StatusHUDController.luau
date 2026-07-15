@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module StatusHUDController.luau
---@version 1.0
--- src/Client/Controllers/StatusHUDController.lua
+-- @Author @OrkGabb
 -- Flexible, category-aware player HUD controller.
 
 local Players = game:GetService("Players")
@@ -109,7 +106,6 @@ function StatusHUDController.Init(): ()
 	container.BackgroundTransparency = 1
 	container.Parent = gui
 
-	-- Position and scale adjustments
 	if showLevelXP and showHP then
 		container.Size = UDim2.new(0, 235, 0, 95)
 		container.Position = UDim2.new(0, 20, 1, -115)

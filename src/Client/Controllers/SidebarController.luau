@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module SidebarController.luau
---@version 1.0
--- src/Client/Controllers/SidebarController.lua
+-- @Author @OrkGabb
 -- Dynamic sidebar UI Controller. Automatically gates menus based on active features.
 
 local Players           = game:GetService("Players")
@@ -94,7 +91,7 @@ function SidebarUIFactory.CreateButton(
 
 	local stroke     = Instance.new("UIStroke", btn)
 	stroke.Color     = isLocked
-		and Color3.fromRGB(255, 230, 100) or Color3.fromRGB(70, 70, 85)
+		and Color3.fromRGB(255, 230, 100) or Color3.fromRGB(48, 70, 74)
 	stroke.Thickness = 1.5
 
 	local icon       = Instance.new("ImageLabel", btn)
@@ -322,7 +319,6 @@ function SidebarController.Start(): ()
 		isProcessing = false
 	end
 
-	-- Filter active sidebar menus based on category toggles resolved by FeatureResolver
 	local activeMenus = {}
 	for _, menu in ipairs(AssetService.SidebarMenus) do
 		local isEnabled = true
@@ -377,7 +373,6 @@ function SidebarController.Start(): ()
 		end)
 	end
 
-	-- Notification Dots
 	for _, btn in ipairs(menuBtns) do
 		if btn.Name == "Daily" then
 			dailyNotifDot = CreateNotifDot(btn)
@@ -446,7 +441,6 @@ function SidebarController.Start(): ()
 	local floatingIndex = 0
 	local floatingKeys  = {"Settings", "Premium"}
 
-	-- Store Button
 	if FeatureResolver.IsCategoryActive("Monetization") then
 		local storeContainer, _, storeBtn = SidebarUIFactory.CreateButton(
 			gui, "STORE", "Store", false, AssetRegistry.UI.BottomButtonSize)

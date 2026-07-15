@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module AdminClient.client.luau
---@version 1.0
--- src/Client/Components/AdminClient.client.lua
+-- @Author @OrkGabb
 -- Independent Admin Panel — LocalScript (runs autonomously, no bootstrapper dependency).
 -- Secure: Only builds UI after server confirms admin status.
 
@@ -17,9 +14,6 @@ local LocalPlayer = Players.LocalPlayer
 local ItemRegistry      = require(ReplicatedStorage.Shared.Modules.ItemRegistry)
 local AuraRegistry      = require(ReplicatedStorage.Shared.Modules.AuraRegistry)
 
--- ========================================================================
--- DESIGN TOKENS
--- ========================================================================
 local C = {
 	BG          = Color3.fromRGB(10, 8, 18),
 	SURFACE     = Color3.fromRGB(18, 14, 28),
@@ -40,9 +34,6 @@ local PANEL_WIDTH  = 320
 local PANEL_HEIGHT = 520
 local ANIM_SPEED   = 0.25
 
--- ========================================================================
--- BOOT: Wait for Remotes and verify admin status
--- ========================================================================
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
 if not Remotes then return end
 
@@ -55,10 +46,6 @@ local isAllowed = (AdminCheckFunc :: RemoteFunction):InvokeServer()
 if not isAllowed then return end
 
 -- Access granted — build interface
-
--- ========================================================================
--- SCREEN GUI
--- ========================================================================
 local gui = Instance.new("ScreenGui")
 gui.Name = "AdminPanel"
 gui.DisplayOrder = 200
@@ -66,9 +53,6 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = LocalPlayer.PlayerGui
 
--- ========================================================================
--- TOGGLE BUTTON (Gear icon, top-right)
--- ========================================================================
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Name = "AdminToggle"
 toggleBtn.Size = UDim2.new(0, 38, 0, 38)
@@ -87,7 +71,6 @@ local toggleStroke = Instance.new("UIStroke", toggleBtn)
 toggleStroke.Color = C.ACCENT_DIM
 toggleStroke.Thickness = 2
 
--- Hover effects
 toggleBtn.MouseEnter:Connect(function()
 	TweenService:Create(toggleBtn, TweenInfo.new(0.12), {
 		BackgroundColor3 = Color3.fromRGB(230, 190, 60),
@@ -101,9 +84,6 @@ toggleBtn.MouseLeave:Connect(function()
 	}):Play()
 end)
 
--- ========================================================================
--- MAIN PANEL
--- ========================================================================
 local panelOpen = false
 local offScreenPos = UDim2.new(1, PANEL_WIDTH + 20, 0.5, 0)
 local onScreenPos  = UDim2.new(1, -16, 0.5, 0)
@@ -122,7 +102,6 @@ local panelStroke = Instance.new("UIStroke", panel)
 panelStroke.Color = C.ACCENT_DIM
 panelStroke.Thickness = 1.5
 
--- ── Header ──
 local header = Instance.new("Frame")
 header.Size = UDim2.new(1, 0, 0, 42)
 header.BackgroundColor3 = C.ACCENT
@@ -146,7 +125,6 @@ headerLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
 headerLabel.TextXAlignment = Enum.TextXAlignment.Left
 headerLabel.Parent = header
 
--- ── Status Console (bottom) ──
 local console = Instance.new("TextLabel")
 console.Name = "StatusConsole"
 console.Size = UDim2.new(1, -16, 0, 36)
@@ -161,7 +139,6 @@ console.TextTruncate = Enum.TextTruncate.AtEnd
 console.Parent = panel
 Instance.new("UICorner", console).CornerRadius = UDim.new(0, 6)
 
--- ── Scrolling Content ──
 local scroll = Instance.new("ScrollingFrame")
 scroll.Size = UDim2.new(1, 0, 1, -95)
 scroll.Position = UDim2.new(0, 0, 0, 44)
@@ -178,9 +155,6 @@ layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 Instance.new("UIPadding", scroll).PaddingTop = UDim.new(0, 8)
 
--- ========================================================================
--- UI FACTORY FUNCTIONS
--- ========================================================================
 local orderCounter = 0
 
 local function NextOrder(): number
@@ -224,7 +198,6 @@ local function MakeButton(text: string, color: Color3, dimColor: Color3): TextBu
 	s.Color = dimColor
 	s.Thickness = 1.5
 
-	-- Micro-interactions
 	btn.MouseEnter:Connect(function()
 		TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(1, -20, 0, 36)}):Play()
 	end)
@@ -294,15 +267,9 @@ local function MakeDualButton(textL: string, colorL: Color3, dimL: Color3, textR
 	return btnL, btnR
 end
 
--- ========================================================================
--- PANEL ELEMENTS
--- ========================================================================
-
--- ─── TARGET ───
 MakeSectionHeader("TARGET")
 local inTarget = MakeInput("Player name (empty = self)")
 
--- ─── ECONOMY ───
 MakeSectionHeader("ECONOMY")
 local inCoins = MakeInput("Currency amount")
 local btnCoinsAdd, btnCoinsRem = MakeDualButton(
@@ -312,14 +279,12 @@ local btnCoinsAdd, btnCoinsRem = MakeDualButton(
 local inExp = MakeInput("EXP amount")
 local btnExp = MakeButton("⚡ GIVE EXP", C.ACCENT, C.ACCENT_DIM)
 
--- ─── PROGRESSION ───
 MakeSectionHeader("PROGRESSION")
 local inLevel = MakeInput("Level (integer)")
 local btnLevel = MakeButton("📊 SET LEVEL", C.ACCENT, C.ACCENT_DIM)
 local inRebirth = MakeInput("Rebirth level")
 local btnRebirth = MakeButton("⚡ SET REBIRTH", C.ACCENT, C.ACCENT_DIM)
 
--- ─── ITEMS & EFFECTS ───
 MakeSectionHeader("ITEMS & EFFECTS")
 local inItem = MakeInput("Item / Potion ID")
 local inItemQty = MakeInput("Quantity (default 1)")
@@ -327,18 +292,13 @@ local btnItem = MakeButton("🎁 GIVE ITEM", C.ACCENT, C.ACCENT_DIM)
 local inAura = MakeInput("Effect ID")
 local btnAura = MakeButton("✨ GIVE EFFECT", C.ACCENT, C.ACCENT_DIM)
 
--- ─── WORLD ───
 MakeSectionHeader("WORLD")
 local inSpeed = MakeInput("WalkSpeed (16 = default)")
 local btnSpeed = MakeButton("🏃 SET SPEED", C.ACCENT, C.ACCENT_DIM)
 
--- ─── DANGER ZONE ───
 MakeSectionHeader("DANGER ZONE")
 local btnReset = MakeButton("💀 RESET (KEEP PAID)", C.DANGER, C.DANGER_DIM)
 
--- ========================================================================
--- TOGGLE LOGIC
--- ========================================================================
 local function TogglePanel()
 	panelOpen = not panelOpen
 	if panelOpen then
@@ -366,27 +326,21 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
--- ========================================================================
--- REMOTE INTERACTION
--- ========================================================================
 local remote = AdminRemote :: RemoteEvent
 
 local function Send(action: string, ...)
 	remote:FireServer(action, ...)
 end
 
--- Feedback from server
 remote.OnClientEvent:Connect(function(action: string, success: boolean, message: string)
 	local prefix = success and "✓ " or "✗ "
 	console.Text = " " .. prefix .. string.upper(tostring(message))
 	console.TextColor3 = success and C.SUCCESS or C.DANGER
 
-	-- Flash animation
 	local origBg = console.BackgroundColor3
 	console.BackgroundColor3 = success and Color3.fromRGB(0, 30, 15) or Color3.fromRGB(40, 5, 5)
 	TweenService:Create(console, TweenInfo.new(0.6), { BackgroundColor3 = origBg }):Play()
 
-	-- Auto-reset after 4s
 	task.delay(4, function()
 		if console.Text == " " .. prefix .. string.upper(tostring(message)) then
 			TweenService:Create(console, TweenInfo.new(0.3), { TextColor3 = C.TEXT_DIM }):Play()
@@ -394,9 +348,6 @@ remote.OnClientEvent:Connect(function(action: string, success: boolean, message:
 	end)
 end)
 
--- ========================================================================
--- AUTOCOMPLETE SYSTEM
--- ========================================================================
 local function SetupAutocomplete(textBox: TextBox, getSuggestions: () -> {string})
 	local overlay: ScrollingFrame? = nil
 
@@ -541,7 +492,6 @@ SetupAutocomplete(inTarget, getPlayerSuggestions)
 SetupAutocomplete(inItem, getItemSuggestions)
 SetupAutocomplete(inAura, getEffectSuggestions)
 
--- ── Button Handlers ──
 local target = function(): string return inTarget.Text end
 
 btnCoinsAdd.MouseButton1Click:Connect(function()

@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Client/Controllers/PetsUIController.luau
 -- Pet_Simulator UI: egg shop (hatch buttons with visible odds — resolved
 -- from the SAME engine the server hatches with) and the pet inventory with
 -- equip/unequip controls, plus the hatch-reveal popup.
@@ -43,7 +42,7 @@ local inventoryCache: {[string]: number} = {}
 local currentEquippedId = "None"
 local playerLevel = 1
 
--- ─── Helpers ──────────────────────────────────────────────────────────────────
+-- Helpers
 
 local function GetLocalEvent(eventName: string): BindableEvent
 	local folder: Instance? = ReplicatedStorage:FindFirstChild("LocalEvents")
@@ -81,7 +80,7 @@ local function FormatChance(chance: number): string
 	return "1 in " .. FormatNumber(1 / chance)
 end
 
--- ─── Panel scaffolding ────────────────────────────────────────────────────────
+-- Panel scaffolding
 
 local function makePanelFrame(gui: ScreenGui): ()
 	MainPanel = Instance.new("Frame")
@@ -105,10 +104,10 @@ local function makePanelFrame(gui: ScreenGui): ()
 	stroke.Thickness = 2
 
 	PanelScale = Instance.new("UIScale", MainPanel)
-	PanelScale.Scale = 0
+	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 end
 
--- ─── Egg shop (left column) ───────────────────────────────────────────────────
+-- Egg shop (left column)
 
 local function RefreshEggList(): ()
 	if not EggList then return end
@@ -221,7 +220,7 @@ local function RefreshEggList(): ()
 	end
 end
 
--- ─── Inventory (right column) ─────────────────────────────────────────────────
+-- Inventory (right column)
 
 local function RefreshInventory(): ()
 	if not InventoryGrid then return end
@@ -314,7 +313,7 @@ local function RefreshInventory(): ()
 	end
 end
 
--- ─── Hatch reveal popup ───────────────────────────────────────────────────────
+-- Hatch reveal popup
 
 local revealSound: Sound? = nil
 
@@ -369,7 +368,7 @@ local function ShowHatchReveal(petId: string, isNew: boolean): ()
 	end)
 end
 
--- ─── Lifecycle ────────────────────────────────────────────────────────────────
+-- Lifecycle
 
 function PetsUIController.Init(): () end
 
@@ -420,14 +419,7 @@ function PetsUIController.Start(): ()
 		gui.DisplayOrder = 60
 		BgShield.Visible = false
 		GetLocalEvent("NotifyMenuClosed"):Fire("Pets")
-		-- A switch-triggered close (another panel is taking over) uses a fast
-		-- start so the outgoing panel gets out of the way quickly; a manual
-		-- close keeps the slower, weightier Back/In easing.
-		local closeTween: TweenInfo = if reason == "switch"
-			then TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-			else TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-		local tw = TweenService:Create(PanelScale, closeTween, { Scale = 0 })
-		tw:Play()
+		local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
 		tw.Completed:Connect(function(state: Enum.PlaybackState)
 			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
 			-- and bumps the generation; hide only if this close ran to completion
@@ -504,7 +496,6 @@ function PetsUIController.Start(): ()
 	grid.CellPadding = UDim2.new(0, 8, 0, 8)
 	grid.CellSize = UDim2.new(0, 82, 0, 72)
 
-	-- ── Open/close wiring ─────────────────────────────────────────────────────
 	GetLocalEvent("TogglePets").Event:Connect(function(reason: string?)
 		if isOpen then
 			closePanel(reason)
@@ -516,9 +507,10 @@ function PetsUIController.Start(): ()
 			BgShield.Visible = true
 			RefreshEggList()
 			RefreshInventory()
-			-- Retarget from the current scale (no reset to 0) so reopening during
-			-- a close animation continues smoothly instead of snapping shut first.
-			TweenService:Create(PanelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			-- Retarget from the current scale/rotation (no reset to the resting
+			-- pose) so reopening during a close animation continues smoothly
+			-- instead of snapping shut first.
+			UIHelpers.SpiralOpen(MainPanel, PanelScale, 1)
 			GetLocalEvent("NotifyMenuOpened"):Fire("Pets")
 		end
 	end)
@@ -526,7 +518,6 @@ function PetsUIController.Start(): ()
 	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
 	-- handler, which fires TogglePets when another menu opens.
 
-	-- ── Server events ─────────────────────────────────────────────────────────
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 	;(remotes:WaitForChild(RemoteNames.UpdatePetInventory) :: RemoteEvent).OnClientEvent:Connect(function(inventory: any, equipped: any)
