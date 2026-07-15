@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Genre-agnostic: everything it plays is resolved through AudioRegistry for
 -- the active genre, so enabling a different genre changes the soundscape
 -- with zero code changes here.

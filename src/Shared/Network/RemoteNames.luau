@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 --
 -- Single source of truth for EVERY remote in the framework.
 --

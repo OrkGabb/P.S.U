@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module BagController.luau
+--@version 1.0
 -- Inventory UI Controller. Glassmorphism card layouts, detail badges, and slot hover micro-interactions.
 
 local Players = game:GetService("Players")

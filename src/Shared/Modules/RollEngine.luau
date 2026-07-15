@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- src/Shared/Modules/RollEngine.luau
 -- Generic weighted-random roll core shared by every RNG genre (Aura rolls,
 -- Pet egg hatches, …). Registries pass an array of weights (index-aligned

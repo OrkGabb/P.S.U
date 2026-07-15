@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module InteractiveWorldController.luau
+--@version 1.0
 -- Links ProximityPrompts on map NPCs to their corresponding premium UIs.
 
 local ProximityPromptService = game:GetService("ProximityPromptService")

@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Pet_Simulator genre service: server-authoritative egg hatches (weighted
 -- RNG via the shared RollEngine core), pet inventory, equip management and
 -- the flat idle income that funds hatches.

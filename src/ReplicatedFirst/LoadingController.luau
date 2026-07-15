@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module LoadingController.luau
+--@version 1.0
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ContentProvider = game:GetService("ContentProvider")

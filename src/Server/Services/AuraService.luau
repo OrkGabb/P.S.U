@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Aura_Collector genre service: server-authoritative RNG rolls (with pity and
 -- luck/speed masteries), aura collection, equip management and idle income.
 --

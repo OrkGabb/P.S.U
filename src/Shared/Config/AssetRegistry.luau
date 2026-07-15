@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module AssetRegistry.luau
+--@version 1.0
 -- Centralized, typed asset dictionary divided by category. Replacing an Id
 -- here propagates everywhere it's used — never hardcode asset IDs in service
 -- or controller scripts, always reference this module.

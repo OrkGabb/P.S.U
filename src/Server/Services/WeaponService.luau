@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module WeaponService.luau
+--@version 1.0
 -- FPS_Shooter Server Authority: validates hitscan, manages session ammo, enforces anti-exploit.
 -- Supports per-weapon config registry, weapon switching, sprint, and slide mechanics.
 -- Server-authoritative hitbox zone classification with quadratic distance-based damage falloff.

@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module FeatureToggles.luau
+--@version 1.0
 -- Central configuration registry for active sub-genre frameworks and global feature flags.
 
 local RunService = game:GetService("RunService")

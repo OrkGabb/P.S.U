@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module StatusHUDController.luau
+--@version 1.0
 -- Flexible, category-aware player HUD controller.
 
 local Players = game:GetService("Players")

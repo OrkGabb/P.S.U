@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module FrameworkServer.luau
+--@version 1.0
 --- Server-side toggle-aware bootstrap layer. Reads FeatureToggles and
 --- conditionally loads optional services — a service gated behind a `false`
 --- toggle is never required, so there's no allocation or event connections.

@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module SettingsRegistry.luau
+--@version 1.1
 -- Strictly typed dictionary of settings data rows.
 --
 -- SOUND TOGGLE FIX: previously the callback only set SoundService.AmbientReverb,

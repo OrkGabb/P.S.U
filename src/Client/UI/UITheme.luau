@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Single source of truth for the panel palette. Controllers still build their
 -- own widgets; this only fixes the shared chrome colors (surfaces, accent,
 -- text, danger) so a palette change is one edit instead of ten.

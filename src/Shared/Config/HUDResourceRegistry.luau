@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module HUDResourceRegistry.luau
+--@version 1.0
 -- Maps abstract player resources (Coins, CoreFragments, Gems, any future
 -- counter) to WHERE they render and HOW.
 --

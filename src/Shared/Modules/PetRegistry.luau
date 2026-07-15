@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- src/Shared/Modules/PetRegistry.luau
 -- Pet_Simulator single source of truth: every egg, pet definition, hatch
 -- weight, rarity tier and hatch cost lives here. Pets are cosmetic

@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module FeatureResolver.luau
+--@version 1.1
 -- src/Shared/Modules/FeatureResolver.luau
 -- Centralized single source of truth for dynamic category/feature discovery and resolution.
 -- Genre flags are mutually exclusive: exactly ---ONE--- genre is resolved per session.

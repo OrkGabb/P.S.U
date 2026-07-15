@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module QuestRegistry.luau
+--@version 1.0
 -- src/Shared/Modules/QuestRegistry.lua
 -- Category-aware quest configuration registry.
 -- Dynamically maps and resolves active quests based on enabled FeatureToggles.

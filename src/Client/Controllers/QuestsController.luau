@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module QuestsController.luau
+--@version 1.0
 -- Dynamic Quests UI Controller.
 
 local Players = game:GetService("Players")

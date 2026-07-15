@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- src/Shared/Modules/UpgradeRegistry.luau
 -- Category-aware upgrade registry — single source of truth for every upgrade's
 -- identity, cost model and effect model. Consumers never compute costs

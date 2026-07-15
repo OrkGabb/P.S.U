@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module AssetService.luau
+--@version 1.0
 local InsertService = game:GetService("InsertService")
 
 export type IconData = {

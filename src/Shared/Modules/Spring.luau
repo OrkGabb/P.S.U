@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module Spring.luau
+--@version 1.0
 -- src/Shared/Modules/Spring.luau
 -- Strictly typed physics spring utility for weapon sway, bobbing, and recoil.
 

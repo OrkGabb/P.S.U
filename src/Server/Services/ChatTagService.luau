@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module ChatTagService.luau
+--@version 1.0
 -- Server-side service that exposes VIP status to clients via RemoteFunction.
 -- The actual chat tag rendering happens on the client (ChatTagController)
 -- because TextChannel.OnIncomingMessage is a client-side callback.

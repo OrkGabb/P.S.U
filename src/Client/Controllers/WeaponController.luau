@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module WeaponController.luau
+--@version 1.0
 -- FPS_Shooter Client Pipeline.
 --
 -- Key bindings (final):

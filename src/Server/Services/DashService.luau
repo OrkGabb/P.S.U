@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module DashService.luau
+--@version 1.0
 --- @description Server-side Dash ability system.
 ---   - Receives DashRequest RemoteEvent from the client.
 ---   - Validates cooldown server-side (never trusts client timing).

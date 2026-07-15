@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- src/Shared/Modules/ItemRegistry.luau
 -- Category-aware consumable item registry — single source of truth for potion
 -- definitions. Compiles the active genre's potion set at load; ItemService

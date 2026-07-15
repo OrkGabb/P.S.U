@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Clicker_Farm genre service: server-authoritative click income, passive
 -- income accrual, and secondary-currency (milestone) minting.
 --

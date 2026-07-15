@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Generic one-shot VFX playback. VFXService (server) fires EmitVFX with an
 -- effect id + target character; this controller clones the matching effect
 -- folder's emitters into the character's limbs and lets Debris reap them.

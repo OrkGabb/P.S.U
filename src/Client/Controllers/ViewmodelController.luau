@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module ViewmodelController.luau
+--@version 1.1
 -- Manages the first-person viewmodel: clone, parent to camera, expose state.
 --
 -- RENDER AUTHORITY: this module does NOT run its own RenderStepped loop.

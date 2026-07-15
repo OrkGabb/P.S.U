@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Genre-scoped monetization registry — single source of truth for GamePass and
 -- Developer Product definitions across every genre preset. Nothing in a
 -- service should ever hardcode a product ID: services consume the compiled

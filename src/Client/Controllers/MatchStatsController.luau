@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module MatchStatsController.luau
+--@version 1.0
 -- Thin client-side cache for in-match K/D/A data broadcast by MatchStatsService.
 -- WeaponController reads the cached scoreboard to populate the Tab overlay.
 

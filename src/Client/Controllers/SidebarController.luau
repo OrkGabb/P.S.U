@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module SidebarController.luau
+--@version 1.0
 -- Dynamic sidebar UI Controller. Automatically gates menus based on active features.
 
 local Players           = game:GetService("Players")

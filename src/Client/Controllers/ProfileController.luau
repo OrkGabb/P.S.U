@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module ProfileController.luau
+--@version 1.0
 -- Dynamic metadata-driven Profile UI Controller.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

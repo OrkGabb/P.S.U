@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module OnboardingController.luau
+--@version 1.0
 -- Dynamic, category-aware tutorial onboarding system.
 
 local RunService = game:GetService("RunService")

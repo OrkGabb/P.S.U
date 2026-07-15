@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module UIController.luau
+--@version 1.0
 -- Central UI coordinator that dynamically instantiates the baseline HUD and exposes a dynamic registration API.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

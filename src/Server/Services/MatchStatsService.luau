@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module MatchStatsService.luau
+--@version 1.0
 -- In-match session K/D/A tracker. No DataStore — match-scoped only.
 -- Exposes a RemoteFunction (MatchStatsRequest) for Tab-scoreboard fetches and
 -- broadcasts MatchStatsSync RemoteEvent to all clients on any stat change.

@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Genre-scoped audio configuration — single source of truth for background
 -- music playlists and named UI/gameplay sound effects. Controllers never
 -- hardcode a SoundId; they resolve named entries for the active genre here

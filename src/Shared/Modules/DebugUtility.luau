@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module DebugUtility.luau
+--@version 1.0
 --- @description Utility for debugging operations such as logging and physical vector drawing.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

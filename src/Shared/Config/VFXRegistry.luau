@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module VFXRegistry.luau
+--@version 1.0
 -- Metadata override table for the VFX subsystem.
 
 export type VFXEffectConfig = {

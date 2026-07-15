@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module BuffHUDController.luau
+--@version 1.0
 -- Potion buff active-duration HUD. Compact layout with viewport scale constraints and auto-hiding during menu views.
 
 local Players = game:GetService("Players")

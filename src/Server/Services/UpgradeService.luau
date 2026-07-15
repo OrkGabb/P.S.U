@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Server-authoritative upgrade purchases. All cost math (formula, lookup-table
 -- and milestone gates) is delegated to UpgradeRegistry so validation here and
 -- display on the client can never disagree.

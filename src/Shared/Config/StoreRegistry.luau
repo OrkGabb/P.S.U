@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Compiled store view for the active genre. All definitions live in
 -- CommerceRegistry (the SSoT); this module only reshapes them into the
 -- structures MonetizationService and StoreController consume:

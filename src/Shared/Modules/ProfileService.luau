@@ -1,11 +1,11 @@
 --!nocheck
--- Vendored third-party module (loleris' ProfileService, standalone version).
--- Intentionally NOT --!strict: it predates strict typing and is kept
--- @Author @OrkGabb
--- byte-faithful to upstream for safe future updates. The framework's own
--- typed surface wraps it in DataService.
+--@author OrkGabb
 --@module ProfileService.luau
 --@version 1.0
+-- Vendored third-party module (loleris' ProfileService, standalone version).
+-- Intentionally NOT --!strict: it predates strict typing and is kept
+-- byte-faithful to upstream for safe future updates. The framework's own
+-- typed surface wraps it in DataService.
 -- local Madwork = _G.Madwork
 --[[
 {Madwork}

@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module DailyRegistry.luau
+--@version 2.0
 -- src/Shared/Modules/DailyRegistry.luau
 -- Dynamic Daily Rewards: level-scaled coins + universal CoreFragments.
 -- Single Source of Truth for ALL daily reward data.

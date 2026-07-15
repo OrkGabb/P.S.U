@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Renders equipped-aura VFX on every character via attachment-based cloning
 -- by part-name matching: template Attachments (with their ParticleEmitters
 -- and lights) are cloned into the real character part of the same name, so

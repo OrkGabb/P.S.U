@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module DailyService.luau
+--@version 2.0
 -- Server-authoritative daily reward claims. Mirrors QuestService's pattern:
 -- validates against DailyRegistry (the SSoT for reward data), persists
 -- claim state on the profile, and pushes state to the client via

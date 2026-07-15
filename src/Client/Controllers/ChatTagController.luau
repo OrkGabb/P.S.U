@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module ChatTagController.luau
+--@version 1.0
 -- Client-side controller that prepends a [VIP] tag on chat messages.
 -- Uses TextChatService.OnIncomingMessage (the correct client-side callback)
 -- and caches VIP lookups per-player to avoid excessive remote calls.

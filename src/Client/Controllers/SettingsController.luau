@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module SettingsController.luau
+--@version 1.0
 -- Feature-aware settings controller. Exposes metadata-driven configurations dynamically.
 
 local Players           = game:GetService("Players")

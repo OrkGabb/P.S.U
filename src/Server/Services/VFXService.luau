@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module VFXService.luau
+--@version 1.0
 -- Server-side Visual Effects Service. Emits lightweight, compressed structural replication data.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

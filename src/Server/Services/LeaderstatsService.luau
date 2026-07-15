@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module LeaderstatsService.luau
+--@version 1.0
 --- @description Dynamic, abstract schema leaderstats system.
 
 local Players: Players = game:GetService("Players")

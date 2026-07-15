@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Renders every player's equipped pet as a floating companion that follows
 -- its owner. Pets are anchored, non-colliding client-side models moved by an
 -- exponential-smoothing CFrame lerp each frame — no server physics, no

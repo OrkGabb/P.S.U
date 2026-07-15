@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Pet_Simulator UI: egg shop (hatch buttons with visible odds — resolved
 -- from the SAME engine the server hatches with) and the pet inventory with
 -- equip/unequip controls, plus the hatch-reveal popup.

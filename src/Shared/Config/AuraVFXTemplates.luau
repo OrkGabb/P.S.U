@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Aura VFX template specs — original, fully procedural effect definitions
 -- (no third-party VFX pack assets; particle textures are Roblox engine
 -- built-ins). AuraVFXController builds each spec once into a template

@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module AdminService.luau
+--@version 1.0
 -- Secure Administration Service. Gated by FeatureResolver to remain completely inactive under fallback.
 
 local Players = game:GetService("Players")

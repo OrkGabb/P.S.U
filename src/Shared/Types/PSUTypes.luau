@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module PSUTypes.luau
+--@version 1.0
 -- Shared strict-type contracts for the P.S.U framework domain layer.
 -- Consumed by ConfigAudit, BootTelemetry, and future Shared modules that
 -- need typed access to FeatureToggles-shaped data and the abstract profile

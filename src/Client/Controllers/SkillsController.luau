@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module SkillsController.luau
+--@version 1.0
 -- Skills/Mastery UI Controller. Glassmorphism styling to match Quests UI.
 
 local Players = game:GetService("Players")

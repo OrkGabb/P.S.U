@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Clicker_Farm golden drop client: renders the falling clickable icon when the
 -- server issues a GUID, echoes the GUID back on click, and shows the reward.
 -- Pure I/O — the reward amount and validity are decided entirely server-side.

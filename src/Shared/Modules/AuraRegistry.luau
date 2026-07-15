@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- src/Shared/Modules/AuraRegistry.luau
 -- Aura_Collector single source of truth: every aura definition, drop weight,
 -- rarity tier, income multiplier, roll cost and VFX template binding lives

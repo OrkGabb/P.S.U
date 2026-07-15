@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module ClientMain.client.luau
+--@version 1.0
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui: StarterGui = game:GetService("StarterGui")

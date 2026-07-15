@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module BootTelemetry.luau
+--@version 1.0
 -- Optional observability layer for the server boot sequence. Wraps Init/Start
 -- calls with timing + success/failure capture without altering lifecycle
 -- order, phase boundaries, or SafeCall's error-swallowing contract in

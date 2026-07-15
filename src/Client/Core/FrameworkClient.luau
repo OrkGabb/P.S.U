@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module FrameworkClient.luau
+--@version 1.0
 --- @description Client-side toggle-aware bootstrap layer.
 ---              Reads FeatureToggles and conditionally loads optional controllers.
 ---              Controllers gated behind a `false` toggle are never required —

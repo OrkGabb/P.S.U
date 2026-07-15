@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module ServerMain.server.luau
+--@version 1.0
 -- Central server service orchestrator. Loads and initializes all services
 -- through a two-phase lifecycle (Init / Start).
 

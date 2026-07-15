@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module DailyUIController.luau
+--@version 2.0
 -- Daily Reward panel: 31-day grid, claim flow, notification-dot sync.
 -- Follows the exact structural pattern of QuestsController (panel scale
 -- tween, BgShield overlay, NotifyMenuOpened/Closed coordination) so the

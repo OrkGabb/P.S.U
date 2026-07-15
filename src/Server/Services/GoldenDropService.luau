@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Clicker_Farm golden drop event (Cookie Clicker "Lucky"-style): on a random
 -- cadence the server issues a GUID to one player; their client shows a falling
 -- clickable icon; claiming it back within the descent window rolls a weighted

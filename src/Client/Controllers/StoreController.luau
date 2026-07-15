@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module StoreController.luau
+--@version 1.0
 -- Dynamic, category-aware Premium Store Controller.
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")

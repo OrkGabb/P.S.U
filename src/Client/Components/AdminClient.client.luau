@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module AdminClient.client.luau
+--@version 1.0
 -- Independent Admin Panel — LocalScript (runs autonomously, no bootstrapper dependency).
 -- Secure: Only builds UI after server confirms admin status.
 

@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module PortalService.luau
+--@version 1.0
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService: ServerScriptService = game:GetService("ServerScriptService")

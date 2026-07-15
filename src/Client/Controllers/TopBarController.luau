@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module TopBarController.luau
+--@version 2.0
 -- Sleek premium top-right HUD. Generic slot-renderer: draws every resource
 -- HUDResourceRegistry tags for the "TopBar" slot, in registry-defined Order.
 --

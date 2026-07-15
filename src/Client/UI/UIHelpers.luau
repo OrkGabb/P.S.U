@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module UIHelpers.luau
+--@version 1.0
 -- Shared UI chrome factories for panel controllers.
 --
 -- BagController's close button is intentionally NOT covered here: it uses a

@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Aura_Collector collection index: every aura in the game shown as a grid of
 -- unlocked/silhouetted slots with a details panel (rarity, boosts, real drop
 -- odds from the shared roll engine) and equip controls.

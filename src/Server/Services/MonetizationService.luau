@@ -1,5 +1,7 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
+--@module MonetizationService.luau
+--@version 1.0
 -- Secure Monetization System for Roblox.
 -- Support for Gamepasses (O(1) Cache) and Developer Products (Idempotent ProcessReceipt).
 

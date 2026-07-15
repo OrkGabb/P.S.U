@@ -1,5 +1,5 @@
 --!strict
--- @Author @OrkGabb
+--@author OrkGabb
 -- Aura_Collector roll UI: roll button with escalating rarity feedback
 -- ("juice"), always-available odds panel, biome selector and the optional
 -- auto-roll toggle (Monetization-gated).
