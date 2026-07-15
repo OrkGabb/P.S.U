@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module SettingsRegistry.luau
---@version 1.1
--- src/Shared/Config/SettingsRegistry.luau
+-- @Author @OrkGabb
 -- Strictly typed dictionary of settings data rows.
 --
 -- SOUND TOGGLE FIX: previously the callback only set SoundService.AmbientReverb,
@@ -31,15 +28,11 @@ export type SettingDef = {
 	RequiresCategory: string?,
 }
 
--- ── Master SoundGroup helper ──────────────────────────────────────────────────
--- Single source of truth: one SoundGroup named "Master" under SoundService.
--- All Sound instances that should respect the mute toggle must have their
--- SoundGroup property set to this group, OR leave SoundGroup blank (which
--- means they inherit from the SoundService default, which is also muted here
--- via Volume = 0 on the SoundService itself).
---
--- We use SoundService.Volume (the global master volume) because it applies to
--- every Sound regardless of whether it is parented to a SoundGroup.
+-- Master SoundGroup: one SoundGroup named "Master" under SoundService. All
+-- Sound instances that should respect the mute toggle must set SoundGroup to
+-- this group, or leave it blank to inherit the SoundService default (also
+-- muted here via Volume = 0). We drive SoundService.Volume directly since it
+-- applies to every Sound regardless of SoundGroup.
 local function SetMasterVolume(vol: number): ()
 	game:GetService("SoundService").Volume = vol
 end
@@ -50,17 +43,11 @@ local SettingsRegistry: {SettingDef} = {
 		Title = "Master Volume",
 		Type = "Toggle",
 		Default = true,
-		-- WHY this works: SoundService.Volume is the engine-level master gain applied
-		-- to every Sound instance before it exits the mixer. Setting it to 0 silences
-		-- all audio immediately; restoring to 1 unmutes. This is audibly observable in
-		-- Studio (Playtest > pause audio via the property) and in live games.
 		Callback = function(value: any)
 			local on: boolean = (value == true)
 			if on then
-				-- Restore to full volume
 				SetMasterVolume(1)
 			else
-				-- Full mute
 				SetMasterVolume(0)
 			end
 		end,

@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module QuestRegistry.luau
---@version 1.0
+-- @Author @OrkGabb
 -- src/Shared/Modules/QuestRegistry.lua
 -- Category-aware quest configuration registry.
 -- Dynamically maps and resolves active quests based on enabled FeatureToggles.
@@ -172,7 +170,7 @@ QuestRegistry.Quests = {}
 local function CompileQuests()
 	table.clear(QuestRegistry.Quests)
 	
-	-- 1. Always load Global quests
+	-- Global quests always load
 	local globalQuests = QuestLibrary["Global"]
 	if globalQuests then
 		for _, q in ipairs(globalQuests) do
@@ -180,7 +178,7 @@ local function CompileQuests()
 		end
 	end
 
-	-- 2. Dynamically compile quests from active categories resolved by FeatureResolver
+	-- Layer in quests from the currently active category
 	local activeCats = FeatureResolver.GetActiveCategories()
 	for _, catName in ipairs(activeCats) do
 		if catName == "Global" then continue end
@@ -195,7 +193,6 @@ end
 
 CompileQuests()
 
--- Scaling curve level multiplier
 function QuestRegistry.GetMultiplier(level: number, rebirths: number?): number
 	local R = rebirths or 0
 	local L = math.max(1, level)

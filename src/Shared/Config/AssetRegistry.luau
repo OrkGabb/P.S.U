@@ -1,34 +1,25 @@
 --!strict
---@author OrkGabb
---@module AssetRegistry.luau
---@version 1.0
---- @description Centralized, typed asset dictionary divided by category.
----              Replacing an Id here propagates automatically across the
----              entire game (frontend and backend). Never hardcode asset IDs
----              in service or controller scripts — always reference this module.
+-- @Author @OrkGabb
+-- Centralized, typed asset dictionary divided by category. Replacing an Id
+-- here propagates everywhere it's used — never hardcode asset IDs in service
+-- or controller scripts, always reference this module.
 
---------------------------------------------------------------------------------
--- Types
---------------------------------------------------------------------------------
-
---- Standard properties every registered asset must carry.
 export type AssetEntry = {
-	Id: string,                            -- Full rbxassetid:// string
-	Name: string,                          -- Human-readable display name
-	Rarity: string,                        -- Rarity tier (Common, Uncommon, Rare …)
-	CustomConfig: { [string]: any },       -- Extension table for feature-specific data
+	Id: string,                            -- rbxassetid:// string
+	Name: string,
+	Rarity: string,                        -- Common, Uncommon, Rare …
+	CustomConfig: { [string]: any },       -- extension table for feature-specific data
 }
 
---- Category-level type aliases for readability.
 export type AssetCategory = { [string]: AssetEntry }
 
 export type AnimationCategory = {
 	Dash: { [string]: AssetEntry },
 }
 
---- Flat UI asset table: icon ids plus a few layout constants that UI
---- controllers share. Restored after the June 2026 simplification pass
---- removed it while controllers still referenced it.
+-- Flat UI asset table: icon ids plus a few layout constants that UI
+-- controllers share. Restored after the June 2026 simplification pass
+-- removed it while controllers still referenced it.
 export type UIAssetCategory = {
 	CoinIcon: string,
 	CloseIcon: string,
@@ -61,14 +52,8 @@ export type AssetRegistryType = {
 	Animations: AnimationCategory,
 }
 
---------------------------------------------------------------------------------
--- Registry (SSoT)
 -- Add, remove, or swap IDs here. All systems pull from this table at runtime.
---------------------------------------------------------------------------------
 local AssetRegistry: AssetRegistryType = {
-	---------------------------------------------------------------------------
-	-- Weapons
-	---------------------------------------------------------------------------
 	Weapons = {
 		StarterSword = {
 			Id           = "rbxassetid://0",
@@ -78,9 +63,6 @@ local AssetRegistry: AssetRegistryType = {
 		},
 	},
 
-	---------------------------------------------------------------------------
-	-- Skins
-	---------------------------------------------------------------------------
 	Skins = {
 		DefaultSkin = {
 			Id           = "rbxassetid://0",
@@ -90,9 +72,6 @@ local AssetRegistry: AssetRegistryType = {
 		},
 	},
 
-	---------------------------------------------------------------------------
-	-- VFX
-	---------------------------------------------------------------------------
 	VFX = {
 		HitSpark = {
 			Id           = "rbxassetid://0",
@@ -102,11 +81,8 @@ local AssetRegistry: AssetRegistryType = {
 		},
 	},
 
-	---------------------------------------------------------------------------
-	-- UI
 	-- Shared icons + layout constants for HUD controllers. Icons marked
 	-- PLACEHOLDER use a generic glyph — swap in your own branded assets.
-	---------------------------------------------------------------------------
 	UI = {
 		CoinIcon         = "rbxassetid://15059633013", -- PLACEHOLDER
 		CloseIcon        = "rbxassetid://15059633013", -- PLACEHOLDER
@@ -130,9 +106,6 @@ local AssetRegistry: AssetRegistryType = {
 		PotionSpriteSize = Vector2.new(256, 256),
 	},
 
-	---------------------------------------------------------------------------
-	-- UI Themes
-	---------------------------------------------------------------------------
 	UI_Themes = {
 		DarkMode = {
 			Id           = "rbxassetid://0",
@@ -145,11 +118,8 @@ local AssetRegistry: AssetRegistryType = {
 		},
 	},
 
-	---------------------------------------------------------------------------
-	-- Animations
 	-- Dash animations referenced exclusively by DashService / DashController.
 	-- To change the active dash animation, edit FeatureToggles.DashConfig.
-	---------------------------------------------------------------------------
 	Animations = {
 		Dash = {
 			DashA = {

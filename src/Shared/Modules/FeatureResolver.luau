@@ -1,18 +1,19 @@
 --!strict
---@author OrkGabb
---@module FeatureResolver.luau
---@version 1.1
+-- @Author @OrkGabb
 -- src/Shared/Modules/FeatureResolver.luau
 -- Centralized single source of truth for dynamic category/feature discovery and resolution.
--- Genre flags are mutually exclusive: exactly ONE genre is resolved per session.
+-- Genre flags are mutually exclusive: exactly ---ONE--- genre is resolved per session.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local FeatureToggles = require(ReplicatedStorage.Shared.Config.FeatureToggles)
 
 local FeatureResolver = {}
 
--- Intentional fallback genre when nothing is enabled in FeatureToggles.Genres.
-local DEFAULT_GENRE = "Clicker_Farm"
+-- No fallback genre: with nothing enabled in FeatureToggles.Genres, PSU boots
+-- core-only (GetActiveCategories reports just "Global") and the consuming
+-- project opts into exactly one genre. Set this to a genre key to restore a
+-- default.
+local DEFAULT_GENRE: string? = nil
 
 -- Genre keys are derived from FeatureToggles.Genres (SSoT) — adding a new genre
 -- to that table automatically registers it here, no core edits required.
@@ -84,12 +85,12 @@ local function resolveGenre(): string?
 			table.concat(enabled, ", "), enabled[1]))
 	elseif #enabled == 1 then
 		resolvedGenre = enabled[1]
-	elseif isGenreKey(DEFAULT_GENRE) then
+	elseif DEFAULT_GENRE ~= nil and isGenreKey(DEFAULT_GENRE) then
 		resolvedGenre = DEFAULT_GENRE
 		warn(("[FeatureResolver] No genre enabled in FeatureToggles.Genres — defaulting to %q."):format(DEFAULT_GENRE))
 	else
 		resolvedGenre = nil
-		warn(("[FeatureResolver] No genre enabled and default %q is not a valid genre key — booting core-only."):format(DEFAULT_GENRE))
+		print("[INFO] [FeatureResolver] No genre enabled in FeatureToggles.Genres — booting core-only.")
 	end
 
 	return resolvedGenre

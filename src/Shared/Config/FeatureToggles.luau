@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module FeatureToggles.luau
---@version 1.0
--- src/Shared/Config/FeatureToggles.luau
+-- @Author @OrkGabb
 -- Central configuration registry for active sub-genre frameworks and global feature flags.
 
 local RunService = game:GetService("RunService")
@@ -126,8 +123,7 @@ export type MatchStatsConfigType = {
 	SyncDebounce: number,
 }
 
--- ─── Clicker_Farm genre config ────────────────────────────────────────────────
-
+-- Clicker_Farm genre config
 -- One weighted reward tier for the golden drop event. Reward scales with the
 -- player's current passive income (CpsSeconds × cookies/sec) so it never goes
 -- stale; Floor only dominates for brand-new players with near-zero income.
@@ -171,11 +167,10 @@ export type ClickerConfigType = {
 
 	-- Whether passive-income accrual pushes a live UpdateResourceValue tick to
 	-- the TopBar HUD every PassiveTickInterval (per player with income > 0).
-	-- Default true matches pre-existing behavior; projects with high expected
-	-- CCU may want to disable this and rely on the panel-open/purchase-driven
-	-- UpdateProfileData refresh instead, since this is the highest-frequency
-	-- source of HUD-sync traffic (a steady per-player trickle vs. the
-	-- click/golden-drop deltas, which only fire on discrete player actions).
+	-- This is the highest-frequency source of HUD-sync traffic (a steady
+	-- per-player trickle vs. the click/golden-drop deltas that only fire on
+	-- discrete actions) — high-CCU projects may want to disable it and rely
+	-- on the panel-open/purchase-driven UpdateProfileData refresh instead.
 	PassiveHUDLiveTick: boolean,
 
 	GoldenDrop: GoldenDropConfigType,
@@ -225,8 +220,7 @@ export type GlobalFlagsType = {
 	AntiExploit: AntiExploitConfigType,
 }
 
--- ─── Aura_Collector genre config ─────────────────────────────────────────────
-
+-- Aura_Collector genre config
 export type AuraConfigType = {
 	Enabled: boolean,
 	Currencies: CurrencyNamesType,
@@ -250,8 +244,7 @@ export type AuraConfigType = {
 	IncomeExpBase: number,
 }
 
--- ─── Pet_Simulator genre config ──────────────────────────────────────────────
-
+-- Pet_Simulator genre config
 export type PetConfigType = {
 	Enabled: boolean,
 	Currencies: CurrencyNamesType,
@@ -302,17 +295,14 @@ local FeatureToggles: FeatureTogglesType = {
 	FrameworkVersion = "ModularFramework Core v1.0.0",
 
 	-- Escape hatch for consumers who want multiple genre flags enabled at once.
-	-- When true, FeatureResolver.resolveGenre() skips AssertGenreExclusivity
-	-- entirely and no longer errors on conflicting genre flags — it silently
-	-- resolves to the alphabetically-first enabled genre instead. The framework's
-	-- default (false) exists because letting multiple genres run concurrently
-	-- causes UI/state bugs (mismatched HUD flags, currency names, per-genre
-	-- systems double-initializing, etc.) that this check is designed to catch
-	-- at boot. Only flip this on if you understand and accept that risk for
-	-- your own project.
+	-- When true, FeatureResolver.resolveGenre() skips AssertGenreExclusivity and
+	-- silently resolves to the alphabetically-first enabled genre instead of
+	-- erroring. Defaults false because concurrent genres cause UI/state bugs
+	-- (mismatched HUD flags, currency names, double-initializing systems) that
+	-- this check catches at boot. Only flip it if you accept that risk.
 	AllowMultipleGenres = false,
 
-	-- ─── Global Safety Flags ──────────────────────────────────────────────────
+	-- Global Safety Flags
 	GlobalFlags = {
 		-- Q and LeftShift are now owned by WeaponController (weapon-cycle and sprint).
 		-- Dash is remapped to LeftControl.
@@ -392,7 +382,7 @@ local FeatureToggles: FeatureTogglesType = {
 		},
 	},
 
-	-- ─── Exclusivity Genres ───────────────────────────────────────────────────
+	-- Exclusivity Genres
 	Genres = {
 		FPS_Shooter = {
 			Enabled = false,
@@ -408,7 +398,7 @@ local FeatureToggles: FeatureTogglesType = {
 				ShowClickBonus = false,
 			},
 
-			-- ── Per-weapon registry (server-authoritative) ────────────────────
+			-- Per-weapon registry (server-authoritative)
 			-- FireRate:            minimum seconds between shots (lower = faster)
 			-- BaseDamage:          damage at 0 studs, TORSO zone (SHOTGUN: unused, see PelletDamage)
 			-- MaxRange:            studs at which damage reaches 0; falloff is quadratic
@@ -552,7 +542,7 @@ local FeatureToggles: FeatureTogglesType = {
 			DefaultWeapon = "AR-GUN",
 			WeaponOrder = { "AR-GUN", "PISTOL", "SHOTGUN", "SNIPER" },
 
-			-- ── Movement tuning ───────────────────────────────────────────────
+			-- Movement tuning
 			WalkSpeed           = 16,
 			SprintMultiplier    = 1.75,
 			ScopeSlowMultiplier = 0.4,
@@ -561,14 +551,16 @@ local FeatureToggles: FeatureTogglesType = {
 			SlideHipHeight      = 0.5,
 			SlideCooldown       = 1.2,
 
-			-- ── Global FPS sound IDs ──────────────────────────────────────────
+			-- Global FPS sound IDs
 			ScopeEnterSoundId      = nil,
 			ScopeExitSoundId       = nil,
 			HitConfirmSoundId      = nil,
 			HeadshotConfirmSoundId = nil,
 		},
 		Clicker_Farm = {
-			Enabled = true,
+			-- No genre ships enabled by default: PSU boots as a bare framework and
+			-- the consuming project picks exactly one genre to turn on here.
+			Enabled = false,
 
 			Currencies = {
 				PrimaryName   = "Sugar",
@@ -581,22 +573,22 @@ local FeatureToggles: FeatureTogglesType = {
 				ShowClickBonus = true,
 			},
 
-			-- ── Anti-macro click acceptance (server-authoritative) ────────────
+			-- Anti-macro click acceptance (server-authoritative)
 			MaxClickBurst   = 30,
 			ClickRefillRate = 20,   -- sustained CPS the server honors
 
-			-- ── Client send tuning ─────────────────────────────────────────────
+			-- Client send tuning
 			ClickBatchInterval  = 0.25,
 			ClientClickCooldown = 0.05, -- 20 CPS local input debounce
 
-			-- ── Secondary currency (Cupcakes) minted from manual clicks ───────
+			-- Secondary currency (Cupcakes) minted from manual clicks
 			ClicksPerSecondaryCurrency = 50,
 
-			-- ── Passive income cadence ─────────────────────────────────────────
+			-- Passive income cadence
 			PassiveTickInterval = 1,
 			PassiveHUDLiveTick  = true,
 
-			-- ── Golden drop bonus event ────────────────────────────────────────
+			-- Golden drop bonus event
 			GoldenDrop = {
 				Enabled          = true,
 				SpawnIntervalMin = 45,
@@ -626,15 +618,15 @@ local FeatureToggles: FeatureTogglesType = {
 				ShowClickBonus = false,
 			},
 
-			-- ── Roll pacing ────────────────────────────────────────────────────
+			-- Roll pacing
 			BaseRollCooldown = 3.5,
 			MinRollCooldown  = 1.75,
 
-			-- ── Pity system ────────────────────────────────────────────────────
+			-- Pity system
 			HardPityLimit       = 100,
 			PityWeightThreshold = 20,
 
-			-- ── Idle income (funds rolls; scales with equipped aura) ──────────
+			-- Idle income (funds rolls; scales with equipped aura)
 			IncomeInterval = 1,
 			IncomeBase     = 10,
 			IncomeExpBase  = 2,
@@ -653,15 +645,15 @@ local FeatureToggles: FeatureTogglesType = {
 				ShowClickBonus = false,
 			},
 
-			-- ── Hatch pacing / progression ────────────────────────────────────
+			-- Hatch pacing / progression
 			HatchCooldown = 1.0,
 			ExpPerHatch   = 25,
 
-			-- ── Idle income (funds hatches; flat — pets are cosmetic) ─────────
+			-- Idle income (funds hatches; flat — pets are cosmetic)
 			IncomeInterval = 1,
 			IncomeBase     = 12,
 
-			-- ── Companion follow tuning ───────────────────────────────────────
+			-- Companion follow tuning
 			FollowDistance       = 4,
 			FollowResponsiveness = 8,
 			HoverHeight          = 2,
@@ -708,7 +700,7 @@ local FeatureToggles: FeatureTogglesType = {
 		},
 	},
 
-	-- ── In-match session stats (K/D/A) — no DataStore, match-scoped only ──────
+	-- In-match session stats (K/D/A) — no DataStore, match-scoped only
 	MatchStats = {
 		Enabled      = true,
 		SyncDebounce = 0.5,

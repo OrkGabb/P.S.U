@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Shared/Config/StoreRegistry.luau
 -- Compiled store view for the active genre. All definitions live in
 -- CommerceRegistry (the SSoT); this module only reshapes them into the
 -- structures MonetizationService and StoreController consume:
@@ -38,7 +37,6 @@ local StoreRegistry = {}
 StoreRegistry.GamepassIDs = CommerceRegistry.GamepassIDs
 StoreRegistry.DevProducts = CommerceRegistry.DevProducts
 
--- Catalog Items mapping for UI rendering
 StoreRegistry.Catalog = {} :: { StoreItem }
 
 do
@@ -78,7 +76,7 @@ do
 		})
 	end
 
-	-- Stable ordering for UI (cheapest first within the table walk)
+	-- cheapest first within each category
 	table.sort(StoreRegistry.Catalog, function(a: StoreItem, b: StoreItem): boolean
 		if a.Category ~= b.Category then
 			return a.Category < b.Category

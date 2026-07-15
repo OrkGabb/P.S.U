@@ -1,6 +1,7 @@
 --!nocheck
 -- Vendored third-party module (loleris' ProfileService, standalone version).
 -- Intentionally NOT --!strict: it predates strict typing and is kept
+-- @Author @OrkGabb
 -- byte-faithful to upstream for safe future updates. The framework's own
 -- typed surface wraps it in DataService.
 --@module ProfileService.luau

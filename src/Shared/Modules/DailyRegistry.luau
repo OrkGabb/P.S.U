@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module DailyRegistry.luau
---@version 2.0
+-- @Author @OrkGabb
 -- src/Shared/Modules/DailyRegistry.luau
 -- Dynamic Daily Rewards: level-scaled coins + universal CoreFragments.
 -- Single Source of Truth for ALL daily reward data.
@@ -29,9 +27,7 @@ local DailyRegistry = {
 	Days = {} :: { [number]: DailyEntry },
 }
 
--- ═══════════════════════════════════════════════════════════════════════════════
 -- WEEK 1 (D1-D6 regular, D7 milestone)
--- ═══════════════════════════════════════════════════════════════════════════════
 DailyRegistry.Days[1]  = { Day = 1,  Coins = 0, Fragments = 0,  IsMilestone = false }
 DailyRegistry.Days[2]  = { Day = 2,  Coins = 0, Fragments = 1,  IsMilestone = false }
 DailyRegistry.Days[3]  = { Day = 3,  Coins = 0, Fragments = 0,  IsMilestone = false }
@@ -42,9 +38,7 @@ DailyRegistry.Days[6]  = { Day = 6,  Coins = 0, Fragments = 1,  IsMilestone = fa
 -- MILESTONE DAY 7: First Week Survivor
 DailyRegistry.Days[7]  = { Day = 7,  Coins = 0, Fragments = 10, IsMilestone = true }
 
--- ═══════════════════════════════════════════════════════════════════════════════
 -- WEEK 2 (D8-D13 regular, D14 milestone)
--- ═══════════════════════════════════════════════════════════════════════════════
 DailyRegistry.Days[8]  = { Day = 8,  Coins = 0, Fragments = 1,  IsMilestone = false }
 DailyRegistry.Days[9]  = { Day = 9,  Coins = 0, Fragments = 1,  IsMilestone = false }
 DailyRegistry.Days[10] = { Day = 10, Coins = 0, Fragments = 2,  IsMilestone = false }
@@ -55,9 +49,7 @@ DailyRegistry.Days[13] = { Day = 13, Coins = 0, Fragments = 0,  IsMilestone = fa
 -- MILESTONE DAY 14: Dedicated Grinder
 DailyRegistry.Days[14] = { Day = 14, Coins = 0, Fragments = 15, IsMilestone = true }
 
--- ═══════════════════════════════════════════════════════════════════════════════
 -- WEEK 3 (D15-D20 regular, D21 milestone)
--- ═══════════════════════════════════════════════════════════════════════════════
 DailyRegistry.Days[15] = { Day = 15, Coins = 0, Fragments = 1,  IsMilestone = false }
 DailyRegistry.Days[16] = { Day = 16, Coins = 0, Fragments = 0,  IsMilestone = false }
 DailyRegistry.Days[17] = { Day = 17, Coins = 0, Fragments = 1,  IsMilestone = false }
@@ -68,9 +60,7 @@ DailyRegistry.Days[20] = { Day = 20, Coins = 0, Fragments = 1,  IsMilestone = fa
 -- MILESTONE DAY 21: Three Week Warrior
 DailyRegistry.Days[21] = { Day = 21, Coins = 0, Fragments = 20, IsMilestone = true }
 
--- ═══════════════════════════════════════════════════════════════════════════════
 -- WEEK 4 (D22-D27 regular, D28 milestone)
--- ═══════════════════════════════════════════════════════════════════════════════
 DailyRegistry.Days[22] = { Day = 22, Coins = 0, Fragments = 1,  IsMilestone = false }
 DailyRegistry.Days[23] = { Day = 23, Coins = 0, Fragments = 0,  IsMilestone = false }
 DailyRegistry.Days[24] = { Day = 24, Coins = 0, Fragments = 2,  IsMilestone = false }
@@ -81,9 +71,7 @@ DailyRegistry.Days[27] = { Day = 27, Coins = 0, Fragments = 2,  IsMilestone = fa
 -- MILESTONE DAY 28: Monthly Champion
 DailyRegistry.Days[28] = { Day = 28, Coins = 0, Fragments = 25, IsMilestone = true }
 
--- ═══════════════════════════════════════════════════════════════════════════════
 -- FINAL DAYS (D29-D30 regular, D31 ultimate milestone)
--- ═══════════════════════════════════════════════════════════════════════════════
 DailyRegistry.Days[29] = { Day = 29, Coins = 0, Fragments = 2,  IsMilestone = false }
 DailyRegistry.Days[30] = { Day = 30, Coins = 0, Fragments = 2,  IsMilestone = false }
 
@@ -99,9 +87,6 @@ for day = 1, 31 do
 	DailyRegistry.Days[day] = entry
 end
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- DYNAMIC LEVEL MULTIPLIER
--- ═══════════════════════════════════════════════════════════════════════════════
 function DailyRegistry.GetMultiplier(level: number, rebirths: number?): number
 	local R = rebirths or 0
 	local L = math.max(1, level)

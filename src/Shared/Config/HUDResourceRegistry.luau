@@ -1,27 +1,19 @@
 --!strict
---@author OrkGabb
---@module HUDResourceRegistry.luau
---@version 1.0
--- src/Shared/Config/HUDResourceRegistry.luau
--- Single Source of Truth mapping abstract player resources (Coins,
--- CoreFragments, Gems, any future counter) to WHERE they render and HOW.
+-- @Author @OrkGabb
+-- Maps abstract player resources (Coins, CoreFragments, Gems, any future
+-- counter) to WHERE they render and HOW.
 --
--- WHY THIS EXISTS: without this layer, "where does resource X show up"
--- gets hardcoded into whichever controller happens to draw it first.
--- Moving a resource from the TopBar to the Sidebar, or adding a second
--- display slot for it, would mean editing render logic. With this
--- registry, controllers become generic renderers that just ask
--- "give me every resource tagged for MY slot" — adding a slot for an
--- existing resource, or a brand new resource entirely, is a data change
--- here, never a controller rewrite. This mirrors the same pattern
--- FeatureResolver/UpgradeRegistry/DailyRegistry already use for genre
--- content: config != logic.
+-- Without this layer, "where does resource X show up" gets hardcoded into
+-- whichever controller draws it first. With this registry, controllers just
+-- ask "give me every resource tagged for MY slot" — moving a resource to a
+-- new slot, or adding a resource entirely, is a data change here, never a
+-- controller rewrite. Same config-over-logic pattern as FeatureResolver /
+-- UpgradeRegistry / DailyRegistry.
 --
--- Adding a slot in the future (e.g. "InventoryHeader", "MobileBar") only
--- requires: (1) a controller that reads GetResourcesForSlot(slotName) and
--- draws generically like TopBarController does below, (2) tagging a
--- resource's Slots table with the new slot name. Zero edits to existing
--- controllers or existing resources needed.
+-- Adding a slot (e.g. "InventoryHeader", "MobileBar") requires: (1) a
+-- controller that reads GetResourcesForSlot(slotName) and draws generically
+-- like TopBarController does, (2) tagging a resource's Slots table with the
+-- new slot name.
 
 export type ResourceSlot = string -- "TopBar" | "Sidebar" | any future slot name
 
@@ -64,10 +56,7 @@ local Resources: { [string]: ResourceDef } = {
 		Order = 2,
 		HideOnFPS = true,
 	},
-	-- CoreFragments: universal milestone resource (DailyService, Leva 4).
-	-- Default slot is TopBar per Fitts's Law — top-right corner is an
-	-- effectively infinite target and matches P.S.U's existing pattern of
-	-- always-visible currency display, consistent across every genre.
+	-- Universal milestone resource (DailyService, Leva 4).
 	CoreFragments = {
 		Id = "CoreFragments",
 		DataPath = { "Stats", "CoreFragments" },

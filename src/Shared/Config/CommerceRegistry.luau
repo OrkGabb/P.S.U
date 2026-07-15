@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Shared/Config/CommerceRegistry.luau
 -- Genre-scoped monetization registry — single source of truth for GamePass and
 -- Developer Product definitions across every genre preset. Nothing in a
 -- service should ever hardcode a product ID: services consume the compiled
@@ -187,7 +186,7 @@ local CommerceRegistry = {}
 
 CommerceRegistry.Library = Library
 
--- ── Compiled views for the active genre ──────────────────────────────────────
+-- Compiled views for the active genre.
 
 -- passKey → GamepassDef for every pass in the active genre
 CommerceRegistry.ActiveGamepasses = {} :: {[string]: GamepassDef}

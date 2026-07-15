@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module ConfigAudit.luau
---@version 1.0
+-- @Author @OrkGabb
 -- src/Shared/Modules/ConfigAudit.luau
 -- Read-only static analysis over FeatureToggles and the Shared module tree.
 -- Detects config drift and structural duplication WITHOUT mutating anything.
