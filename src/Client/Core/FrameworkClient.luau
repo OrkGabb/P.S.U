@@ -1,7 +1,5 @@
 --!strict
---@author OrkGabb
---@module FrameworkClient.luau
---@version 1.0
+-- @Author @OrkGabb
 --- @description Client-side toggle-aware bootstrap layer.
 ---              Reads FeatureToggles and conditionally loads optional controllers.
 ---              Controllers gated behind a `false` toggle are never required —
@@ -13,14 +11,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
---------------------------------------------------------------------------------
--- Shared imports
---------------------------------------------------------------------------------
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
-
---------------------------------------------------------------------------------
--- Types
---------------------------------------------------------------------------------
 
 --- A controller module that conforms to the Init/Start lifecycle contract.
 type ControllerModule = {
@@ -34,10 +25,6 @@ type ToggleEntry = {
 	registerName: string?,
 	resolver: () -> ModuleScript,
 }
-
---------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
 
 --- Registry of optional client controllers gated by FeatureToggles.
 --- Add new toggleable controllers here; the bootstrap loop handles the rest.
@@ -55,10 +42,6 @@ local OPTIONAL_CONTROLLERS: { ToggleEntry } = {
 	-- Only reference ModuleScripts that physically exist: a missing module
 	-- infinite-yields the boot sequence on WaitForChild.
 }
-
---------------------------------------------------------------------------------
--- Module
---------------------------------------------------------------------------------
 
 local FrameworkClient = {}
 local controllers: { [string]: any } = {}

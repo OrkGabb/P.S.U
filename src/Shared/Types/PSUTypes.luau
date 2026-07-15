@@ -1,8 +1,5 @@
 --!strict
---@author OrkGabb
---@module PSUTypes.luau
---@version 1.0
--- src/Shared/Types/PSUTypes.luau
+-- @Author @OrkGabb
 -- Shared strict-type contracts for the P.S.U framework domain layer.
 -- Consumed by ConfigAudit, BootTelemetry, and future Shared modules that
 -- need typed access to FeatureToggles-shaped data and the abstract profile
@@ -64,8 +61,7 @@ export type LifecycleModule = {
 	Start: (() -> ())?,
 }
 
--- ── Player-profile schema ─────────────────────────────────────────────────────
--- Shapes of profile.Data sub-tables as declared by DataService.ProfileTemplate
+-- Player-profile schema: shapes of profile.Data sub-tables as declared by DataService.ProfileTemplate
 -- and broadcast to clients via the UpdateProfileData remote. Fields the
 -- template guarantees (ProfileService:Reconcile backfills them on every load)
 -- are non-optional; genre payload fields are optional because each genre

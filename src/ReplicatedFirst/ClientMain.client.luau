@@ -1,15 +1,10 @@
 --!strict
---@author OrkGabb
---@module ClientMain.client.luau
---@version 1.0
--- src/ReplicatedFirst/ClientMain.client.luau
--- Client-side bootstrapper that dynamically loads and manages the lifecycle of controllers.
+-- @Author @OrkGabb
 
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui: StarterGui = game:GetService("StarterGui")
 local StarterPlayer = game:GetService("StarterPlayer")
 
--- Immediate Bootstrapper UI and preloading
 local LoadingController = require(script.Parent:WaitForChild("LoadingController")) :: any
 LoadingController.Init()
 LoadingController.Start()
@@ -71,7 +66,6 @@ local function start(): ()
 	end)
 
 
-
 	-- Genres are mutually exclusive — abort boot naming the exact flags on conflict.
 	FeatureResolver.AssertGenreExclusivity("ClientMain")
 	print(("[ClientMain] Active genre: %s"):format(FeatureResolver.GetActiveGenre() or "Global"))
@@ -83,7 +77,6 @@ local function start(): ()
 		SidebarController = true, -- Consolidated into UIController
 	}
 
-	-- Dynamic Category Resolution for Gating
 	local isClickerActive: boolean = FeatureResolver.IsCategoryActive("Clicker_Farm")
 	local isAuraActive: boolean = FeatureResolver.IsCategoryActive("Aura_Collector")
 	local isRPGActive: boolean = FeatureResolver.IsCategoryActive("RPG_Adventure")
@@ -92,36 +85,29 @@ local function start(): ()
 	local isMonetizationActive: boolean = FeatureResolver.IsCategoryActive("Monetization")
 	local isDailyActive: boolean = FeatureResolver.IsCategoryActive("Retention") or FeatureResolver.IsCategoryActive("Daily")
 	local isDashActive: boolean = FeatureResolver.IsCategoryActive("Dash") or FeatureResolver.IsCategoryActive("DashConfig")
-	-- Aura mode carries consumable potions, so it needs the inventory UI.
-	-- Pet mode does NOT: pets are cosmetic-only with their own Pets UI.
-	local isInventoryActive: boolean = isRPGActive or isAuraActive or FeatureResolver.IsCategoryActive("Inventory")
 
-	-- Clicker category
 	if not isClickerActive then
 		SKIP_CONTROLLERS["ClickController"] = true
 		SKIP_CONTROLLERS["GoldenDropController"] = true
 	end
 
-	-- Aura category (roll UI, collection index and aura VFX are
-	-- Aura_Collector systems)
+	-- Roll UI, collection index and aura VFX are Aura_Collector systems
 	if not isAuraActive then
 		SKIP_CONTROLLERS["IndexController"] = true
 		SKIP_CONTROLLERS["MainUIController"] = true
 		SKIP_CONTROLLERS["AuraVFXController"] = true
 	end
 
-	-- Pet category (companion rendering + egg shop/inventory UI)
+	-- Companion rendering + egg shop/inventory UI
 	if not isPetActive then
 		SKIP_CONTROLLERS["PetController"] = true
 		SKIP_CONTROLLERS["PetsUIController"] = true
 	end
 
-	-- RPG category
 	if not isRPGActive then
 		SKIP_CONTROLLERS["QuestsController"] = true
 	end
 
-	-- RPG or FPS category
 	if not (isRPGActive or isFPSActive) then
 		SKIP_CONTROLLERS["WeaponController"] = true
 		SKIP_CONTROLLERS["StatusHUDController"] = true
@@ -129,39 +115,29 @@ local function start(): ()
 		SKIP_CONTROLLERS["MatchStatsController"] = true
 	end
 
-	-- Inventory category
-	if not isInventoryActive then
-		SKIP_CONTROLLERS["BagController"] = true
-	end
-
-	-- Daily rewards
 	if not isDailyActive then
 		SKIP_CONTROLLERS["DailyUIController"] = true
 	end
 
-	-- Monetization
 	if not isMonetizationActive then
 		SKIP_CONTROLLERS["StoreController"] = true
 	end
 
-	-- Dash
 	if not isDashActive then
 		SKIP_CONTROLLERS["DashController"] = true
 	end
 
-	-- Onboarding
 	if not (isClickerActive or isRPGActive or isAuraActive) then
 		SKIP_CONTROLLERS["OnboardingController"] = true
 	end
 
-	-- Skills category (Aura masteries are bought through the Skills UI).
-	-- Pet mode has no upgrades — cosmetic companions only.
-	local isSkillsActive: boolean = isClickerActive or isRPGActive or isFPSActive or isAuraActive
-	if not isSkillsActive then
-		SKIP_CONTROLLERS["SkillsController"] = true
-	end
+	-- SkillsController and BagController are deliberately NOT genre-gated: they
+	-- are the genre-neutral player chrome (masteries + inventory), and gating
+	-- them meant a core-only boot left the sidebar with one lone button. They
+	-- now always load and render whatever the registries hold for the active
+	-- categories — an empty list when no genre is enabled.
 
-	-- Phase 1: Requirement and Initialization (pcall-protected)
+	-- Phase 1: require + Init (pcall-protected)
 	for _, child: Instance in ipairs(controllersFolder:GetChildren()) do
 		if child:IsA("ModuleScript") and not SKIP_CONTROLLERS[child.Name] then
 			local ok: boolean, controller: any = pcall(require, child)
@@ -181,7 +157,7 @@ local function start(): ()
 		end
 	end
 
-	-- Phase 2: Execution (Start)
+	-- Phase 2: Start
 	for _, controller: any in ipairs(startupOrder) do
 		if type(controller.Start) == "function" then
 			task.spawn(function()
@@ -190,7 +166,6 @@ local function start(): ()
 		end
 	end
 
-	-- Signal that all core controllers are online
 	LoadingController.SignalReady()
 end
 

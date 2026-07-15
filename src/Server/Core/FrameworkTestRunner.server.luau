@@ -1,13 +1,11 @@
 --!strict
---@author OrkGabb
---@module FrameworkTestRunner.server.luau
---@version 1.0
+-- @Author @OrkGabb
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 
--- Self-tests are a development aid: run only in Studio with DebugConfig on.
--- (Previously this ran — and printed [PASS]/[FAIL] — on every production boot.)
+-- Dev aid only: run in Studio with DebugConfig on. (Previously this ran on
+-- every production boot too, spamming [PASS]/[FAIL] into live logs.)
 do
 	local FeatureToggles = require(ReplicatedStorage.Shared.Config.FeatureToggles)
 	if not (RunService:IsStudio() and FeatureToggles.DebugConfig.Enabled) then

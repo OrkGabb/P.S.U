@@ -1,14 +1,5 @@
 --!strict
---@author OrkGabb
---@module LoadingController.luau
---@version 1.0
---[[
-========================================================================
-MODULARFRAMEWORK CORE - DYNAMIC ASSET BOOTSTRAPPER & LOADING CONTROLLER
-========================================================================
-Preloads prioritized visual, physical, and audio assets efficiently using
-asynchronous pipelines to optimize memory streaming on join.
-]]
+-- @Author @OrkGabb
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ContentProvider = game:GetService("ContentProvider")
@@ -21,15 +12,13 @@ LoadingController.Name = "LoadingController"
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Configuration constants
-local MAX_PRELOAD_TIMEOUT = 10 -- Safety timeout limit to prevent infinite menu lockups
+local MAX_PRELOAD_TIMEOUT = 10 -- safety timeout to prevent infinite menu lockups
 -- Per-instance WaitForChild timeout used below and by ClientMain.client.luau's own
 -- boot resolution. Must stay comfortably under MAX_PRELOAD_TIMEOUT so a boot
 -- failure is signaled (via SignalFailure) while this file's safety loop is
 -- still running, instead of racing it independently.
 local BOOT_WAIT_TIMEOUT = 8
 
--- Active states
 local loadingActive = true
 local screenGui: ScreenGui? = nil
 local background: Frame? = nil
@@ -67,7 +56,6 @@ local function tryRequireChain(root: Instance, ...: string): any?
 	return result
 end
 
--- Signal from ClientMain
 function LoadingController.SignalReady()
 	clientMainReady = true
 end
@@ -81,7 +69,7 @@ function LoadingController.SignalFailure(reason: string): ()
 end
 
 function LoadingController.Init(): ()
-	-- Load DebugUtility dynamically (non-fatal: logging only)
+	-- non-fatal: logging only
 	local DebugUtility = tryRequireChain(ReplicatedStorage, "Shared", "Modules", "DebugUtility")
 	if DebugUtility then
 		DebugUtility.Log("LoadingController", "Initializing dynamic loading bootstrapper...")
@@ -101,7 +89,7 @@ function LoadingController.Init(): ()
 		end
 	end)
 
-	-- Synchronously create ScreenGui and Background Cover to block the viewport instantly
+	-- Created synchronously so the viewport is blocked instantly
 	local newScreenGui = Instance.new("ScreenGui")
 	newScreenGui.Name = "FrameworkLoadingScreen"
 	newScreenGui.IgnoreGuiInset = true
@@ -137,7 +125,6 @@ function LoadingController.CreateAndAnimateHUD()
 	local branding = (FeatureResolver and FeatureResolver.GetCategoryConfig("Branding"))
 		or { GameName = "YOUR PROJECT", Subtitle = "FRAMEWORK CORE ACTIVE" }
 
-	-- Game Title Label (Replaces legacy title with professional placeholder)
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Size = UDim2.new(0.8, 0, 0.2, 0)
 	titleLabel.Position = UDim2.new(0.1, 0, 0.35, 0)
@@ -149,18 +136,16 @@ function LoadingController.CreateAndAnimateHUD()
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 	titleLabel.Parent = background
 
-	-- Dynamic Subtitle for Active Configurations
 	local genreLabel = Instance.new("TextLabel")
 	genreLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
 	genreLabel.Position = UDim2.new(0.1, 0, 0.52, 0)
 	genreLabel.BackgroundTransparency = 1
-	genreLabel.TextColor3 = Color3.fromRGB(0, 255, 120) -- Neon green accent color
+	genreLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
 	genreLabel.Font = Enum.Font.GothamMedium
 	genreLabel.TextSize = 16
 	genreLabel.TextXAlignment = Enum.TextXAlignment.Center
 	genreLabel.Parent = background
 
-	-- Match active modules with dynamic tags
 	local activeTemplates: {string} = {}
 	if FeatureResolver and FeatureResolver.IsCategoryActive("FPS_Shooter") then table.insert(activeTemplates, "FPS SHOOTER") end
 	if FeatureResolver and FeatureResolver.IsCategoryActive("Clicker_Farm") then table.insert(activeTemplates, "CLICKER FARM") end
@@ -173,7 +158,6 @@ function LoadingController.CreateAndAnimateHUD()
 		genreLabel.Text = string.upper(branding.Subtitle)
 	end
 
-	-- Status Loader Text
 	local statusLabel = Instance.new("TextLabel")
 	statusLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
 	statusLabel.Position = UDim2.new(0.1, 0, 0.65, 0)
@@ -185,9 +169,8 @@ function LoadingController.CreateAndAnimateHUD()
 	statusLabel.TextXAlignment = Enum.TextXAlignment.Center
 	statusLabel.Parent = background
 
-	-- Outer Bar
 	local progressBackground = Instance.new("Frame")
-	progressBackground.Size = UDim2.new(0.4, 0, 0.008, 0) -- Sleek, minimalistic thin loading bar
+	progressBackground.Size = UDim2.new(0.4, 0, 0.008, 0)
 	progressBackground.Position = UDim2.new(0.3, 0, 0.72, 0)
 	progressBackground.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 	progressBackground.BorderSizePixel = 0
@@ -197,10 +180,9 @@ function LoadingController.CreateAndAnimateHUD()
 	uiCornerBg.CornerRadius = UDim.new(0.5, 0)
 	uiCornerBg.Parent = progressBackground
 
-	-- Inner Progress Bar
 	local progressBar = Instance.new("Frame")
 	progressBar.Size = UDim2.new(0, 0, 1, 0)
-	progressBar.BackgroundColor3 = Color3.fromRGB(0, 255, 120) -- Neon green progress
+	progressBar.BackgroundColor3 = Color3.fromRGB(0, 255, 120)
 	progressBar.BorderSizePixel = 0
 	progressBar.Parent = progressBackground
 
@@ -208,7 +190,7 @@ function LoadingController.CreateAndAnimateHUD()
 	uiCornerBar.CornerRadius = UDim.new(0.5, 0)
 	uiCornerBar.Parent = progressBar
 
-	-- Parse and gather specific assets to preload from registries (avoiding blind GetDescendants calls)
+	-- Only queue what the registries reference, instead of a blind GetDescendants scan
 	local assetQueue: {string} = {}
 
 	for _, effectConfig in pairs(VFXRegistry) do
@@ -223,12 +205,10 @@ function LoadingController.CreateAndAnimateHUD()
 	local totalAssets = #assetQueue
 	local completedAssets = 0
 
-	-- Modern 2026 Batch Preloading pipeline
 	if totalAssets > 0 then
 		for _, assetId in ipairs(assetQueue) do
 			if not loadingActive then break end
 			
-			-- Prepare temporary structural instance to resolve the Asset ID properly
 			local tempInstance: Instance? = nil
 			if string.match(assetId, "audio") or string.match(assetId, "911422") then
 				local sound = Instance.new("Sound")
@@ -249,7 +229,6 @@ function LoadingController.CreateAndAnimateHUD()
 					completedAssets += 1
 					local progressRatio = math.clamp(completedAssets / totalAssets, 0, 1)
 					
-					-- Smoothly interpolate loading bar width
 					TweenService:Create(progressBar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
 						Size = UDim2.new(progressRatio, 0, 1, 0)
 					}):Play()
@@ -264,7 +243,6 @@ function LoadingController.CreateAndAnimateHUD()
 			task.wait(0.01)
 		end
 	else
-		-- Complete instantly if registries contain no assets
 		TweenService:Create(progressBar, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
 			Size = UDim2.new(1, 0, 1, 0)
 		}):Play()
@@ -294,12 +272,10 @@ function LoadingController.CreateAndAnimateHUD()
 
 	statusLabel.Text = "PRE-LOADING COMPLETED! LAUNCHING ENGINE..."
 
-	-- Play smooth fade-out closing sequence
 	local fadeTween = TweenService:Create(background, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 1
 	})
 
-	-- Smoothly fade individual text elements
 	TweenService:Create(titleLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
 	TweenService:Create(genreLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
 	TweenService:Create(statusLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
@@ -316,7 +292,7 @@ function LoadingController.CreateAndAnimateHUD()
 			end)
 		end
 		
-		-- Require DebugUtility dynamically for log (non-fatal: logging only)
+		-- non-fatal: logging only
 		local DebugUtility = tryRequireChain(ReplicatedStorage, "Shared", "Modules", "DebugUtility")
 		if DebugUtility then
 			DebugUtility.Log("LoadingController", "Bootstrapper closed cleanly. Gameplay loop active.")

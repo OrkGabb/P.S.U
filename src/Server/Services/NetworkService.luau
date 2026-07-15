@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Server/Services/NetworkService.luau
 -- Instantiates every remote declared in RemoteNames.Schema with the correct
 -- class at boot (Defensive Network Layer: clients can never stall on
 -- WaitForChild, and no service can create a wrong-class duplicate).

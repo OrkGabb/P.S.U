@@ -1,20 +1,15 @@
 --!strict
---@author OrkGabb
---@module ServerMain.server.luau
---@version 1.0
--- src/Server/Core/ServerMain.server.luau
--- Central Server Service Orchestrator (Bootstrapper).
--- Loads and initializes all services through a two-phase lifecycle (Init / Start).
+-- @Author @OrkGabb
+-- Central server service orchestrator. Loads and initializes all services
+-- through a two-phase lifecycle (Init / Start).
 
 local ServerScriptService: ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService: RunService = game:GetService("RunService")
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- Defensive Network Layer: Instantiate critical remote bridges BEFORE any
--- module requires. This prevents client-side WaitForChild stalls even if
--- downstream services crash or are skipped by feature gating.
--- ═══════════════════════════════════════════════════════════════════════════════
+-- Instantiate critical remote bridges before any module requires, so client
+-- WaitForChild calls don't stall even if a downstream service crashes or is
+-- skipped by feature gating.
 local remotesFolder: Folder
 do
 	local existing: Instance? = ReplicatedStorage:FindFirstChild("Remotes")
@@ -30,9 +25,6 @@ end
 -- NetworkService.Init (Phase 1, below) instantiates every remote declared in
 -- RemoteNames.Schema with the correct class — the folder just has to exist first.
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- Feature Resolution
--- ═══════════════════════════════════════════════════════════════════════════════
 local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
 -- Genres are mutually exclusive — abort boot naming the exact flags on conflict.
@@ -43,9 +35,6 @@ if RunService:IsStudio() then
 	require(ReplicatedStorage.Shared.Modules.ConfigAudit).PrintReport()
 end
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- Service Imports
--- ═══════════════════════════════════════════════════════════════════════════════
 -- Server scripts are all present at server start — direct paths are safe
 -- and keep the requires statically resolvable for tooling.
 local Services = ServerScriptService.Server.Services
@@ -68,11 +57,8 @@ local ItemService: any         = require(Services.ItemService)
 -- PetService, ClickService, …) are NOT loaded here: they register through
 -- FrameworkServer's OPTIONAL_SERVICES table and boot in Phase 3. Loading any
 -- of them here as well would run their Init/Start twice (doubled remote
--- connections) — keep this list to always-on core services only (OCP).
+-- connections) — keep this list to always-on core services only.
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- Framework Registration
--- ═══════════════════════════════════════════════════════════════════════════════
 local FrameworkServer: any = require(ServerScriptService.Server.Core.FrameworkServer)
 local BootTelemetry: any = require(ServerScriptService.Server.Core.BootTelemetry)
 
@@ -90,9 +76,6 @@ FrameworkServer.RegisterService("AntiExploitService", AntiExploitService)
 FrameworkServer.RegisterService("VFXService", VFXService)
 FrameworkServer.RegisterService("ItemService", ItemService)
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- Safe Lifecycle Call Helper
--- ═══════════════════════════════════════════════════════════════════════════════
 -- DEAD CODE: superseded by BootTelemetry.TrackedCall at every call site below.
 -- Left in place intentionally — removal is a separate future decision.
 local function SafeCall(mod: any, method: string): ()
@@ -104,9 +87,7 @@ local function SafeCall(mod: any, method: string): ()
     end
 end
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- Phase 1: Init (Remote creation, DataStore initialization, Instance setup)
--- ═══════════════════════════════════════════════════════════════════════════════
+-- Phase 1: Init (remote creation, DataStore initialization, instance setup)
 BootTelemetry.BeginSequence()
 BootTelemetry.TrackedCall(NetworkService, "Init", "NetworkService")
 BootTelemetry.TrackedCall(DataService, "Init", "DataService")
@@ -122,9 +103,7 @@ BootTelemetry.TrackedCall(AntiExploitService, "Init", "AntiExploitService")
 BootTelemetry.TrackedCall(VFXService, "Init", "VFXService")
 BootTelemetry.TrackedCall(ItemService, "Init", "ItemService")
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- Phase 2: Start (Event connections, loop startup, network routines)
--- ═══════════════════════════════════════════════════════════════════════════════
+-- Phase 2: Start (event connections, loop startup, network routines)
 BootTelemetry.TrackedCall(NetworkService, "Start", "NetworkService")
 BootTelemetry.TrackedCall(DataService, "Start", "DataService")
 BootTelemetry.TrackedCall(LeaderstatsService, "Start", "LeaderstatsService")
@@ -140,9 +119,7 @@ BootTelemetry.TrackedCall(VFXService, "Start", "VFXService")
 BootTelemetry.TrackedCall(ItemService, "Start", "ItemService")
 BootTelemetry.PrintSummary()
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- Phase 3: Framework Boot
--- ═══════════════════════════════════════════════════════════════════════════════
+-- Phase 3: Framework boot
 FrameworkServer.Boot()
 
 print("[ServerMain] Boot sequence complete. All services online.")

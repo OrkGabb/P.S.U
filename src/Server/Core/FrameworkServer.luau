@@ -1,50 +1,32 @@
 --!strict
---@author OrkGabb
---@module FrameworkServer.luau
---@version 1.0
---- @description Server-side toggle-aware bootstrap layer.
----              Reads FeatureToggles and conditionally loads optional services.
----              Services gated behind a `false` toggle are never required —
----              no memory allocation, no event connections.
+-- @Author @OrkGabb
+--- Server-side toggle-aware bootstrap layer. Reads FeatureToggles and
+--- conditionally loads optional services — a service gated behind a `false`
+--- toggle is never required, so there's no allocation or event connections.
 ---
---- NOTE: This module supplements the existing ServerMain.server.lua orchestrator.
----       ServerMain handles always-on core services; FrameworkServer handles
----       toggleable optional services (Dash, Pets, Portals, Trading, Collections, Leaderboards).
+--- Supplements ServerMain.server.lua: ServerMain handles always-on core
+--- services, this handles toggleable optional ones (Dash, Pets, Portals,
+--- Trading, Collections, Leaderboards).
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
 
---------------------------------------------------------------------------------
--- Shared imports
---------------------------------------------------------------------------------
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 
---------------------------------------------------------------------------------
--- Types
---------------------------------------------------------------------------------
-
---- A service module that conforms to the Init/Start lifecycle contract.
 type ServiceModule = {
 	Init: (() -> ())?,
 	Start: (() -> ())?,
 }
 
---- Map of toggle key → ModuleScript path resolver.
---- Each entry returns the ModuleScript instance for that optional system.
 type ToggleEntry = {
 	toggleKey: string,
 	registerName: string?,
 	resolver: () -> ModuleScript,
 }
 
---------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
-
 local Services = ServerScriptService.Server.Services
 
---- Registry of optional server services gated by FeatureToggles.
---- Add new toggleable services here; the bootstrap loop handles the rest.
+-- Add new toggleable services here; the bootstrap loop handles the rest.
 local OPTIONAL_SERVICES: { ToggleEntry } = {
 	{
 		toggleKey = "Dash",
@@ -113,19 +95,15 @@ local OPTIONAL_SERVICES: { ToggleEntry } = {
 	},
 }
 
---------------------------------------------------------------------------------
--- Module
---------------------------------------------------------------------------------
-
 local FrameworkServer = {}
 local services: { [string]: any } = {}
 
---- Registers a service to the service locator pattern.
 function FrameworkServer.RegisterService(name: string, module: any): ()
 	services[name] = module
 end
 
---- Retrieves a registered service, or a safe dummy if it's missing or toggled off.
+-- Returns a safe no-op dummy if the service is missing or toggled off, so
+-- callers don't need to nil-check before calling into an optional service.
 function FrameworkServer.GetService(name: string): any?
 	local service: any? = services[name]
 	if not service then
@@ -140,16 +118,14 @@ function FrameworkServer.GetService(name: string): any?
 	return service
 end
 
---- Resolves if a feature toggle is enabled.
---- Delegates to FeatureResolver — the SSoT for toggle resolution. (A local
---- reimplementation here previously missed GlobalFlags/Genres sub-tables, so
---- every genre-keyed optional service was silently skipped at boot.)
+-- Delegates to FeatureResolver, the SSoT for toggle resolution. (A local
+-- reimplementation here previously missed the GlobalFlags/Genres sub-tables,
+-- so every genre-keyed optional service was silently skipped at boot.)
 local function isFeatureEnabled(key: string): boolean
 	return FeatureResolver.IsCategoryActive(key) == true
 end
 
---- Loads, initialises, and starts all optional services whose toggle is `true`.
---- Called once from ServerMain at the end of its own boot sequence.
+-- Called once from ServerMain at the end of its own boot sequence.
 function FrameworkServer.Boot(): ()
 	local loaded: { ServiceModule } = {}
 

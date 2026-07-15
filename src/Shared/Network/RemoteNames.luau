@@ -1,6 +1,5 @@
 --!strict
 -- @Author @OrkGabb
--- src/Shared/Network/RemoteNames.luau
 --
 -- Single source of truth for EVERY remote in the framework.
 --
@@ -95,7 +94,7 @@ export type RemoteNamesType = {
 }
 
 local Schema: { [string]: RemoteDef } = {
-	-- ── Core: data / progression ─────────────────────────────────────────────
+	-- Core: data / progression
 	UpdateProfileData = { Kind = "Event", Direction = "S->C", System = "DataService",
 		Signature = "(profileData: table) — full profile snapshot after any change" },
 	UpdateResourceValue = { Kind = "Event", Direction = "S->C", System = "DataService",
@@ -103,31 +102,31 @@ local Schema: { [string]: RemoteDef } = {
 	LevelUpFX = { Kind = "Event", Direction = "S->C", System = "LevelService",
 		Signature = "(newLevel: number) — level-up celebration trigger" },
 
-	-- ── Core: quests ─────────────────────────────────────────────────────────
+	-- Core: quests
 	UpdateQuests = { Kind = "Event", Direction = "S->C", System = "QuestService",
 		Signature = "(questState: table) — active quest progress snapshot" },
 	ClaimQuestRequest = { Kind = "Event", Direction = "C->S", System = "QuestService",
 		Signature = "(questId: string) — claim a completed quest's reward" },
 
-	-- ── Core: daily rewards ──────────────────────────────────────────────────
+	-- Core: daily rewards
 	UpdateDaily = { Kind = "Event", Direction = "S->C", System = "DailyService",
 		Signature = "(dailyData: table) — { LastClaim: number, CurrentDay: number }" },
 	ClaimDailyRequest = { Kind = "Event", Direction = "C->S", System = "DailyService",
 		Signature = "() — claim today's daily reward, no args" },
 
-	-- ── Core: upgrades ───────────────────────────────────────────────────────
+	-- Core: upgrades
 	UpgradeRequest = { Kind = "Event", Direction = "C->S", System = "UpgradeService",
 		Signature = "(upgradeId: string) — purchase one level of an upgrade" },
 	UpdateUpgrades = { Kind = "Event", Direction = "S->C", System = "UpgradeService",
 		Signature = "(upgrades: table) — owned upgrade levels snapshot" },
 
-	-- ── Core: items / buffs ──────────────────────────────────────────────────
+	-- Core: items / buffs
 	RequestConsumeItem = { Kind = "Event", Direction = "C->S", System = "ItemService",
 		Signature = "(itemId: string) — consume one unit of an inventory item" },
 	SyncActiveBuffs = { Kind = "Event", Direction = "S->C", System = "ItemService",
 		Signature = "(activeBuffs: table) — volatile buff timers snapshot" },
 
-	-- ── Core: monetization ───────────────────────────────────────────────────
+	-- Core: monetization
 	NotifyPurchase = { Kind = "Event", Direction = "S->C", System = "MonetizationService",
 		Signature = "(rewardType: string, amount: number, displayName: string, extraData: any?)" },
 	CheckGamepassOwnership = { Kind = "Function", Direction = "C->S", System = "MonetizationService",
@@ -137,7 +136,7 @@ local Schema: { [string]: RemoteDef } = {
 	BuyInGameItem = { Kind = "Function", Direction = "C->S", System = "MonetizationService",
 		Signature = "(itemId: string) -> boolean — soft-currency store purchase" },
 
-	-- ── Core: admin / anticheat / vfx ────────────────────────────────────────
+	-- Core: admin / anticheat / vfx
 	sys_adm = { Kind = "Event", Direction = "C->S", System = "AdminService",
 		Signature = "(command: string, ...args) — admin command channel (server validates rank)" },
 	sys_adm_chk = { Kind = "Function", Direction = "C->S", System = "AdminService",
@@ -147,19 +146,19 @@ local Schema: { [string]: RemoteDef } = {
 	EmitVFX = { Kind = "Event", Direction = "S->C", System = "VFXService",
 		Signature = "(vfxKey: string, position: Vector3?) — play a VFXRegistry effect" },
 
-	-- ── Dash ─────────────────────────────────────────────────────────────────
+	-- Dash
 	DashRequest = { Kind = "Event", Direction = "C->S", System = "Dash",
 		Signature = "(direction: Vector3) — dash impulse request (server validates charges)" },
 	DashGranted = { Kind = "Event", Direction = "S->C", System = "Dash",
 		Signature = "(chargesLeft: number, cooldown: number)" },
 
-	-- ── Leaderboards ─────────────────────────────────────────────────────────
+	-- Leaderboards
 	GetLeaderboardData = { Kind = "Function", Direction = "C->S", System = "Leaderboards",
 		Signature = "(boardKey: string?) -> {entries} — top-N snapshot" },
 	GetBoardConfigs = { Kind = "Function", Direction = "C->S", System = "Leaderboards",
 		Signature = "() -> {boardConfig} — board display metadata" },
 
-	-- ── Clicker_Farm ─────────────────────────────────────────────────────────
+	-- Clicker_Farm
 	ClickReward = { Kind = "Event", Direction = "C->S", System = "Clicker_Farm",
 		Signature = "(batch: number?) — manual click(s); server applies anti-macro token bucket" },
 	GoldenDropSpawn = { Kind = "Event", Direction = "S->C", System = "Clicker_Farm",
@@ -167,7 +166,7 @@ local Schema: { [string]: RemoteDef } = {
 	GoldenDropClaim = { Kind = "Function", Direction = "C->S", System = "Clicker_Farm",
 		Signature = "(guid: string) -> rewardInfo? — claim a live golden drop (GUID-validated)" },
 
-	-- ── Aura_Collector ───────────────────────────────────────────────────────
+	-- Aura_Collector
 	RollRequest = { Kind = "Event", Direction = "C->S", System = "Aura_Collector",
 		Signature = "(clientBiome: any?, spinId: string?) — roll for an aura (server re-derives biome)" },
 	EquipRequest = { Kind = "Event", Direction = "C->S", System = "Aura_Collector",
@@ -187,7 +186,7 @@ local Schema: { [string]: RemoteDef } = {
 	ForceDisableAutoRoll = { Kind = "Event", Direction = "S->C", System = "Aura_Collector",
 		Signature = "() — server killed the auto-roll loop (funds/gamepass revoked)" },
 
-	-- ── Pet_Simulator ────────────────────────────────────────────────────────
+	-- Pet_Simulator
 	HatchRequest = { Kind = "Event", Direction = "C->S", System = "Pet_Simulator",
 		Signature = "(eggId: string) — hatch one egg (server validates cost/level/cooldown)" },
 	PetEquipRequest = { Kind = "Event", Direction = "C->S", System = "Pet_Simulator",
@@ -197,7 +196,7 @@ local Schema: { [string]: RemoteDef } = {
 	UpdatePetInventory = { Kind = "Event", Direction = "S->C", System = "Pet_Simulator",
 		Signature = "(inventory: {[string]: number}, equippedPetId: string?)" },
 
-	-- ── FPS_Shooter ──────────────────────────────────────────────────────────
+	-- FPS_Shooter
 	WeaponFire = { Kind = "Event", Direction = "C->S", System = "FPS_Shooter",
 		Signature = "(origin: Vector3, direction: Vector3, weaponKey: string) — hitscan authority is server-side" },
 	WeaponReload = { Kind = "Event", Direction = "C->S", System = "FPS_Shooter",
