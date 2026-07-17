@@ -21,10 +21,12 @@ T.test("FeatureToggles loads with the expected version and Dash config", functio
 	local FeatureToggles = psu.load("Shared/Config/FeatureToggles")
 	T.eq(type(FeatureToggles), "table")
 	T.eq(FeatureToggles.FrameworkVersion, "ModularFramework Core v1.0.0")
-	-- The retired runner probed `DashConfig`, which never existed (the key is
-	-- `Dash`), so its Enabled check was a silent no-op. Assert the real config.
-	T.eq(type(FeatureToggles.Dash), "table")
-	T.truthy(FeatureToggles.Dash.Enabled ~= nil, "Dash.Enabled is nil")
+	-- The retired runner probed `DashConfig`, which never existed, so its
+	-- Enabled check was a silent no-op. The real dash config lives under
+	-- GlobalFlags.Dash — assert that instead.
+	T.eq(type(FeatureToggles.GlobalFlags), "table")
+	T.eq(type(FeatureToggles.GlobalFlags.Dash), "table")
+	T.truthy(FeatureToggles.GlobalFlags.Dash.Enabled ~= nil, "GlobalFlags.Dash.Enabled is nil")
 end)
 
 T.test("VFXRegistry loads and returns a table", function()
