@@ -47,14 +47,10 @@ if string.sub(ROOT, -1) ~= "/" then
 end
 local SRC = ROOT .. "src/"
 
-local function absOf(rel: string): string
-	return SRC .. rel .. ".luau"
-end
-
-local function relKeyOf(abs: string): string
-	-- strip the SRC prefix and the .luau suffix -> "Shared/Modules/Foo"
-	local body = string.sub(abs, #SRC + 1)
-	return (string.gsub(body, "%.luau$", "")) -- parens: drop gsub's replacement count
+-- src-relative module key (no extension) for a shim path, e.g.
+-- ".../src/Shared/Modules/Foo" -> "Shared/Modules/Foo". Used for override lookup.
+local function relKeyOf(psuPath: string): string
+	return string.sub(psuPath, #SRC + 1)
 end
 
 -- ── Inert Roblox datatype stubs ──────────────────────────────────────────────
@@ -86,47 +82,39 @@ local mathStub = setmetatable({
 	end,
 }, { __index = math })
 
--- ── Filesystem-backed instance proxies ───────────────────────────────────────
-local function makeLeaf(abs: string)
-	return { __psuModulePath = abs }
-end
-
-local function makeFolder(dir: string)
-	local function resolveChild(childName: string)
-		local fileCandidate = dir .. "/" .. childName .. ".luau"
-		if fs.isFile(fileCandidate) then
-			return makeLeaf(fileCandidate)
-		end
-		local dirCandidate = dir .. "/" .. childName
-		if fs.isDir(dirCandidate) then
-			return makeFolder(dirCandidate)
-		end
-		error(string.format("[psu shim] no child %q under %q", tostring(childName), dir))
-	end
-
-	return setmetatable({}, {
+-- ── Instance proxies (pure string path-building; NO filesystem access) ────────
+-- CRITICAL: __index must never call a yielding function. Lune's fs.* calls
+-- yield, and a module's `require(ReplicatedStorage.Shared. ...)` evaluates this
+-- __index chain — when that evaluation happens inside a pcall (e.g. a module
+-- loaded from within a test case), a yielding fs call raises "attempt to yield
+-- across metamethod/C-call boundary". So __index only concatenates path
+-- segments; the single fs.readFile happens later in contextRequire, which is
+-- not a metamethod and is yield-safe under Luau's pcall.
+--
+-- A node carries __psuPath = the on-disk path WITHOUT the .luau extension.
+-- Indexing extends the path; require() appends .luau and reads the file.
+local function makePathNode(psuPath: string)
+	return setmetatable({ __psuPath = psuPath }, {
 		__index = function(_, key: string)
 			if key == "WaitForChild" or key == "FindFirstChild" then
 				return function(_, childName: string)
-					return resolveChild(childName)
+					return makePathNode(psuPath .. "/" .. childName)
 				end
 			end
-			return resolveChild(key)
+			return makePathNode(psuPath .. "/" .. tostring(key))
 		end,
 	})
 end
 
-local SharedFolder = makeFolder(SRC .. "Shared")
-
 local ReplicatedStorageProxy = setmetatable({}, {
 	__index = function(_, key: string)
 		if key == "Shared" then
-			return SharedFolder
+			return makePathNode(SRC .. "Shared")
 		end
 		if key == "WaitForChild" or key == "FindFirstChild" then
 			return function(_, childName: string)
 				if childName == "Shared" then
-					return SharedFolder
+					return makePathNode(SRC .. "Shared")
 				end
 				error(string.format("[psu shim] ReplicatedStorage has no child %q", tostring(childName)))
 			end
@@ -172,25 +160,27 @@ local function makeContext(overrides: { [string]: any })
 	local env: { [string]: any }
 
 	local function contextRequire(target: any): any
-		-- rawget: folder proxies raise from their __index on unknown keys, so
-		-- never trip that metamethod while probing for the leaf marker.
-		local abs = type(target) == "table" and rawget(target, "__psuModulePath")
-		if abs then
-			local key = relKeyOf(abs)
+		-- rawget: path-node proxies extend their __index on any key, so never
+		-- trip that metamethod while probing for the path marker.
+		local psuPath = type(target) == "table" and rawget(target, "__psuPath")
+		if psuPath then
+			local key = relKeyOf(psuPath)
 			if overrides[key] ~= nil then
 				return overrides[key]
 			end
-			if cache[abs] ~= nil then
-				return cache[abs]
+			if cache[key] ~= nil then
+				return cache[key]
 			end
-			local source = fs.readFile(abs)
+			-- fs.readFile yields; safe here (not inside a metamethod, and Luau
+			-- pcall tolerates yields) but never from within __index.
+			local source = fs.readFile(psuPath .. ".luau")
 			local chunk = luau.load(source, {
 				debugName = key,
 				environment = env,
 				injectGlobals = false,
 			})
 			local result = chunk()
-			cache[abs] = result
+			cache[key] = result
 			return result
 		end
 		error("[psu shim] require() expected a ReplicatedStorage instance proxy")
@@ -237,7 +227,7 @@ local function makeContext(overrides: { [string]: any })
 	env._G = env
 
 	return function(rel: string): any
-		return contextRequire(makeLeaf(absOf(rel)))
+		return contextRequire(makePathNode(SRC .. rel))
 	end
 end
 
