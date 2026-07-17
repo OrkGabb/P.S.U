@@ -95,7 +95,7 @@ FrameworkServer.RegisterService("ItemService", ItemService)
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- DEAD CODE: superseded by BootTelemetry.TrackedCall at every call site below.
 -- Left in place intentionally — removal is a separate future decision.
-local function SafeCall(mod: any, method: string): ()
+local function _SafeCall(mod: any, method: string): ()
     if typeof(mod) == "table" and type(mod[method]) == "function" then
         local ok: boolean, err: any = pcall(mod[method])
         if not ok then

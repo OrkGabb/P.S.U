@@ -28,8 +28,16 @@ if ($targets.Count -eq 0) {
     $targets = @(Join-Path $repoRoot "src")
 }
 
+# Ignore globs for the three boot/loader files that perform dynamic requires
+# (require of a computed ModuleScript / a runtime-resolved instance). luau-lsp
+# cannot statically resolve those require paths and reports "Unknown require:
+# unsupported path" — a false positive for this genre-toggle dispatch pattern.
+# Keep this list identical to scripts/analyze.sh.
 & $luauLsp analyze `
     --defs="$repoRoot\types\globalTypes.d.luau" `
     --sourcemap="$repoRoot\sourcemap.json" `
+    --ignore="**/FrameworkServer.luau" `
+    --ignore="**/ClientMain.client.luau" `
+    --ignore="**/FrameworkClient.luau" `
     @targets
 exit $LASTEXITCODE

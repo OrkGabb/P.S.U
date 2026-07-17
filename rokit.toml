@@ -14,3 +14,6 @@
 rojo = "rojo-rbx/rojo@7.6.1"
 luau = "luau-lang/luau@0.728.0"
 luau-lsp = "JohnnyMorganz/luau-lsp@1.68.1"
+# Headless Luau runtime used to run the unit spec suite (tests/) on CI without
+# Roblox Studio. See tests/README.md and .github/workflows/ci.yml.
+lune = "lune-org/lune@0.8.9"
