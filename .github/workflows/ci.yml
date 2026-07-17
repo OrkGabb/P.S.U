@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    name: Analyze + specs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Installs the toolchain pinned in rokit.toml (rojo, luau-lsp, lune, ...)
+      # and puts the tool shims on PATH.
+      - name: Install toolchain (rokit)
+        uses: CompeyDev/setup-rokit@v0.1.2
+
+      # luau-lsp analyze needs a sourcemap; it is gitignored and generated here.
+      - name: Generate sourcemap
+        run: rojo sourcemap default.project.json --output sourcemap.json
+
+      # Static analysis MUST pass before specs run. A non-zero exit here fails
+      # the job and the later spec step never executes.
+      - name: Analyze (luau-lsp)
+        run: bash scripts/analyze.sh
+
+      - name: Run spec suite (Lune)
+        run: lune run tests/run.luau
