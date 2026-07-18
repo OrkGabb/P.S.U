@@ -1,23 +1,27 @@
 --!strict
 --@author OrkGabb
 --@module DashService.luau
---@version 1.0
---- @description Server-side Dash ability system.
+--@version 2.0
+--- @description Server-side Dash ability validator.
 ---   - Receives DashRequest RemoteEvent from the client.
----   - Validates cooldown server-side (never trusts client timing).
----   - Validates Humanoid.Health > 0.
----   - Applies a VectorForce impulse in the requested direction.
----   - Fires DashGranted RemoteEvent back to the client to play the animation.
+---   - Validates cooldown and charges server-side (never trusts client timing).
+---   - Validates Humanoid.Health > 0 and a sane, near-unit dash direction.
+---   - Fires DashGranted RemoteEvent back to the requesting client.
 ---   - Uses a disposal map to clean all connections on player removal.
 ---
+--- The dash impulse itself is client-driven: DashController manages an eased
+--- LinearVelocity constraint on the client-owned character assembly, so a
+--- second server-side force here would only fight that constraint. Shared
+--- tunables (cooldown, charges) come from Shared/Config/MovementRegistry.
+---
 --- This module is conditionally loaded by FrameworkServer when
---- FeatureToggles.Dash == true. When false, this file is never required.
+--- FeatureToggles.GlobalFlags.Dash.Enabled == true. When false, this file is
+--- never required.
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
-
-local FeatureResolver = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
+local MovementRegistry = require(ReplicatedStorage.Shared.Config.MovementRegistry)
 
 type DashPlayerState = {
 	lastDashTime: number,       -- os.clock() of last granted dash
@@ -25,17 +29,14 @@ type DashPlayerState = {
 	connections: { RBXScriptConnection },
 }
 
--- Constants sourced from FeatureResolver (SSoT)
-local cooldownRaw: any = FeatureResolver.GetConfigField("Dash", "Cooldown", 2.0)
-local COOLDOWN: number = type(cooldownRaw) == "number" and cooldownRaw or 2.0
+-- Constants sourced from MovementRegistry (SSoT)
+local COOLDOWN: number = MovementRegistry.Dash.Cooldown
+local MAX_CHARGES: number = MovementRegistry.Dash.MaxCharges
 
-local forceRaw: any = FeatureResolver.GetConfigField("Dash", "Force", 50.0)
-local FORCE: number = type(forceRaw) == "number" and forceRaw or 50.0
-
-local maxChargesRaw: any = FeatureResolver.GetConfigField("Dash", "MaxCharges", 3)
-local MAX_CHARGES: number = type(maxChargesRaw) == "number" and maxChargesRaw or 3
-
-local IMPULSE_DURATION: number = 0.2  -- seconds the VectorForce stays active
+-- Direction sanity bounds: the client sends a horizontal unit vector.
+local MIN_DIRECTION_MAGNITUDE: number = 0.9
+local MAX_DIRECTION_MAGNITUDE: number = 1.1
+local MAX_VERTICAL_COMPONENT: number = 0.5
 
 local DashService = {}
 
@@ -68,42 +69,20 @@ local function CleanupPlayer(player: Player): ()
 	stateMap[player] = nil
 end
 
---- Applies a temporary VectorForce impulse to the character's HumanoidRootPart.
---- The force is cleaned up after IMPULSE_DURATION seconds via task.delay.
-local function ApplyImpulse(character: Model, direction: Vector3): ()
-	local rootPart: BasePart? = character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not rootPart then
-		return
+--- Rejects malformed dash directions: NaN components, non-unit magnitudes,
+--- and vectors that try to dash meaningfully out of the horizontal plane.
+local function IsDirectionValid(direction: Vector3): boolean
+	local magnitude: number = direction.Magnitude
+	if magnitude ~= magnitude then -- NaN never equals itself
+		return false
 	end
-
-	local safeDirection: Vector3
-	if direction.Magnitude > 0.001 then
-		safeDirection = direction.Unit * FORCE
-	else
-		-- Fallback: dash forward relative to character facing
-		safeDirection = rootPart.CFrame.LookVector * FORCE
+	if magnitude < MIN_DIRECTION_MAGNITUDE or magnitude > MAX_DIRECTION_MAGNITUDE then
+		return false
 	end
-
-	local attachment: Attachment = Instance.new("Attachment")
-	attachment.Name = "DashAttachment"
-	attachment.Parent = rootPart
-
-	local vectorForce: VectorForce = Instance.new("VectorForce")
-	vectorForce.Name = "DashImpulse"
-	vectorForce.Attachment0 = attachment
-	vectorForce.Force = safeDirection * rootPart.AssemblyMass
-	vectorForce.RelativeTo = Enum.ActuatorRelativeTo.World
-	vectorForce.ApplyAtCenterOfMass = true
-	vectorForce.Parent = rootPart
-
-	task.delay(IMPULSE_DURATION, function()
-		if vectorForce and vectorForce.Parent then
-			vectorForce:Destroy()
-		end
-		if attachment and attachment.Parent then
-			attachment:Destroy()
-		end
-	end)
+	if math.abs(direction.Y) > MAX_VERTICAL_COMPONENT then
+		return false
+	end
+	return true
 end
 
 local function OnDashRequest(player: Player, directionRaw: any): ()
@@ -111,6 +90,9 @@ local function OnDashRequest(player: Player, directionRaw: any): ()
 		return
 	end
 	local direction: Vector3 = directionRaw :: Vector3
+	if not IsDirectionValid(direction) then
+		return
+	end
 
 	local character: Model? = player.Character
 	if not character then
@@ -135,8 +117,6 @@ local function OnDashRequest(player: Player, directionRaw: any): ()
 
 	state.lastDashTime = now
 	state.activeCharges += 1
-
-	ApplyImpulse(character, direction)
 
 	local remotes: Folder? = ReplicatedStorage:FindFirstChild("Remotes") :: Folder?
 	if remotes then
