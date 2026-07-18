@@ -259,7 +259,7 @@ function StatusHUDController.Start(): ()
 			healthChangedConn:Disconnect()
 			healthChangedConn = nil
 		end
-		local hum = char:WaitForChild("Humanoid")
+		local hum = char:WaitForChild("Humanoid") :: Humanoid
 		healthChangedConn = hum.HealthChanged:Connect(UpdateHUD)
 	end
 

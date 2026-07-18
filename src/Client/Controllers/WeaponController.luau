@@ -1326,32 +1326,28 @@ function WeaponController.Start(): ()
 	task.spawn(function(): ()
 		local syncRemote = Remotes:WaitForChild(RemoteNames.WeaponAmmoSync, 8)
 		if not (syncRemote and syncRemote:IsA("RemoteEvent")) then return end
-		;(syncRemote :: RemoteEvent).OnClientEvent:Connect(
-			function(serverCurrent: number, serverMax: number, weaponKey: string?): ()
-				if weaponKey and weaponKey ~= currentWeaponKey then return end
-				currentAmmo = serverCurrent
-				maxAmmo     = serverMax
-				if serverCurrent >= serverMax then
-					isReloading = false
-				end
-				UpdateAmmoHUD()
+		;(syncRemote :: RemoteEvent).OnClientEvent:Connect(function(serverCurrent: number, serverMax: number, weaponKey: string?): ()
+			if weaponKey and weaponKey ~= currentWeaponKey then return end
+			currentAmmo = serverCurrent
+			maxAmmo     = serverMax
+			if serverCurrent >= serverMax then
+				isReloading = false
 			end
-		)
+			UpdateAmmoHUD()
+		end)
 	end)
 
 	-- HitConfirm: server -> client (hit feedback with zone)
 	task.spawn(function(): ()
 		local hitRemote = Remotes:WaitForChild(RemoteNames.HitConfirm, 8)
 		if not (hitRemote and hitRemote:IsA("RemoteEvent")) then return end
-		;(hitRemote :: RemoteEvent).OnClientEvent:Connect(
-			function(zone: string): ()
-				if zone == "head" then
-					PlaySound(headshotConfirmInst)
-				else
-					PlaySound(hitConfirmSoundInst)
-				end
+		;(hitRemote :: RemoteEvent).OnClientEvent:Connect(function(zone: string): ()
+			if zone == "head" then
+				PlaySound(headshotConfirmInst)
+			else
+				PlaySound(hitConfirmSoundInst)
 			end
-		)
+		end)
 	end)
 
 	-- Initialize sounds for all weapons and global sounds
