@@ -309,7 +309,7 @@ local FeatureToggles: FeatureTogglesType = {
 		-- Q and LeftShift are now owned by WeaponController (weapon-cycle and sprint).
 		-- Dash is remapped to LeftControl.
 		Dash = {
-			Enabled = false,
+			Enabled = true,
 			ActiveAnimationKey = "DashForward",
 			Cooldown = 2.0,
 			Force = 50.0,
@@ -333,8 +333,8 @@ local FeatureToggles: FeatureTogglesType = {
 	},
 
 	Branding = {
-		GameName = "YOUR PROJECT",
-		Subtitle = "FRAMEWORK CORE ACTIVE",
+		GameName = "P.S.U",
+		Subtitle = "Project Script Universal, by OrkGabb",
 	},
 
 	DebugConfig = {
