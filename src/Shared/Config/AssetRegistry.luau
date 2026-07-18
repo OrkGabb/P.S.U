@@ -120,9 +120,10 @@ local AssetRegistry: AssetRegistryType = {
 		},
 	},
 
-	-- Dash animations, resolved by DashFX. Keys match
-	-- FeatureToggles.GlobalFlags.Dash.ActiveAnimationKey — set that field to
-	-- pick the active animation; add entries here to offer more.
+	-- Legacy dash animation assets. The dash is now fully procedural (DashFX
+	-- tweens Motor6D C0s using Shared/Config/MovementRegistry tunables), so
+	-- nothing in the framework resolves these entries anymore — they remain
+	-- for consumers that still want keyframe clips for other systems.
 	Animations = {
 		Dash = {
 			DashForward = {

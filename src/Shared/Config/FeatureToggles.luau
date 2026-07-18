@@ -15,13 +15,11 @@ export type DebugConfigType = {
 	VerboseLogging: boolean,
 }
 
+-- Executive switches only — every dash tunable (speed, duration, lean
+-- angles, camera FOV, keybinds, cooldown pacing) lives in
+-- Shared/Config/MovementRegistry.
 export type DashConfigType = {
 	Enabled: boolean,
-	ActiveAnimationKey: string,
-	Cooldown: number,
-	Force: number,
-	MaxCharges: number,
-	DesktopKeybinds: {Enum.KeyCode},
 	MobileEnabled: boolean,
 }
 
@@ -306,15 +304,10 @@ local FeatureToggles: FeatureTogglesType = {
 
 	-- Global Safety Flags
 	GlobalFlags = {
-		-- Q and LeftShift are now owned by WeaponController (weapon-cycle and sprint).
-		-- Dash is remapped to LeftControl.
+		-- Purely executive: tunables (speed, duration, lean angles, camera
+		-- FOV, keybinds, cooldown pacing) live in Shared/Config/MovementRegistry.
 		Dash = {
 			Enabled = true,
-			ActiveAnimationKey = "DashForward",
-			Cooldown = 2.0,
-			Force = 50.0,
-			MaxCharges = 3,
-			DesktopKeybinds = { Enum.KeyCode.LeftControl },
 			MobileEnabled = true,
 		},
 		Forge = {
