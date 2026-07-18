@@ -13,18 +13,11 @@ local LocalPlayer: Player = Players.LocalPlayer
 
 local FeatureResolver: any = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 local StoreRegistry: any = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("StoreRegistry"))
-local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
+local MenuPanel = require(script.Parent.Parent.UI.MenuPanel)
 
 local StoreController = {}
 
-local MainPanel: Frame
 local GridContainer: ScrollingFrame
-local PanelScale: UIScale
-local BgShield: TextButton
-local isOpen: boolean = false
--- Bumped on every open/close transition; stale animation callbacks compare
--- against it and stand down if a newer transition has taken over.
-local animGen: number = 0
 
 local FALLBACK_ICON: string = "rbxassetid://15059633013"
 
@@ -90,8 +83,6 @@ local function InitializeCatalog(): ()
 		end
 	end
 end
-
-local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function PromptPurchase(item: StoreItem)
 	if item.Type == "Gamepass" then
@@ -420,44 +411,31 @@ end
 function StoreController.Init(): () end
 
 function StoreController.Start(): ()
-	local UIController: any = require(script.Parent:WaitForChild("UIController"))
-	UIController.RegisterHUDButton({
-		Id = "Store",
-		Name = "STORE",
-		IconId = "Store",
-		Type = "Floating",
-		LayoutOrder = 3,
-		OnClick = function(): ()
-			GetLocalEvent("ToggleStore"):Fire()
-		end
-	})
-
 	InitializeCatalog()
 
-	local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
-	gui.Name         = "StoreGui"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
+	-- Assigned below once the tab bar exists; OnOpen fires only on user opens,
+	-- which can't happen before Start finishes building the panel.
+	local resetToPassesTab: (() -> ())? = nil
 
-	BgShield = Instance.new("TextButton", gui) :: any
-	BgShield.Name                   = "InputSink"
-	BgShield.Size                   = UDim2.fromScale(1, 1)
-	-- Fully transparent: this only catches click-outside-to-close. It must not
-	-- tint the screen behind the panel.
-	BgShield.BackgroundTransparency = 1
-	BgShield.Text                   = ""
-	BgShield.AutoButtonColor        = false
-	BgShield.Visible                = false
-	BgShield.Active                 = true
-	-- (click-to-close is connected below, once closePanel exists)
+	local storeMenu = MenuPanel.Create({
+		Id = "Store",
+		Title = "PREMIUM STORE",
+		Size = Vector2.new(620, 420),
+		OnOpen = function()
+			InitializeCatalog()
+			if resetToPassesTab then resetToPassesTab() end
+			StoreController.RenderCategory("PASSES")
+		end,
+		Button = { Name = "STORE", IconId = "Store", Type = "Floating", LayoutOrder = 3 },
+	})
+	local MainPanel = storeMenu.Panel
 
-	MainPanel = Instance.new("Frame", gui)
-	MainPanel.Size             = UDim2.new(0, 620, 0, 420)
-	MainPanel.Position         = UDim2.new(0.5, -310, 0.5, -210)
-	MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
-	MainPanel.Active           = true
-	MainPanel.Visible          = false
-	Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
+	-- Store-exclusive chrome on top of the shared scaffold
+	MainPanel.Active = true
+	local panelTitle = MainPanel:FindFirstChild("Title") :: TextLabel
+	panelTitle.Font = Enum.Font.GothamBlack
+	panelTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
+	panelTitle.ZIndex = 2
 
 	local clickAbsorber              = Instance.new("TextButton", MainPanel)
 	clickAbsorber.Size               = UDim2.fromScale(1, 1)
@@ -478,40 +456,8 @@ function StoreController.Start(): ()
 	mpStroke.Color = Color3.fromRGB(27, 140, 130)
 	mpStroke.Thickness = 2.5
 
-	PanelScale       = Instance.new("UIScale", MainPanel)
-	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
-
-	local function closePanel(reason: string?)
-		if not isOpen then return end
-		isOpen            = false
-		animGen += 1
-		local gen = animGen
-		gui.DisplayOrder  = 60
-		BgShield.Visible  = false
-		GetLocalEvent("NotifyMenuClosed"):Fire("Store")
-		local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
-		tw.Completed:Connect(function(state: Enum.PlaybackState)
-			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
-			-- and bumps the generation; hide only if this close ran to completion
-			-- and is still the latest transition.
-			if gen ~= animGen then return end
-			if state ~= Enum.PlaybackState.Completed then return end
-			MainPanel.Visible = false
-		end)
-	end
-	BgShield.MouseButton1Up:Connect(function() closePanel() end)
-
-	local closeBtn = UIHelpers.CreateCloseButton(MainPanel, closePanel)
-	closeBtn.ZIndex = 2
-
-	local panelTitle = Instance.new("TextLabel", MainPanel)
-	panelTitle.Size                   = UDim2.new(1, 0, 0, 50)
-	panelTitle.BackgroundTransparency = 1
-	panelTitle.Text                   = "PREMIUM STORE"
-	panelTitle.Font                   = Enum.Font.GothamBlack
-	panelTitle.TextSize               = 22
-	panelTitle.TextColor3             = Color3.fromRGB(255, 215, 0)
-	panelTitle.ZIndex                 = 2
+	-- The factory close button must paint above the clickAbsorber
+	;(MainPanel:FindFirstChild("CloseButton") :: TextButton).ZIndex = 2
 
 	local tabBar = Instance.new("Frame", MainPanel)
 	tabBar.Size = UDim2.new(1, -30, 0, 36)
@@ -595,36 +541,14 @@ function StoreController.Start(): ()
 		end)
 	end)
 
-	GetLocalEvent("ToggleStore").Event:Connect(function(reason: string?)
-		if isOpen then
-			closePanel(reason)
-		else
-			InitializeCatalog()
-			isOpen            = true
-			animGen += 1
-			gui.DisplayOrder  = 61 -- render above the outgoing panel during a switch
-			MainPanel.Visible = true
-			BgShield.Visible  = true
-			-- Retarget from the current scale/rotation (no reset to the resting
-			-- pose) so reopening during a close animation continues smoothly
-			-- instead of snapping shut first.
-			UIHelpers.SpiralOpen(MainPanel, PanelScale, 1)
-
-			GetLocalEvent("NotifyMenuOpened"):Fire("Store")
-
-			passBtn.BackgroundColor3        = Color3.fromRGB(32, 38, 48)
-			passBtn.TextColor3              = Color3.fromRGB(255, 255, 255)
-			passUl.BackgroundTransparency   = 0
-			boostBtn.BackgroundColor3       = Color3.fromRGB(24, 29, 38)
-			boostBtn.TextColor3             = Color3.fromRGB(150, 150, 160)
-			boostUl.BackgroundTransparency  = 1
-
-			StoreController.RenderCategory("PASSES")
-		end
-	end)
-
-	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
-	-- handler, which fires ToggleStore when another menu opens.
+	resetToPassesTab = function()
+		passBtn.BackgroundColor3        = Color3.fromRGB(32, 38, 48)
+		passBtn.TextColor3              = Color3.fromRGB(255, 255, 255)
+		passUl.BackgroundTransparency   = 0
+		boostBtn.BackgroundColor3       = Color3.fromRGB(24, 29, 38)
+		boostBtn.TextColor3             = Color3.fromRGB(150, 150, 160)
+		boostUl.BackgroundTransparency  = 1
+	end
 end
 
 return StoreController

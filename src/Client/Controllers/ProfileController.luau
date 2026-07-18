@@ -10,21 +10,13 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared") :: Folder
-local AssetRegistry = require(Shared:WaitForChild("Config"):WaitForChild("AssetRegistry")) :: any
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
-local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
+local MenuPanel = require(script.Parent.Parent.UI.MenuPanel)
 
 local LocalPlayer: Player = Players.LocalPlayer
 local ProfileController = {}
 
-local MainPanel: Frame
-local PanelScale: UIScale
-local BgShield: TextButton
 local statsContainer: ScrollingFrame
-local isOpen: boolean = false
--- Bumped on every open/close transition; stale animation callbacks compare
--- against it and stand down if a newer transition has taken over.
-local animGen: number = 0
 
 local currentLevel: number = 1
 local currentRebirths: number = 0
@@ -56,8 +48,6 @@ local function FormatComma(n: number): string
 	end
 	return tostring(n)
 end
-
-local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function UpdateRebirthUI(): ()
 	if not RebirthButton or not RebirthBtnText then return end
@@ -495,105 +485,22 @@ end
 function ProfileController.Init(): () end
 
 function ProfileController.Start(): ()
-	local UIController: any = require(script.Parent:WaitForChild("UIController"))
-	UIController.RegisterHUDButton({
-		Id = "Profile",
-		Name = "PROFILE",
-		IconId = "Profile",
-		Type = "Sidebar",
-		LayoutOrder = 1,
-		OnClick = function(): ()
-			GetLocalEvent("ToggleProfile"):Fire()
-		end
-	})
-
-	local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
-	gui.Name         = "ProfileGui"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
-
-	BgShield = Instance.new("TextButton", gui)
-	BgShield.Size                   = UDim2.fromScale(1, 1)
-	-- Fully transparent: this only catches click-outside-to-close. It must not
-	-- tint the screen behind the panel.
-	BgShield.BackgroundTransparency = 1
-	BgShield.Text                   = ""
-	BgShield.AutoButtonColor        = false
-	BgShield.Visible                = false
-	BgShield.Active                 = true
-	-- (click-to-close is connected below, once closePanel exists — the old
-	-- guarded global reference was always nil, so clicking the shield
-	-- silently did nothing)
-
-	MainPanel = Instance.new("Frame")
-	MainPanel.Visible          = false
-	MainPanel.Parent           = gui
-	MainPanel.Size             = UDim2.new(0, 360, 0, 520)
-	-- Screen-centered: the old left/below-center placement sat on top of the
-	-- sidebar buttons and the HUD-collapse arrow.
-	MainPanel.AnchorPoint      = Vector2.new(0.5, 0.5)
-	MainPanel.Position         = UDim2.new(0.5, 0, 0.5, 0)
-	MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
-	MainPanel.Active           = true
-	Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
-
-	PanelScale       = Instance.new("UIScale", MainPanel)
-	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
-
-	local camera: Camera? = workspace.CurrentCamera
-	local targetScale: number = 1
-	
-	local function updateUIScale(): ()
-		if not camera then return end
-		local size = camera.ViewportSize
-		local scaleX = size.X / 380
-		local scaleY = size.Y / 540
-		targetScale = math.clamp(math.min(scaleX, scaleY, 1), 0.5, 1.2)
-		if isOpen then
-			-- Retarget with a tween: a direct Scale set while another tween is
-			-- animating the property gets overwritten every frame.
-			TweenService:Create(PanelScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
-		end
-	end
-	
-	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
-	end
-	updateUIScale()
-
-	local function closePanel(reason: string?): ()
-		if not isOpen then return end
-		isOpen            = false
-		animGen += 1
-		local gen = animGen
-		gui.DisplayOrder  = 60
-		BgShield.Visible  = false
-		GetLocalEvent("NotifyMenuClosed"):Fire("Profile")
-		local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
-		tw.Completed:Connect(function(state: Enum.PlaybackState): ()
-			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
-			-- and bumps the generation; hide only if this close ran to completion
-			-- and is still the latest transition.
-			if gen ~= animGen then return end
-			if state ~= Enum.PlaybackState.Completed then return end
-			MainPanel.Visible = false
-		end)
-	end
-
-	UIHelpers.CreateCloseButton(MainPanel, closePanel)
-	BgShield.MouseButton1Up:Connect(function() closePanel() end)
-
-	local panelTitle = Instance.new("TextLabel", MainPanel)
-	panelTitle.Size                   = UDim2.new(1, 0, 0, 50)
-	panelTitle.BackgroundTransparency = 1
-	panelTitle.Text                   = "PROFILE"
-	panelTitle.Font                   = Enum.Font.GothamBlack
-	panelTitle.TextSize               = 22
-	panelTitle.TextColor3             = Color3.new(1, 1, 1)
-	panelTitle.Parent = MainPanel
-
-	-- Declare isRPGActive before using it in the scrolling frame size
 	local isRPGActive: boolean = FeatureResolver.IsCategoryActive("RPG_Adventure")
+
+	local profileMenu = MenuPanel.Create({
+		Id = "Profile",
+		Title = "PROFILE",
+		Size = Vector2.new(360, 520),
+		OnOpen = function()
+			if isRPGActive then UpdateRebirthUI() end
+		end,
+		Button = { Name = "PROFILE", IconId = "Profile", Type = "Sidebar", LayoutOrder = 1 },
+	})
+	local MainPanel = profileMenu.Panel
+
+	-- Profile-exclusive chrome on top of the shared scaffold
+	MainPanel.Active = true
+	;(MainPanel:FindFirstChild("Title") :: TextLabel).Font = Enum.Font.GothamBlack
 
 	statsContainer = Instance.new("ScrollingFrame", MainPanel)
 	statsContainer.Size = UDim2.new(1, -40, 1, isRPGActive and -140 or -80)
@@ -629,7 +536,7 @@ function ProfileController.Start(): ()
 		rbIcon.Size = UDim2.new(0, 30, 0, 30)
 		rbIcon.Position = UDim2.new(0, 15, 0.5, -15)
 		rbIcon.BackgroundTransparency = 1
-		rbIcon.Image = AssetRegistry.UI.RebirthIcon or "rbxassetid://15059633013"
+		rbIcon.Image = profileMenu.Assets.RebirthIcon or "rbxassetid://15059633013"
 		rbIcon.ScaleType = Enum.ScaleType.Fit
 
 		RebirthBtnText = Instance.new("TextLabel", RebirthButton)
@@ -674,30 +581,6 @@ function ProfileController.Start(): ()
 			end
 		end)
 	end
-
-	GetLocalEvent("ToggleProfile").Event:Connect(function(reason: string?): ()
-		if isOpen then
-			closePanel(reason)
-		else
-			isOpen            = true
-			animGen += 1
-			gui.DisplayOrder  = 61 -- render above the outgoing panel during a switch
-			MainPanel.Visible = true
-			BgShield.Visible  = true
-			-- Retarget from the current scale/rotation (no reset to the resting
-			-- pose) so reopening during a close animation continues smoothly
-			-- instead of snapping shut first. targetScale is kept fresh by the
-			-- ViewportSize connection above.
-			UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
-
-			GetLocalEvent("NotifyMenuOpened"):Fire("Profile")
-
-			if isRPGActive then UpdateRebirthUI() end
-		end
-	end)
-
-	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
-	-- handler, which fires ToggleProfile when another menu opens.
 
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local updateData: RemoteEvent? = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5) :: any
@@ -804,7 +687,7 @@ function ProfileController.Start(): ()
 				end
 			end
 
-			if isOpen and isRPGActive then UpdateRebirthUI() end
+			if profileMenu.IsOpen() and isRPGActive then UpdateRebirthUI() end
 		end)
 	else
 		warn("[ProfileController] UpdateProfileData remote not found after 5s timeout.")
@@ -814,7 +697,7 @@ function ProfileController.Start(): ()
 		local notifyRebirth: RemoteEvent? = remotes:WaitForChild("NotifyRebirth", 5) :: any
 		if notifyRebirth then
 			notifyRebirth.OnClientEvent:Connect(function(): ()
-				closePanel()
+				profileMenu.Close(nil)
 				ProfileController.PlayCinematicEffect()
 			end)
 		else

@@ -10,20 +10,12 @@ local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local UpgradeRegistry = require(ReplicatedStorage.Shared.Modules.UpgradeRegistry)
-local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
-local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
+local MenuPanel = require(script.Parent.Parent.UI.MenuPanel)
 
 local SkillsController = {}
 
-local MainPanel: Frame
-local PanelScale: UIScale
-local BgShield: TextButton
-local isOpen = false
--- Generation counter: bumped on every open/close transition so a stale
--- Tween.Completed handler from an interrupted animation can detect it lost
--- ownership and must not touch panel state.
-local animGen = 0
+local menu: MenuPanel.MenuPanelHandle? = nil
 local UI_Cache: {[string]: {CostLabel: TextLabel, CostBadge: Frame, Lvl: TextLabel, Bar: Frame, Btn: TextButton, BtnStroke: UIStroke}} = {}
 local CurrentUpgrades = {}
 
@@ -39,7 +31,7 @@ end
 local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function RefreshUI()
-	if not isOpen then return end
+	if not (menu and menu.IsOpen()) then return end
 
 	local currencyNames = FeatureResolver.GetCurrencyNames()
 	local ls = LocalPlayer:FindFirstChild("leaderstats")
@@ -104,99 +96,16 @@ function SkillsController.Start(): ()
 		return
 	end
 
-	local UIController: any = require(script.Parent:WaitForChild("UIController"))
-	UIController.RegisterHUDButton({
+	local skillsMenu = MenuPanel.Create({
 		Id = "Skills",
-		Name = "SKILLS",
-		IconId = "Skills",
-		Type = "Sidebar",
-		LayoutOrder = 2,
-		OnClick = function(): ()
-			GetLocalEvent("ToggleSkills"):Fire()
-		end
+		Title = "MASTERY UPGRADES",
+		Size = Vector2.new(460, 420),
+		ClipsDescendants = true,
+		OnOpen = RefreshUI,
+		Button = { Name = "SKILLS", IconId = "Skills", Type = "Sidebar", LayoutOrder = 2 },
 	})
-
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "SkillsGui"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
-	gui.Parent = LocalPlayer.PlayerGui
-
-	BgShield = Instance.new("TextButton", gui)
-	BgShield.Name = "InputSink"
-	BgShield.Size = UDim2.fromScale(1, 1)
-	BgShield.BackgroundTransparency = 1
-	BgShield.Text = ""
-	BgShield.AutoButtonColor = false
-	BgShield.Visible = false
-	BgShield.Active = true
-	-- (click-to-close is connected below, once closeSkillsMenu exists)
-
-	MainPanel = Instance.new("Frame")
-	MainPanel.Size = UDim2.new(0, 460, 0, 420)
-	-- Screen-centered: the old left/below-center placement sat on top of the
-	-- sidebar buttons and the HUD-collapse arrow.
-	MainPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-	MainPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
-	MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
-	MainPanel.BorderSizePixel = 0
-	MainPanel.Visible = false
-	MainPanel.ClipsDescendants = true
-	MainPanel.Parent = gui
-	Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
-
-	PanelScale = Instance.new("UIScale", MainPanel)
-	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
-
-	local camera = workspace.CurrentCamera
-	local targetScale = 1
-	
-	local function updateUIScale()
-		if not camera then return end
-		local size = camera.ViewportSize
-		local scaleX = size.X / 480
-		local scaleY = size.Y / 440
-		targetScale = math.clamp(math.min(scaleX, scaleY, 1), 0.5, 1.2)
-		if isOpen then
-			-- Retarget with a tween: a direct Scale set while another tween is
-			-- animating the property gets overwritten every frame.
-			TweenService:Create(PanelScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
-		end
-	end
-	
-	camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
-	updateUIScale()
-
-	local function closeSkillsMenu(reason: string?)
-		if isOpen then
-			isOpen = false
-			animGen += 1
-			local gen = animGen
-			gui.DisplayOrder = 60
-			BgShield.Visible = false
-			GetLocalEvent("NotifyMenuClosed"):Fire("Skills")
-			local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
-			tw.Completed:Connect(function(state: Enum.PlaybackState)
-				-- A reopen cancels this tween (Completed still fires, state=Cancelled)
-				-- and bumps the generation; hide only if this close ran to completion
-				-- and is still the latest transition.
-				if gen ~= animGen then return end
-				if state ~= Enum.PlaybackState.Completed then return end
-				MainPanel.Visible = false
-			end)
-		end
-	end
-
-	UIHelpers.CreateCloseButton(MainPanel, closeSkillsMenu)
-	BgShield.MouseButton1Up:Connect(function() closeSkillsMenu() end)
-
-	local title = Instance.new("TextLabel", MainPanel)
-	title.Text = "MASTERY UPGRADES"
-	title.Size = UDim2.new(1, 0, 0, 50)
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.Font = Enum.Font.FredokaOne
-	title.TextSize = 22
-	title.BackgroundTransparency = 1
+	menu = skillsMenu
+	local MainPanel = skillsMenu.Panel
 
 	local list = Instance.new("ScrollingFrame", MainPanel)
 	list.Size = UDim2.new(1, -24, 1, -70)
@@ -295,7 +204,7 @@ function SkillsController.Start(): ()
 		coinIcon.Position = UDim2.new(0, 6, 0.5, 0)
 		coinIcon.AnchorPoint = Vector2.new(0, 0.5)
 		coinIcon.BackgroundTransparency = 1
-		coinIcon.Image = AssetRegistry.UI.CoinIcon
+		coinIcon.Image = skillsMenu.Assets.CoinIcon
 		coinIcon.ScaleType = Enum.ScaleType.Fit
 
 		local cost = Instance.new("TextLabel", costBadge)
@@ -348,32 +257,6 @@ function SkillsController.Start(): ()
 		end
 	end)
 
-	GetLocalEvent("ToggleSkills").Event:Connect(function(reason: string?)
-		if isOpen then
-			closeSkillsMenu(reason)
-		else
-			isOpen = true
-			animGen += 1
-			gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
-			MainPanel.Visible = true
-			BgShield.Visible = true
-			RefreshUI()
-			-- Retarget from the current scale/rotation (no reset to the resting
-			-- pose) so reopening during a close animation continues smoothly
-			-- instead of snapping shut first. targetScale is kept fresh by the
-			-- ViewportSize connection above.
-			UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
-
-			GetLocalEvent("NotifyMenuOpened"):Fire("Skills")
-		end
-	end)
-
-	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
-	-- handler, which fires ToggleSkills when another menu opens.
-
-	isOpen = false
-	MainPanel.Visible = false
-	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 end
 
 return SkillsController

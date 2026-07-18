@@ -11,8 +11,8 @@ local LocalPlayer       = Players.LocalPlayer
 
 local FeatureResolver   = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
 local SettingsRegistry  = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("SettingsRegistry")) :: any
-local UIHelpers         = require(script.Parent.Parent.UI.UIHelpers)
 local UITheme           = require(script.Parent.Parent.UI.UITheme)
+local MenuPanel         = require(script.Parent.Parent.UI.MenuPanel)
 
 local SettingsController = {}
 
@@ -21,13 +21,6 @@ local SettingsState: {[string]: any} = {
 	PerformanceMode = false,
 }
 
-local isOpen     = false
--- Bumped on every open/close transition; stale animation callbacks compare
--- against it and stand down if a newer transition has taken over.
-local animGen    = 0
-local mainPanel: Frame
-local panelScale: UIScale
-local BgShield: TextButton
 local _cachedEvents: {[string]: BindableEvent} = {}
 
 type ParticleSnap = {
@@ -350,52 +343,24 @@ function SettingsController.Init(): ()
 end
 
 function SettingsController.Start(): ()
-	local UIController: any = require(script.Parent:WaitForChild("UIController"))
-	UIController.RegisterHUDButton({
-		Id = "Settings",
-		Name = "CONFIG",
-		IconId = "Settings",
-		Type = "TopRight",
-		LayoutOrder = 1,
-		OnClick = function(): ()
-			GetLocalEvent("ToggleSettings"):Fire()
-		end
-	})
-
 	for _, child in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
 		if child.Name == "SettingsGui" then child:Destroy() end
 	end
 
-	local gui        = Instance.new("ScreenGui")
-	gui.Name         = "SettingsGui"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
-	gui.Parent       = LocalPlayer.PlayerGui
-	
 	if SettingsState.PerformanceMode then
 		ApplyLowEnd(true)
 	end
 
-	BgShield = Instance.new("TextButton", gui)
-	BgShield.Name = "InputSink"
-	BgShield.Size = UDim2.fromScale(1, 1)
-	BgShield.BackgroundTransparency = 1
-	BgShield.Text = ""
-	BgShield.AutoButtonColor = false
-	BgShield.Visible = false
-	BgShield.Active = true
-	-- (click-to-close is connected below, once ClosePanel exists)
+	local settingsMenu = MenuPanel.Create({
+		Id = "Settings",
+		Title = "SETTINGS",
+		Size = Vector2.new(380, 370),
+		Button = { Name = "CONFIG", IconId = "Settings", Type = "TopRight", LayoutOrder = 1 },
+	})
+	local mainPanel = settingsMenu.Panel
 
-	mainPanel                        = Instance.new("Frame")
-	mainPanel.Visible                = false
-	mainPanel.Parent                 = gui
-	mainPanel.Size                   = UDim2.new(0, 380, 0, 370)
-	mainPanel.AnchorPoint            = Vector2.new(0.5, 0.5)
-	mainPanel.Position               = UDim2.new(0.5, 0, 0.5, 0)
-	mainPanel.BackgroundColor3       = UITheme.PanelBackground
+	-- Settings-exclusive chrome on top of the shared scaffold
 	mainPanel.BackgroundTransparency = 0.05
-	mainPanel.BorderSizePixel        = 0
-	Instance.new("UICorner", mainPanel).CornerRadius = UDim.new(0, 16)
 
 	local panelGrad = Instance.new("UIGradient", mainPanel)
 	panelGrad.Color = ColorSequence.new({
@@ -408,38 +373,9 @@ function SettingsController.Start(): ()
 	stroke.Color     = UITheme.Accent
 	stroke.Thickness = 2
 
-	panelScale       = Instance.new("UIScale", mainPanel)
-	UIHelpers.PrimeSpiral(mainPanel, panelScale)
-
-	local title                  = Instance.new("TextLabel", mainPanel)
-	title.Size                   = UDim2.new(1, 0, 0, 50)
-	title.BackgroundTransparency = 1
-	title.Text                   = "SETTINGS"
-	title.Font                   = Enum.Font.GothamBlack
-	title.TextSize               = 24
-	title.TextColor3             = Color3.fromRGB(255, 255, 255)
-
-	local function ClosePanel(reason: string?)
-		if not isOpen then return end
-		isOpen = false
-		animGen += 1
-		local gen = animGen
-		gui.DisplayOrder = 60
-		BgShield.Visible = false
-		GetLocalEvent("NotifyMenuClosed"):Fire("Settings")
-		local tw = UIHelpers.SpiralClose(mainPanel, panelScale, reason)
-		tw.Completed:Connect(function(state: Enum.PlaybackState)
-			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
-			-- and bumps the generation; hide only if this close ran to completion
-			-- and is still the latest transition.
-			if gen ~= animGen then return end
-			if state ~= Enum.PlaybackState.Completed then return end
-			mainPanel.Visible = false
-		end)
-	end
-
-	UIHelpers.CreateCloseButton(mainPanel, ClosePanel)
-	BgShield.MouseButton1Up:Connect(function() ClosePanel() end)
+	local title = mainPanel:FindFirstChild("Title") :: TextLabel
+	title.Font = Enum.Font.GothamBlack
+	title.TextSize = 24
 
 	local listFrame                       = Instance.new("ScrollingFrame", mainPanel)
 	listFrame.Size                        = UDim2.new(1, -30, 1, -70)
@@ -558,25 +494,6 @@ function SettingsController.Start(): ()
 		end
 	end)
 
-	GetLocalEvent("ToggleSettings").Event:Connect(function(reason: string?)
-		if isOpen then
-			ClosePanel(reason)
-		else
-			isOpen            = true
-			animGen += 1
-			gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
-			mainPanel.Visible = true
-			BgShield.Visible  = true
-			-- Retarget from the current scale/rotation (no reset to the resting
-			-- pose) so reopening during a close animation continues smoothly
-			-- instead of snapping shut first.
-			UIHelpers.SpiralOpen(mainPanel, panelScale, 1)
-			GetLocalEvent("NotifyMenuOpened"):Fire("Settings")
-		end
-	end)
-
-	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
-	-- handler, which fires ToggleSettings when another menu opens.
 end
 
 return SettingsController

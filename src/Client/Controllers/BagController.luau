@@ -4,32 +4,20 @@
 --@version 1.0
 -- Inventory UI Controller. Glassmorphism card layouts, detail badges, and slot hover micro-interactions.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
 local ItemRegistry = require(ReplicatedStorage.Shared.Modules.ItemRegistry)
-local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
-local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
+local MenuPanel = require(script.Parent.Parent.UI.MenuPanel)
 
 local BagController = {}
-local MainPanel: Frame
 local GridContainer: ScrollingFrame
 local DetailsPanel: Frame
-local PanelScale: UIScale
-local BgShield: TextButton 
-local isOpen = false
--- Bumped on every open/close transition; stale animation callbacks compare
--- against it and stand down if a newer transition has taken over.
-local animGen = 0
 
 local inventoryCache: {[string]: number} = {}
 local selectedItemId: string? = nil
 local activeBuffsCache: {[string]: any} = {}
-
-local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 function BagController.Refresh()
     if not GridContainer then return end
@@ -248,46 +236,22 @@ end
 function BagController.Init(): () end
 
 function BagController.Start(): ()
-    if FeatureResolver.IsCategoryActive("Forge") then
-        local UIController: any = require(script.Parent:WaitForChild("UIController"))
-        UIController.RegisterHUDButton({
-            Id = "Bag",
-            Name = "BAG",
-            IconId = "Premium",
-            Type = "Floating",
-            LayoutOrder = 2,
-            OnClick = function(): ()
-                GetLocalEvent("ToggleBag"):Fire()
-            end
-        })
-    end
+    local bagMenu = MenuPanel.Create({
+        Id = "Bag",
+        Title = "INVENTORY",
+        Size = Vector2.new(620, 420),
+        OnOpen = function()
+            BagController.UpdateDetailsPanel()
+        end,
+        Button = if FeatureResolver.IsCategoryActive("Forge")
+            then { Name = "BAG", IconId = "Premium", Type = "Floating" :: "Floating", LayoutOrder = 2 }
+            else nil,
+    })
+    local MainPanel = bagMenu.Panel
 
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "BagGui"
-    gui.ResetOnSpawn = false 
-    gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
-    gui.Parent = LocalPlayer.PlayerGui
+    -- Bag-exclusive chrome on top of the shared scaffold
+    MainPanel.Active = true
 
-    BgShield = Instance.new("TextButton", gui)
-    BgShield.Name = "InputSink"
-    BgShield.Size = UDim2.fromScale(1, 1)
-    BgShield.BackgroundTransparency = 1
-    BgShield.Text = ""
-    BgShield.AutoButtonColor = false
-    BgShield.Visible = false
-    BgShield.Active = true
-    -- (click-to-close is connected below, once closePanel exists)
-
-    MainPanel = Instance.new("Frame", gui)
-    MainPanel.Size = UDim2.new(0, 620, 0, 420)
-    MainPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-    MainPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
-    MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
-    MainPanel.BorderSizePixel = 0
-    MainPanel.Active = true 
-    MainPanel.Visible = false
-    Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
-    
     local stroke = Instance.new("UIStroke", MainPanel)
     stroke.Color = Color3.fromRGB(27, 140, 130)
     stroke.Thickness = 2.5
@@ -299,87 +263,10 @@ function BagController.Start(): ()
     })
     panelGrad.Rotation = 135
 
-    PanelScale = Instance.new("UIScale", MainPanel)
-    UIHelpers.PrimeSpiral(MainPanel, PanelScale)
+    -- (The old transparent icon-based close button was replaced by the shared
+    -- MenuPanel red-X close button — the last panel-close variant is gone.)
 
-    local camera = workspace.CurrentCamera
-    local targetScale = 1
-    
-    local function updateUIScale()
-        if not camera then return end
-        local size = camera.ViewportSize
-        local scaleX = size.X / 640
-        local scaleY = size.Y / 440
-        targetScale = math.clamp(math.min(scaleX, scaleY, 1), 0.5, 1.2)
-        if isOpen then
-            -- Retarget with a tween: a direct Scale set while another tween is
-            -- animating the property gets overwritten every frame.
-            TweenService:Create(PanelScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
-        end
-    end
-    
-    camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
-    updateUIScale()
-
-    local function closePanel(reason: string?)
-        if not isOpen then return end
-        isOpen = false
-        animGen += 1
-        local gen = animGen
-        gui.DisplayOrder = 60
-        BgShield.Visible = false
-        GetLocalEvent("NotifyMenuClosed"):Fire("Bag")
-        local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
-        tw.Completed:Connect(function(state: Enum.PlaybackState)
-            -- A reopen cancels this tween (Completed still fires, state=Cancelled)
-            -- and bumps the generation; hide only if this close ran to completion
-            -- and is still the latest transition.
-            if gen ~= animGen then return end
-            if state ~= Enum.PlaybackState.Completed then return end
-            MainPanel.Visible = false
-        end)
-    end
-
-    -- NOTE: not yet consolidated into UIHelpers.CreateCloseButton (see
-    -- src/Client/UI/UIHelpers.luau) -- this is a transparent icon-based button
-    -- (ImageLabel + color-only hover tween), a different visual pattern from
-    -- the other nine panels' red X button + size tween. Needs its own design
-    -- decision if unification with the shared factory is wanted later.
-    local closeBtn = Instance.new("TextButton", MainPanel)
-    closeBtn.Size = UDim2.new(0, 36, 0, 36)
-    closeBtn.Position = UDim2.new(1, -10, 0, 10)
-    closeBtn.AnchorPoint = Vector2.new(1, 0)
-    closeBtn.AutoButtonColor = false
-    closeBtn.Text = ""
-    closeBtn.BackgroundTransparency = 1
-
-    local cIcon = Instance.new("ImageLabel", closeBtn)
-    cIcon.Name = "HD_Icon"
-    cIcon.Size = UDim2.fromScale(1, 1)
-    cIcon.Position = UDim2.fromScale(0, 0)
-    cIcon.BackgroundTransparency = 1
-    cIcon.Image = AssetRegistry.UI.CloseIcon
-    cIcon.ScaleType = Enum.ScaleType.Fit
-    
-    closeBtn.MouseEnter:Connect(function()
-        TweenService:Create(cIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 100, 100)}):Play()
-    end)
-    closeBtn.MouseLeave:Connect(function()
-        TweenService:Create(cIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-    end)
-    
-    closeBtn.MouseButton1Up:Connect(function() closePanel() end)
-    BgShield.MouseButton1Up:Connect(function() closePanel() end)
-
-    local panelTitle = Instance.new("TextLabel", MainPanel)
-    panelTitle.Size = UDim2.new(1, 0, 0, 50)
-    panelTitle.BackgroundTransparency = 1
-    panelTitle.Text = "INVENTORY"
-    panelTitle.Font = Enum.Font.FredokaOne
-    panelTitle.TextSize = 22
-    panelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    
-    local titleStroke = Instance.new("UIStroke", panelTitle)
+    local titleStroke = Instance.new("UIStroke", MainPanel:FindFirstChild("Title") :: TextLabel)
     titleStroke.Color = Color3.fromRGB(47, 217, 200)
     titleStroke.Thickness = 1.5
 
@@ -570,26 +457,6 @@ function BagController.Start(): ()
         end
     end)
 
-    GetLocalEvent("ToggleBag").Event:Connect(function(reason: string?)
-        if isOpen then
-            closePanel(reason)
-        else
-            isOpen = true
-            animGen += 1
-            gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
-            MainPanel.Visible = true
-            BgShield.Visible = true
-            -- Retarget from the current scale/rotation (no reset to the resting
-            -- pose) so reopening during a close animation continues smoothly
-            -- instead of snapping shut first. targetScale is kept fresh by the
-            -- ViewportSize connection above.
-            UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
-
-            GetLocalEvent("NotifyMenuOpened"):Fire("Bag")
-            BagController.UpdateDetailsPanel()
-        end
-    end)
-
     -- Bounded waits: the bag now loads core-only (no genre), and in that mode the
     -- server never publishes these remotes. An unbounded WaitForChild here hung
     -- Start forever, so everything below it (the buff-duration loop) never ran.
@@ -607,7 +474,7 @@ function BagController.Start(): ()
     if syncBuffs then
         syncBuffs.OnClientEvent:Connect(function(buffs)
             activeBuffsCache = buffs
-            if isOpen then
+            if bagMenu.IsOpen() then
                 BagController.Refresh()
             end
         end)
@@ -621,7 +488,7 @@ function BagController.Start(): ()
     task.spawn(function()
         while true do
             task.wait(1)
-            if isOpen and selectedItemId then
+            if bagMenu.IsOpen() and selectedItemId then
                 BagController.UpdateDetailsPanel()
             end
         end

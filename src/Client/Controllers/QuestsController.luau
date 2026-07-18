@@ -10,19 +10,12 @@ local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local QuestRegistry = require(ReplicatedStorage.Shared.Modules.QuestRegistry)
-local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
-local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
+local MenuPanel = require(script.Parent.Parent.UI.MenuPanel)
 local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 
 local QuestsController = {}
-local MainPanel: Frame
-local PanelScale: UIScale
-local BgShield: TextButton
-local isOpen = false
--- Bumped on every open/close transition; stale animation callbacks compare
--- against it and stand down if a newer transition has taken over.
-local animGen = 0
+local menu: MenuPanel.MenuPanelHandle? = nil
 local UI_Cache: {[string]: {ProgTxt: TextLabel, Desc: TextLabel, Bar: Frame, Btn: TextButton, CoinTxt: TextLabel, ExpTxt: TextLabel}} = {}
 local CurrentQuestData: PSUTypes.QuestClientData = { Progress = {}, Claimed = {} }
 local currentRebirths = 0
@@ -48,8 +41,6 @@ local function FormatNumber(n: number): string
     return tostring(n)
 end
 
-local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
-
 local function WaitForLeaderstats(player: Player, timeout: number?): Folder?
     local deadline = os.clock() + (timeout or 15)
     repeat task.wait(0.1) until player:FindFirstChild("leaderstats") or os.clock() >= deadline
@@ -68,7 +59,7 @@ local function GetButtonStroke(btn: TextButton): UIStroke
 end
 
 local function RefreshUI()
-    if not isOpen then return end
+    if not (menu and menu.IsOpen()) then return end
 
     local ls = LocalPlayer:FindFirstChild("leaderstats")
     local level = ls and ls:FindFirstChild("Level") and (ls.Level :: NumberValue).Value or 1
@@ -123,50 +114,23 @@ function QuestsController.Init(): ()
     if not FeatureResolver.IsCategoryActive("RPG_Adventure") then return end
 end
 
-local questHUDHandle: any = nil
-
 function QuestsController.Start(): ()
     if not FeatureResolver.IsCategoryActive("RPG_Adventure") then return end
 
-    local UIController: any = require(script.Parent:WaitForChild("UIController"))
-    questHUDHandle = UIController.RegisterHUDButton({
+    local questsMenu = MenuPanel.Create({
         Id = "Quests",
-        Name = "QUESTS",
-        IconId = "Quests",
-        Type = "Sidebar",
-        LayoutOrder = 4,
-        OnClick = function(): ()
-            GetLocalEvent("ToggleQuests"):Fire()
-        end
+        Title = "DAILY QUESTS",
+        Size = Vector2.new(460, 420),
+        OnOpen = RefreshUI,
+        Button = { Name = "QUESTS", IconId = "Quests", Type = "Sidebar", LayoutOrder = 4 },
     })
+    menu = questsMenu
+    local MainPanel = questsMenu.Panel
 
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "QuestsGui"
-    gui.ResetOnSpawn = false 
-    gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
-    gui.Parent = LocalPlayer.PlayerGui
-
-    BgShield = Instance.new("TextButton", gui)
-    BgShield.Name = "InputSink"
-    BgShield.Size = UDim2.fromScale(1, 1)
-    BgShield.BackgroundTransparency = 1
-    BgShield.Text = ""
-    BgShield.AutoButtonColor = false
-    BgShield.Visible = false
-    BgShield.Active = true
-    -- (click-to-close is connected below, once closeQuestsMenu exists — the
-    -- old forward reference silently connected nil and threw at startup)
-
-    MainPanel = Instance.new("Frame")
-    MainPanel.Size = UDim2.new(0, 460, 0, 420)
-    MainPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-    MainPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
+    -- Quests-exclusive chrome on top of the shared scaffold
     MainPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     MainPanel.BackgroundTransparency = 0.15
-    MainPanel.Visible = false
-    MainPanel.Parent = gui
-    Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
-    
+
     local panelGradient = Instance.new("UIGradient", MainPanel)
     panelGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
@@ -184,40 +148,7 @@ function QuestsController.Start(): ()
         ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 40, 50))
     })
 
-    PanelScale = Instance.new("UIScale", MainPanel)
-    UIHelpers.PrimeSpiral(MainPanel, PanelScale)
-
-    local function closeQuestsMenu(reason: string?)
-        if isOpen then
-            isOpen = false
-            animGen += 1
-            local gen = animGen
-            gui.DisplayOrder = 60
-            BgShield.Visible = false
-            GetLocalEvent("NotifyMenuClosed"):Fire("Quests")
-            local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
-            tw.Completed:Connect(function(state: Enum.PlaybackState)
-                -- A reopen cancels this tween (Completed still fires, state=Cancelled)
-                -- and bumps the generation; hide only if this close ran to completion
-                -- and is still the latest transition.
-                if gen ~= animGen then return end
-                if state ~= Enum.PlaybackState.Completed then return end
-                MainPanel.Visible = false
-            end)
-        end
-    end
-
-    UIHelpers.CreateCloseButton(MainPanel, closeQuestsMenu)
-    BgShield.MouseButton1Up:Connect(function() closeQuestsMenu() end)
-
-    local title = Instance.new("TextLabel", MainPanel)
-    title.Text = "DAILY QUESTS"
-    title.Size = UDim2.new(1, 0, 0, 50)
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.Font = Enum.Font.FredokaOne
-    title.TextSize = 22
-    title.BackgroundTransparency = 1
-    
+    local title = MainPanel:FindFirstChild("Title") :: TextLabel
     local titleGradient = Instance.new("UIGradient", title)
     titleGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
@@ -344,7 +275,7 @@ function QuestsController.Start(): ()
         local coinIcon = Instance.new("ImageLabel", coinBadge)
         coinIcon.Size = UDim2.fromOffset(14, 14)
         coinIcon.BackgroundTransparency = 1
-        coinIcon.Image = AssetRegistry.UI.CoinIcon
+        coinIcon.Image = questsMenu.Assets.CoinIcon
         coinIcon.ScaleType = Enum.ScaleType.Fit
 
         local coinTxt = Instance.new("TextLabel", coinBadge)
@@ -379,7 +310,7 @@ function QuestsController.Start(): ()
         local expIcon = Instance.new("ImageLabel", expBadge)
         expIcon.Size = UDim2.fromOffset(14, 14)
         expIcon.BackgroundTransparency = 1
-        expIcon.Image = AssetRegistry.UI.EXPPotionIcon
+        expIcon.Image = questsMenu.Assets.EXPPotionIcon
         expIcon.ScaleType = Enum.ScaleType.Fit
 
         local expTxt = Instance.new("TextLabel", expBadge)
@@ -409,38 +340,17 @@ function QuestsController.Start(): ()
 
         UI_Cache[def.Id] = {ProgTxt = progTxt, Desc = desc, Bar = barFill, Btn = buy, CoinTxt = coinTxt, ExpTxt = expTxt}
         
-        buy.MouseButton1Click:Connect(function() 
+        buy.MouseButton1Click:Connect(function()
             if CurrentQuestData.Progress[def.Id] and CurrentQuestData.Progress[def.Id] >= def.Target and not CurrentQuestData.Claimed[def.Id] then
-                req:FireServer(def.Id) 
-                if questHUDHandle then
-                    questHUDHandle.SetNotificationActive(false)
-                end
+                req:FireServer(def.Id)
+                questsMenu.SetButtonNotification(false)
             end
         end)
     end
 
-    local camera = workspace.CurrentCamera
-    local targetScale = 1
-    
-    local function updateUIScale()
-        if not camera then return end
-        local size = camera.ViewportSize
-        local scaleX = size.X / 500
-        local scaleY = size.Y / 460
-        targetScale = math.clamp(math.min(scaleX, scaleY, 1), 0.5, 1.2)
-        if isOpen then
-            -- Retarget with a tween: a direct Scale set while another tween is
-            -- animating the property gets overwritten every frame.
-            TweenService:Create(PanelScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = targetScale}):Play()
-        end
-    end
-    
-    camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
-    updateUIScale()
-
     remotes:WaitForChild(RemoteNames.UpdateQuests).OnClientEvent:Connect(function(questData: any)
         CurrentQuestData = questData :: PSUTypes.QuestClientData
-        if isOpen then RefreshUI() end
+        RefreshUI()
 
         local hasUnclaimed = false
         for _, quest in ipairs(QuestRegistry.Quests) do
@@ -452,9 +362,7 @@ function QuestsController.Start(): ()
             end
         end
 
-        if questHUDHandle then
-            questHUDHandle.SetNotificationActive(hasUnclaimed)
-        end
+        questsMenu.SetButtonNotification(hasUnclaimed)
     end)
 
     local ls = WaitForLeaderstats(LocalPlayer)
@@ -463,49 +371,22 @@ function QuestsController.Start(): ()
         return
     end
     local levelVal = ls:WaitForChild("Level", 10)
-    if levelVal then levelVal.Changed:Connect(function() if isOpen then RefreshUI() end end) end
-
-    GetLocalEvent("ToggleQuests").Event:Connect(function(reason: string?)
-        if isOpen then
-            closeQuestsMenu(reason)
-        else
-            isOpen = true
-            animGen += 1
-            gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
-            MainPanel.Visible = true
-            BgShield.Visible = true
-            RefreshUI()
-            -- Retarget from the current scale/rotation (no reset to the resting
-            -- pose) so reopening during a close animation continues smoothly
-            -- instead of snapping shut first. targetScale is kept fresh by the
-            -- ViewportSize connection above.
-            UIHelpers.SpiralOpen(MainPanel, PanelScale, targetScale)
-
-            GetLocalEvent("NotifyMenuOpened"):Fire("Quests")
-        end
-    end)
-
-    -- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
-    -- handler, which fires ToggleQuests when another menu opens.
+    if levelVal then levelVal.Changed:Connect(RefreshUI) end
 
     local updateProfileData = remotes:WaitForChild(RemoteNames.UpdateProfileData, 5)
     if updateProfileData then
         (updateProfileData :: RemoteEvent).OnClientEvent:Connect(function(data)
             currentRebirths = data.Rebirths or 0
-            if isOpen then RefreshUI() end
+            RefreshUI()
         end)
     end
 
     local updateUpgrades = remotes:WaitForChild(RemoteNames.UpdateUpgrades, 5)
     if updateUpgrades then
         (updateUpgrades :: RemoteEvent).OnClientEvent:Connect(function()
-            if isOpen then RefreshUI() end
+            RefreshUI()
         end)
     end
-
-    isOpen = false
-    MainPanel.Visible = false
-    UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 end
 
 return QuestsController

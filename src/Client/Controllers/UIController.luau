@@ -7,13 +7,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared") :: Folder
 local FeatureResolver = require(Shared:WaitForChild("Modules"):WaitForChild("FeatureResolver")) :: any
 local AssetRegistry = require(Shared:WaitForChild("Config"):WaitForChild("AssetRegistry")) :: any
-local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
 local UITheme = require(script.Parent.Parent.UI.UITheme)
+local MenuPanel = require(script.Parent.Parent.UI.MenuPanel)
 local AssetService = require(script.Parent:WaitForChild("AssetService")) :: any
 
 local LocalPlayer: Player = Players.LocalPlayer
@@ -43,16 +42,6 @@ local sidebarFrame: Frame? = nil
 local floatingFrame: Frame? = nil
 local topRightFrame: Frame? = nil
 local arrowBtn: TextButton? = nil
-local upgradePanel: Frame? = nil
-local upgradePanelScale: UIScale? = nil
-local upgradePanelShield: TextButton? = nil
-
--- Open state is tracked here, never derived from Visible: Visible stays true
--- through the whole close animation, so deriving state from it misroutes any
--- toggle that arrives mid-animation. The generation counter invalidates stale
--- Tween.Completed handlers when a newer transition has taken over.
-local upgradePanelOpen: boolean = false
-local upgradePanelAnimGen: number = 0
 
 local sidebarVisible: boolean = true
 local centeredOffsetY: number = 0
@@ -90,38 +79,6 @@ local function SetSidebarVisible(open: boolean, instant: boolean?): ()
 
 	TweenService:Create(sidebarFrame, tweenInfo, {Position = targetContainer}):Play()
 	TweenService:Create(arrowBtn, tweenInfo, {Position = targetArrow}):Play()
-end
-
-local function ToggleUpgradePanel(reason: string?): ()
-	local panel = upgradePanel
-	local panelScale = upgradePanelScale
-	if not panel or not panelScale then return end
-
-	upgradePanelOpen = not upgradePanelOpen
-	upgradePanelAnimGen += 1
-	local gen = upgradePanelAnimGen
-
-	if upgradePanelOpen then
-		-- Retarget from the current scale/rotation (no reset to the resting pose)
-		-- so reopening during a close animation continues smoothly instead of
-		-- snapping shut first.
-		panel.Visible = true
-		if upgradePanelShield then upgradePanelShield.Visible = true end
-		UIHelpers.SpiralOpen(panel, panelScale, 1)
-		GetLocalEvent("NotifyMenuOpened"):Fire("Upgrades")
-	else
-		if upgradePanelShield then upgradePanelShield.Visible = false end
-		GetLocalEvent("NotifyMenuClosed"):Fire("Upgrades")
-		local tw = UIHelpers.SpiralClose(panel, panelScale, reason)
-		tw.Completed:Connect(function(state: Enum.PlaybackState): ()
-			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
-			-- and bumps the generation; hide only if this close ran to completion
-			-- and is still the latest transition.
-			if gen ~= upgradePanelAnimGen then return end
-			if state ~= Enum.PlaybackState.Completed then return end
-			panel.Visible = false
-		end)
-	end
 end
 
 local function BindUpgradePurchase(button: TextButton, categoryId: string): ()
@@ -461,42 +418,16 @@ function UIController.InitializeDynamicPanels(): ()
 		return
 	end
 
-	local dynamicInterface = mainUI
-	if not dynamicInterface then return end
+	local upgradesMenu = MenuPanel.Create({
+		Id = "Upgrades",
+		Title = "UPGRADES",
+		Size = Vector2.new(620, 420),
+		Hotkey = Enum.KeyCode.U,
+	})
+	local panel = upgradesMenu.Panel
 
-	-- Click-outside-to-close shield, matching the BgShield every other panel has.
-	-- Created before the panel so sibling paint order keeps the panel on top.
-	local shield = Instance.new("TextButton")
-	shield.Name = "InputSink"
-	shield.Size = UDim2.fromScale(1, 1)
-	-- Fully transparent: this only catches click-outside-to-close. It must not
-	-- tint the screen behind the panel.
-	shield.BackgroundTransparency = 1
-	shield.Text = ""
-	shield.AutoButtonColor = false
-	shield.Visible = false
-	shield.Active = true
-	shield.Parent = dynamicInterface
-	upgradePanelShield = shield
-	shield.MouseButton1Up:Connect(function(): ()
-		if upgradePanelOpen then ToggleUpgradePanel() end
-	end)
-
-	local panel = Instance.new("Frame")
-	panel.Name = "UpgradePanel"
-	panel.Size = UDim2.new(0, 620, 0, 420)
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Position = UDim2.new(0.5, 0, 0.5, 0)
-	panel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
-	panel.BorderSizePixel = 0
+	-- Upgrades-exclusive chrome on top of the shared scaffold
 	panel.Active = true
-	panel.Visible = false
-	panel.Parent = dynamicInterface
-	upgradePanel = panel
-
-	local panelCorner = Instance.new("UICorner")
-	panelCorner.CornerRadius = UDim.new(0, 16)
-	panelCorner.Parent = panel
 
 	local panelStroke = Instance.new("UIStroke")
 	panelStroke.Color = Color3.fromRGB(27, 140, 130)
@@ -511,26 +442,10 @@ function UIController.InitializeDynamicPanels(): ()
 	panelGrad.Rotation = 135
 	panelGrad.Parent = panel
 
-	local panelScale = Instance.new("UIScale")
-	panelScale.Parent = panel
-	UIHelpers.PrimeSpiral(panel, panelScale)
-	upgradePanelScale = panelScale
-
-	UIHelpers.CreateCloseButton(panel, ToggleUpgradePanel)
-
-	local panelTitle = Instance.new("TextLabel")
-	panelTitle.Size = UDim2.new(1, 0, 0, 50)
-	panelTitle.BackgroundTransparency = 1
-	panelTitle.Text = "UPGRADES"
-	panelTitle.Font = Enum.Font.FredokaOne
-	panelTitle.TextSize = 22
-	panelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-	panelTitle.Parent = panel
-
 	local titleStroke = Instance.new("UIStroke")
 	titleStroke.Color = Color3.fromRGB(47, 217, 200)
 	titleStroke.Thickness = 1.5
-	titleStroke.Parent = panelTitle
+	titleStroke.Parent = panel:FindFirstChild("Title") :: TextLabel
 
 	local container = Instance.new("ScrollingFrame")
 	container.Name = "Container"
@@ -607,19 +522,6 @@ function UIController.InitializeDynamicPanels(): ()
 		
 		newNode.Parent = container
 	end
-
-	local toggleEvent: BindableEvent = GetLocalEvent("ToggleUpgradePanel")
-	toggleEvent.Event:Connect(ToggleUpgradePanel)
-
-	local toggleEvent2: BindableEvent = GetLocalEvent("ToggleUpgrades")
-	toggleEvent2.Event:Connect(ToggleUpgradePanel)
-
-	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean): ()
-		if gameProcessed then return end
-		if input.KeyCode == Enum.KeyCode.U then
-			ToggleUpgradePanel()
-		end
-	end)
 end
 
 function UIController.RequestUpgradePurchase(categoryId: string): ()

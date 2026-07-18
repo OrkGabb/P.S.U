@@ -23,28 +23,19 @@ local PetRegistry = require(ReplicatedStorage.Shared.Modules.PetRegistry)
 local AudioRegistry = require(ReplicatedStorage.Shared.Config.AudioRegistry)
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
-local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
+local MenuPanel = require(script.Parent.Parent.UI.MenuPanel)
 
 local GENRE_KEY = "Pet_Simulator"
 
 local PetsUIController = {}
 
-local MainPanel: Frame
 local EggList: ScrollingFrame
 local InventoryGrid: ScrollingFrame
-local PanelScale: UIScale
-local BgShield: TextButton
-local isOpen = false
--- Bumped on every open/close transition; stale animation callbacks compare
--- against it and stand down if a newer transition has taken over.
-local animGen = 0
 local inventoryCache: {[string]: number} = {}
 local currentEquippedId = "None"
 local playerLevel = 1
 
 -- Helpers
-
-local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function FormatNumber(n: number): string
 	if n ~= n then return "0" end
@@ -62,33 +53,6 @@ local function FormatChance(chance: number): string
 		return (string.format("%.1f%%", pct):gsub("%.0%%", "%%"))
 	end
 	return "1 in " .. FormatNumber(1 / chance)
-end
-
--- Panel scaffolding
-
-local function makePanelFrame(gui: ScreenGui): ()
-	MainPanel = Instance.new("Frame")
-	MainPanel.Size = UDim2.new(0, 620, 0, 420)
-	MainPanel.Position = UDim2.new(0.5, -310, 0.5, -210)
-	MainPanel.BackgroundColor3 = Color3.fromRGB(16, 20, 14)
-	MainPanel.Active = true
-	MainPanel.Visible = false
-	MainPanel.Parent = gui
-	Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
-
-	local grad = Instance.new("UIGradient", MainPanel)
-	grad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 32, 20)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 16, 10)),
-	})
-	grad.Rotation = 135
-
-	local stroke = Instance.new("UIStroke", MainPanel)
-	stroke.Color = Color3.fromRGB(90, 150, 60)
-	stroke.Thickness = 2
-
-	PanelScale = Instance.new("UIScale", MainPanel)
-	UIHelpers.PrimeSpiral(MainPanel, PanelScale)
 end
 
 -- Egg shop (left column)
@@ -361,18 +325,6 @@ function PetsUIController.Start(): ()
 		return
 	end
 
-	local UIController: any = require(script.Parent:WaitForChild("UIController"))
-	UIController.RegisterHUDButton({
-		Id = "Pets",
-		Name = "Pets",
-		IconId = "Pets",
-		Type = "Sidebar",
-		LayoutOrder = 3,
-		OnClick = function(): ()
-			GetLocalEvent("TogglePets"):Fire()
-		end,
-	})
-
 	-- Hatch-reveal stinger (AudioRegistry-driven, Global fallback)
 	local sfx = AudioRegistry.GetSFX("HatchReveal") or AudioRegistry.GetSFX("Purchase")
 	if sfx then
@@ -385,55 +337,34 @@ function PetsUIController.Start(): ()
 		revealSound = snd
 	end
 
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "PetsGui"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
-	gui.Parent = LocalPlayer.PlayerGui
+	local petsMenu = MenuPanel.Create({
+		Id = "Pets",
+		Title = "PETS",
+		Size = Vector2.new(620, 420),
+		OnOpen = function()
+			RefreshEggList()
+			RefreshInventory()
+		end,
+		Button = { Name = "Pets", IconId = "Pets", Type = "Sidebar", LayoutOrder = 3 },
+	})
+	local MainPanel = petsMenu.Panel
 
-	makePanelFrame(gui)
+	-- Pets-exclusive chrome on top of the shared scaffold
+	MainPanel.BackgroundColor3 = Color3.fromRGB(16, 20, 14)
+	MainPanel.Active = true
 
-	local function closePanel(reason: string?): ()
-		-- Guard only on logical state: dropping a close request during an
-		-- animation is how panels get stuck open during cross-menu switches.
-		if not isOpen then return end
-		isOpen = false
-		animGen += 1
-		local gen = animGen
-		gui.DisplayOrder = 60
-		BgShield.Visible = false
-		GetLocalEvent("NotifyMenuClosed"):Fire("Pets")
-		local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
-		tw.Completed:Connect(function(state: Enum.PlaybackState)
-			-- A reopen cancels this tween (Completed still fires, state=Cancelled)
-			-- and bumps the generation; hide only if this close ran to completion
-			-- and is still the latest transition.
-			if gen ~= animGen then return end
-			if state ~= Enum.PlaybackState.Completed then return end
-			MainPanel.Visible = false
-		end)
-	end
+	local grad = Instance.new("UIGradient", MainPanel)
+	grad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 32, 20)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 16, 10)),
+	})
+	grad.Rotation = 135
 
-	BgShield = Instance.new("TextButton")
-	BgShield.Name = "InputSink"
-	BgShield.Size = UDim2.fromScale(1, 1)
-	BgShield.BackgroundTransparency = 1
-	BgShield.Text = ""
-	BgShield.AutoButtonColor = false
-	BgShield.Visible = false
-	BgShield.Active = true
-	BgShield.Parent = gui
-	BgShield.MouseButton1Up:Connect(function() closePanel() end)
+	local panelStroke = Instance.new("UIStroke", MainPanel)
+	panelStroke.Color = Color3.fromRGB(90, 150, 60)
+	panelStroke.Thickness = 2
 
-	UIHelpers.CreateCloseButton(MainPanel, closePanel)
-
-	local panelTitle = Instance.new("TextLabel", MainPanel)
-	panelTitle.Size = UDim2.new(1, 0, 0, 50)
-	panelTitle.BackgroundTransparency = 1
-	panelTitle.Text = "PETS"
-	panelTitle.Font = Enum.Font.GothamBlack
-	panelTitle.TextSize = 22
-	panelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	;(MainPanel:FindFirstChild("Title") :: TextLabel).Font = Enum.Font.GothamBlack
 
 	local eggHeader = Instance.new("TextLabel", MainPanel)
 	eggHeader.Size = UDim2.new(0.5, -30, 0, 20)
@@ -480,28 +411,6 @@ function PetsUIController.Start(): ()
 	grid.CellPadding = UDim2.new(0, 8, 0, 8)
 	grid.CellSize = UDim2.new(0, 82, 0, 72)
 
-	GetLocalEvent("TogglePets").Event:Connect(function(reason: string?)
-		if isOpen then
-			closePanel(reason)
-		else
-			isOpen = true
-			animGen += 1
-			gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
-			MainPanel.Visible = true
-			BgShield.Visible = true
-			RefreshEggList()
-			RefreshInventory()
-			-- Retarget from the current scale/rotation (no reset to the resting
-			-- pose) so reopening during a close animation continues smoothly
-			-- instead of snapping shut first.
-			UIHelpers.SpiralOpen(MainPanel, PanelScale, 1)
-			GetLocalEvent("NotifyMenuOpened"):Fire("Pets")
-		end
-	end)
-
-	-- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
-	-- handler, which fires TogglePets when another menu opens.
-
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 	;(remotes:WaitForChild(RemoteNames.UpdatePetInventory) :: RemoteEvent).OnClientEvent:Connect(function(inventory: any, equipped: any)
@@ -511,7 +420,7 @@ function PetsUIController.Start(): ()
 		if type(equipped) == "string" then
 			currentEquippedId = equipped
 		end
-		if isOpen then RefreshInventory() end
+		if petsMenu.IsOpen() then RefreshInventory() end
 	end)
 
 	;(remotes:WaitForChild(RemoteNames.HatchResult) :: RemoteEvent).OnClientEvent:Connect(function(petId: any, _eggId: any, isNew: any)
@@ -524,7 +433,7 @@ function PetsUIController.Start(): ()
 		local petId = LocalPlayer:GetAttribute("EquippedPet")
 		if type(petId) == "string" then
 			currentEquippedId = petId
-			if isOpen then RefreshInventory() end
+			if petsMenu.IsOpen() then RefreshInventory() end
 		end
 	end)
 	local initialEquipped = LocalPlayer:GetAttribute("EquippedPet")
@@ -541,7 +450,7 @@ function PetsUIController.Start(): ()
 			if progression and type(progression.Level) == "number" then
 				if progression.Level ~= playerLevel then
 					playerLevel = progression.Level
-					if isOpen then RefreshEggList() end
+					if petsMenu.IsOpen() then RefreshEggList() end
 				end
 			end
 			local genreDataRaw = if type(data.GenreData) == "table" then (data.GenreData :: PSUTypes.GenreDataMap)[GENRE_KEY] else nil
@@ -553,7 +462,7 @@ function PetsUIController.Start(): ()
 				if type(genreData.Equipped) == "string" then
 					currentEquippedId = genreData.Equipped
 				end
-				if isOpen then RefreshInventory() end
+				if petsMenu.IsOpen() then RefreshInventory() end
 			end
 		end)
 	end

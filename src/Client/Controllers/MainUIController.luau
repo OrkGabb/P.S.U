@@ -25,7 +25,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local AuraRegistry = require(ReplicatedStorage.Shared.Modules.AuraRegistry)
 local AudioRegistry = require(ReplicatedStorage.Shared.Config.AudioRegistry)
-local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
+local UIAssets = require(ReplicatedStorage.Shared.Config.UIAssetPacks).For("MainUI")
 local FeatureResolver = require(ReplicatedStorage.Shared.Modules.FeatureResolver)
 local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
 
@@ -159,7 +159,7 @@ function MainUIController.Start(): ()
 	eyeBtn.Size = UDim2.new(0, 32, 0, 32)
 	eyeBtn.Position = UDim2.new(0, 180, 0, 12)
 	eyeBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-	eyeBtn.Image = AssetRegistry.UI.HideUI
+	eyeBtn.Image = UIAssets.HideUI
 	eyeBtn.AutoButtonColor = false
 	eyeBtn.Parent = screenshotGui
 	Instance.new("UICorner", eyeBtn).CornerRadius = UDim.new(0, 8)
@@ -647,7 +647,7 @@ function MainUIController.Start(): ()
 		aIcon.Name = "AutoIcon"
 		aIcon.Size = UDim2.fromScale(1, 1)
 		aIcon.BackgroundTransparency = 1
-		aIcon.Image = AssetRegistry.UI.AutoRollOffIcon
+		aIcon.Image = UIAssets.AutoRollOffIcon
 		aIcon.ScaleType = Enum.ScaleType.Fit
 
 		toggleBtn.MouseButton1Click:Connect(function()
@@ -658,7 +658,7 @@ function MainUIController.Start(): ()
 
 			local isAuto = not (toggleBtn:GetAttribute("IsAuto") == true)
 			toggleBtn:SetAttribute("IsAuto", isAuto)
-			aIcon.Image = if isAuto then AssetRegistry.UI.AutoRollOnIcon else AssetRegistry.UI.AutoRollOffIcon
+			aIcon.Image = if isAuto then UIAssets.AutoRollOnIcon else UIAssets.AutoRollOffIcon
 			SetAutoRoll(isAuto)
 
 			TweenService:Create(toggleBtn, TweenInfo.new(0.1, Enum.EasingStyle.Bounce), {Size = UDim2.new(0, 55, 0, 55)}):Play()
@@ -676,7 +676,7 @@ function MainUIController.Start(): ()
 		if toggleBtn then
 			toggleBtn:SetAttribute("IsAuto", false)
 			local aIcon = toggleBtn:FindFirstChild("AutoIcon") :: ImageLabel?
-			if aIcon then aIcon.Image = AssetRegistry.UI.AutoRollOffIcon end
+			if aIcon then aIcon.Image = UIAssets.AutoRollOffIcon end
 		end
 	end
 

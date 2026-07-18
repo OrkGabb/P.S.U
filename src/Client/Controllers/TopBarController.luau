@@ -19,7 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local LocalPlayer = Players.LocalPlayer
 
-local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
+local UIAssets = require(ReplicatedStorage.Shared.Config.UIAssetPacks).For("TopBar")
 local FeatureResolver = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("FeatureResolver"))
 local HUDResourceRegistry = require(ReplicatedStorage.Shared.Config.HUDResourceRegistry)
 
@@ -152,7 +152,7 @@ local function BuildRow(def: HUDResourceRegistry.ResourceDef, layoutOrder: numbe
 	icon.Size = UDim2.new(0, 17, 0, 17)
 	icon.Position = UDim2.new(0, 0, 0.5, -8)
 	icon.BackgroundTransparency = 1
-	icon.Image = (AssetRegistry.UI :: any)[def.IconId] or ""
+	icon.Image = (UIAssets :: any)[def.IconId] or ""
 	icon.ImageColor3 = def.Color
 	icon.ScaleType = Enum.ScaleType.Fit
 	icon.Parent = row

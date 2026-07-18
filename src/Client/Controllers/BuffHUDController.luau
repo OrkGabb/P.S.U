@@ -9,7 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteNames = require(ReplicatedStorage.Shared.Network.RemoteNames)
 local RunService = game:GetService("RunService")
 local ItemRegistry = require(ReplicatedStorage.Shared.Modules.ItemRegistry)
-local AssetRegistry = require(ReplicatedStorage.Shared.Config.AssetRegistry)
+local UIAssets = require(ReplicatedStorage.Shared.Config.UIAssetPacks).For("BuffHUD")
 
 local BuffHUDController = {}
 
@@ -152,7 +152,7 @@ function BuffHUDController.Refresh()
             icon.Image = itemDef.IconId
             if itemDef.ImageRectOffset then
                 icon.ImageRectOffset = itemDef.ImageRectOffset
-                icon.ImageRectSize = AssetRegistry.UI.PotionSpriteSize or Vector2.new(256, 256)
+                icon.ImageRectSize = UIAssets.PotionSpriteSize or Vector2.new(256, 256)
             end
         end
 

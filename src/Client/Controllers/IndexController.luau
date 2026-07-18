@@ -19,7 +19,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local AuraRegistry = require(ReplicatedStorage.Shared.Modules.AuraRegistry)
 local PSUTypes = require(ReplicatedStorage.Shared.Types.PSUTypes)
-local UIHelpers = require(script.Parent.Parent.UI.UIHelpers)
+local MenuPanel = require(script.Parent.Parent.UI.MenuPanel)
 
 local FALLBACK_ICON = "rbxassetid://15059633013"
 local BIOME_FALLBACK_COLOR = Color3.fromRGB(56, 82, 86)
@@ -77,15 +77,8 @@ local OMNI_SPECTRUM = {
 
 local IndexController = {}
 
-local MainPanel: Frame
 local GridContainer: ScrollingFrame
 local DetailsPanel: Frame
-local PanelScale: UIScale
-local BgShield: TextButton
-local isOpen = false
--- Bumped on every open/close transition; stale animation callbacks compare
--- against it and stand down if a newer transition has taken over.
-local animGen = 0
 local selectedAuraId: string? = nil
 local currentEquippedId: string = "None"
 local collectionCache: {[string]: number} = {}
@@ -106,8 +99,6 @@ local function FormatSuffix(n: number): string
     local suffix = suffixes[i + 1] or ("e" .. tostring(i * 3))
     return (string.format("%.1f%s", v, suffix):gsub("%.0(%a)", "%1"))
 end
-
-local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function GetRarityColor(rarityTag: string): Color3
     return AuraRegistry.GetRarity(rarityTag).Color
@@ -524,31 +515,20 @@ end
 function IndexController.Init(): () end
 
 function IndexController.Start(): ()
-    local UIController: any = require(script.Parent:WaitForChild("UIController"))
-    UIController.RegisterHUDButton({
+    local indexMenu = MenuPanel.Create({
         Id = "Index",
-        Name = "Index",
-        IconId = "Index",
-        Type = "Sidebar",
-        LayoutOrder = 3,
-        OnClick = function(): ()
-            GetLocalEvent("ToggleIndex"):Fire()
+        Title = "COLLECTION",
+        Size = Vector2.new(620, 420),
+        OnOpen = function()
+            IndexController.UpdateDetailsPanel()
         end,
+        Button = { Name = "Index", IconId = "Index", Type = "Sidebar", LayoutOrder = 3 },
     })
+    local MainPanel = indexMenu.Panel
 
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "IndexGui"
-    gui.ResetOnSpawn = false
-    gui.DisplayOrder = 60 -- panel band: 60 resting/closing, 61 while open
-    gui.Parent = LocalPlayer.PlayerGui
-
-    MainPanel = Instance.new("Frame")
-    MainPanel.Size = UDim2.new(0, 620, 0, 420)
-    MainPanel.Position = UDim2.new(0.5, -310, 0.5, -210)
-    MainPanel.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
+    -- Index-exclusive chrome on top of the shared scaffold
     MainPanel.Active = true
-    MainPanel.Visible = false
-    Instance.new("UICorner", MainPanel).CornerRadius = UDim.new(0, 16)
+    ;(MainPanel:FindFirstChild("Title") :: TextLabel).Font = Enum.Font.GothamBlack
 
     local mpGrad = Instance.new("UIGradient", MainPanel)
     mpGrad.Color = ColorSequence.new({
@@ -560,45 +540,6 @@ function IndexController.Start(): ()
     local mpStroke = Instance.new("UIStroke", MainPanel)
     mpStroke.Color = Color3.fromRGB(27, 140, 130)
     mpStroke.Thickness = 2
-
-    PanelScale = Instance.new("UIScale", MainPanel)
-    UIHelpers.PrimeSpiral(MainPanel, PanelScale)
-
-    local function closePanel(reason: string?): ()
-        -- Guard only on logical state: dropping a close request during an
-        -- animation is how panels get stuck open during cross-menu switches.
-        if not isOpen then return end
-        isOpen = false
-        animGen += 1
-        local gen = animGen
-        gui.DisplayOrder = 60
-        BgShield.Visible = false
-        GetLocalEvent("NotifyMenuClosed"):Fire("Index")
-        local tw = UIHelpers.SpiralClose(MainPanel, PanelScale, reason)
-        tw.Completed:Connect(function(state: Enum.PlaybackState)
-            -- A reopen cancels this tween (Completed still fires, state=Cancelled)
-            -- and bumps the generation; hide only if this close ran to completion
-            -- and is still the latest transition.
-            if gen ~= animGen then return end
-            if state ~= Enum.PlaybackState.Completed then return end
-            MainPanel.Visible = false
-        end)
-    end
-
-    BgShield = Instance.new("TextButton")
-    BgShield.Name = "InputSink"
-    BgShield.Size = UDim2.fromScale(1, 1)
-    BgShield.BackgroundTransparency = 1
-    BgShield.Text = ""
-    BgShield.AutoButtonColor = false
-    BgShield.Visible = false
-    BgShield.Active = true
-    BgShield.Parent = gui
-    BgShield.MouseButton1Up:Connect(function() closePanel() end)
-
-    MainPanel.Parent = gui
-
-    UIHelpers.CreateCloseButton(MainPanel, closePanel)
 
     local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
@@ -614,14 +555,6 @@ function IndexController.Start(): ()
     equipBestBtn.AutoButtonColor = false
     Instance.new("UICorner", equipBestBtn).CornerRadius = UDim.new(0, 8)
     Instance.new("UIStroke", equipBestBtn).Color = Color3.fromRGB(0, 80, 30)
-
-    local panelTitle = Instance.new("TextLabel", MainPanel)
-    panelTitle.Size = UDim2.new(1, 0, 0, 50)
-    panelTitle.BackgroundTransparency = 1
-    panelTitle.Text = "COLLECTION"
-    panelTitle.Font = Enum.Font.GothamBlack
-    panelTitle.TextSize = 22
-    panelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 
     -- Biome filter tabs
     local tabBar = Instance.new("Frame", MainPanel)
@@ -797,27 +730,6 @@ function IndexController.Start(): ()
     equipBtn.Font = Enum.Font.GothamBlack
     equipBtn.TextColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", equipBtn).CornerRadius = UDim.new(0, 8)
-
-    GetLocalEvent("ToggleIndex").Event:Connect(function(reason: string?)
-        if isOpen then
-            closePanel(reason)
-        else
-            isOpen = true
-            animGen += 1
-            gui.DisplayOrder = 61 -- render above the outgoing panel during a switch
-            MainPanel.Visible = true
-            BgShield.Visible = true
-            -- Retarget from the current scale/rotation (no reset to the resting
-            -- pose) so reopening during a close animation continues smoothly
-            -- instead of snapping shut first.
-            UIHelpers.SpiralOpen(MainPanel, PanelScale, 1)
-            IndexController.UpdateDetailsPanel()
-            GetLocalEvent("NotifyMenuOpened"):Fire("Index")
-        end
-    end)
-
-    -- Cross-menu exclusion is owned centrally by UIController's NotifyMenuOpened
-    -- handler, which fires ToggleIndex when another menu opens.
 
     equipBtn.MouseButton1Click:Connect(function()
         if not selectedAuraId then return end
