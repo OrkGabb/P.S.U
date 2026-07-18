@@ -75,9 +75,7 @@ local function start(): ()
 	local controllersFolder: Folder = ClientFolder:WaitForChild("Controllers") :: Folder
 	local startupOrder: { any } = {}
 
-	local SKIP_CONTROLLERS: { [string]: boolean } = {
-		SidebarController = true, -- Consolidated into UIController
-	}
+	local SKIP_CONTROLLERS: { [string]: boolean } = {}
 
 	local isClickerActive: boolean = FeatureResolver.IsCategoryActive("Clicker_Farm")
 	local isAuraActive: boolean = FeatureResolver.IsCategoryActive("Aura_Collector")
