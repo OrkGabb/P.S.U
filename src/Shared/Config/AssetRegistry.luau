@@ -120,19 +120,20 @@ local AssetRegistry: AssetRegistryType = {
 		},
 	},
 
-	-- Dash animations referenced exclusively by DashService / DashController.
-	-- To change the active dash animation, edit FeatureToggles.DashConfig.
+	-- Dash animations, resolved by DashFX. Keys match
+	-- FeatureToggles.GlobalFlags.Dash.ActiveAnimationKey — set that field to
+	-- pick the active animation; add entries here to offer more.
 	Animations = {
 		Dash = {
-			DashA = {
+			DashForward = {
 				Id           = "rbxassetid://5989939664",
-				Name         = "DashA",
+				Name         = "DashForward",
 				Rarity       = "Common",
 				CustomConfig = {},
 			},
-			DashB = {
+			DashAlternative = {
 				Id           = "rbxassetid://3084314259",
-				Name         = "DashB",
+				Name         = "DashAlternative",
 				Rarity       = "Common",
 				CustomConfig = {},
 			},
