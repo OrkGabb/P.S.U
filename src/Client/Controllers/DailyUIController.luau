@@ -46,23 +46,7 @@ local function GetMidnightUTC(): number
 	return now - (now % SECONDS_PER_DAY)
 end
 
-local function GetLocalEvent(eventName: string): BindableEvent
-	local folder: Folder? = ReplicatedStorage:FindFirstChild("LocalEvents") :: Folder?
-	if not folder then
-		local newFolder = Instance.new("Folder")
-		newFolder.Name = "LocalEvents"
-		newFolder.Parent = ReplicatedStorage
-		folder = newFolder
-	end
-	local evt: BindableEvent? = (folder :: Folder):FindFirstChild(eventName) :: BindableEvent?
-	if not evt then
-		local newEvt = Instance.new("BindableEvent")
-		newEvt.Name = eventName
-		newEvt.Parent = folder :: Folder
-		evt = newEvt
-	end
-	return evt :: BindableEvent
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function GetButtonStroke(btn: TextButton): UIStroke
 	local existing = btn:FindFirstChild("UIStroke")

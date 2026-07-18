@@ -43,16 +43,7 @@ local _particleSnapshots: {ParticleSnap} = {}
 local _othersSnapshots: {[number]: {ParticleSnap}} = {}
 local _descendantConn: RBXScriptConnection?
 
-local function GetLocalEvent(name: string): BindableEvent
-	if _cachedEvents[name] then return _cachedEvents[name] end
-	local folder = ReplicatedStorage:FindFirstChild("LocalEvents")
-		or Instance.new("Folder", ReplicatedStorage)
-	folder.Name = "LocalEvents"
-	local evt = folder:FindFirstChild(name) or Instance.new("BindableEvent", folder)
-	evt.Name = name
-	_cachedEvents[name] = evt :: BindableEvent
-	return evt :: BindableEvent
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local _defaultFog = Lighting.FogEnd
 local _lowEndActive    = false

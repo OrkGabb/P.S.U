@@ -55,21 +55,7 @@ local function Format(n: number): string
 	return (string.format("%.1f%s", n / (10 ^ (exp * 3)), SUFFIXES[exp + 1] or "inf"):gsub("%.0", ""))
 end
 
-local function GetLocalEvent(eventName: string): BindableEvent
-	local folder = ReplicatedStorage:FindFirstChild("LocalEvents")
-	if not folder then
-		folder = Instance.new("Folder")
-		folder.Name = "LocalEvents"
-		folder.Parent = ReplicatedStorage
-	end
-	local event = folder:FindFirstChild(eventName)
-	if not event then
-		event = Instance.new("BindableEvent")
-		event.Name = eventName
-		event.Parent = folder
-	end
-	return event :: BindableEvent
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function PlayClickSound(): ()
 	AudioController.PlaySFX("Click")

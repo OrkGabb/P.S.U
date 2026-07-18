@@ -91,23 +91,7 @@ local function InitializeCatalog(): ()
 	end
 end
 
-local function GetLocalEvent(eventName: string): BindableEvent
-	local folder: Instance? = ReplicatedStorage:FindFirstChild("LocalEvents")
-	if not folder then
-		local newFolder = Instance.new("Folder")
-		newFolder.Name = "LocalEvents"
-		newFolder.Parent = ReplicatedStorage
-		folder = newFolder
-	end
-	local existing = (folder :: Instance):FindFirstChild(eventName)
-	if existing and existing:IsA("BindableEvent") then
-		return existing
-	end
-	local evt = Instance.new("BindableEvent")
-	evt.Name = eventName
-	evt.Parent = folder
-	return evt
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function PromptPurchase(item: StoreItem)
 	if item.Type == "Gamepass" then

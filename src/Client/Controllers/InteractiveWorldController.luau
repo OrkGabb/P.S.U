@@ -13,15 +13,7 @@ local LocalPlayer: Player    = Players.LocalPlayer
 
 local InteractiveWorldController = {}
 
-local function GetLocalEvent(eventName: string): BindableEvent
-    local folder: Folder = ReplicatedStorage:FindFirstChild("LocalEvents") :: Folder or Instance.new("Folder", ReplicatedStorage)
-    folder.Name = "LocalEvents"
-
-    local evt: BindableEvent = folder:FindFirstChild(eventName) :: BindableEvent or Instance.new("BindableEvent", folder)
-    evt.Name = eventName
-
-    return evt
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local PromptObjectMapping: {[string]: string} = {
     ["Forge Master"]      = "ToggleForge",

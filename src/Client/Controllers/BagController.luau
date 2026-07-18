@@ -29,15 +29,7 @@ local inventoryCache: {[string]: number} = {}
 local selectedItemId: string? = nil
 local activeBuffsCache: {[string]: any} = {}
 
-local function GetLocalEvent(name: string): BindableEvent
-    local folder = ReplicatedStorage:FindFirstChild("LocalEvents") or Instance.new("Folder")
-    folder.Name = "LocalEvents"
-    folder.Parent = ReplicatedStorage
-    local evt = folder:FindFirstChild(name) or Instance.new("BindableEvent")
-    evt.Name = name
-    evt.Parent = folder
-    return evt :: BindableEvent
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 function BagController.Refresh()
     if not GridContainer then return end

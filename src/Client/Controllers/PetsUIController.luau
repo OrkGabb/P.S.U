@@ -44,23 +44,7 @@ local playerLevel = 1
 
 -- Helpers
 
-local function GetLocalEvent(eventName: string): BindableEvent
-	local folder: Instance? = ReplicatedStorage:FindFirstChild("LocalEvents")
-	if not folder then
-		local newFolder = Instance.new("Folder")
-		newFolder.Name = "LocalEvents"
-		newFolder.Parent = ReplicatedStorage
-		folder = newFolder
-	end
-	local existing = (folder :: Instance):FindFirstChild(eventName)
-	if existing and existing:IsA("BindableEvent") then
-		return existing
-	end
-	local evt = Instance.new("BindableEvent")
-	evt.Name = eventName
-	evt.Parent = folder
-	return evt
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function FormatNumber(n: number): string
 	if n ~= n then return "0" end

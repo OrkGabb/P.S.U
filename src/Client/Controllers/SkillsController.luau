@@ -36,22 +36,7 @@ local function Format(n: number): string
 	return (string.format("%.2f%s", n / (10 ^ (exp * 3)), suffix):gsub("%.00", ""):gsub("(%.%d)0", "%1"))
 end
 
-local function GetLocalEvent(name: string): BindableEvent
-	local folder = ReplicatedStorage:FindFirstChild("LocalEvents")
-	if not folder then
-		folder = Instance.new("Folder")
-		folder.Name = "LocalEvents"
-		folder.Parent = ReplicatedStorage
-	end
-	
-	local event = folder:FindFirstChild(name)
-	if not event then
-		event = Instance.new("BindableEvent")
-		event.Name = name
-		event.Parent = folder
-	end
-	return event :: BindableEvent
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function RefreshUI()
 	if not isOpen then return end
@@ -105,34 +90,10 @@ local function RefreshUI()
 end
 
 function SkillsController.Init(): ()
-	-- Pre-create the folder/events here so Start() never stalls waiting on WaitForChild
-	local folder = ReplicatedStorage:FindFirstChild("LocalEvents")
-	if not folder then
-		folder = Instance.new("Folder")
-		folder.Name = "LocalEvents"
-		folder.Parent = ReplicatedStorage
-	end
-
-	local toggleSkills = folder:FindFirstChild("ToggleSkills")
-	if not toggleSkills then
-		toggleSkills = Instance.new("BindableEvent")
-		toggleSkills.Name = "ToggleSkills"
-		toggleSkills.Parent = folder
-	end
-
-	local notifyMenuOpened = folder:FindFirstChild("NotifyMenuOpened")
-	if not notifyMenuOpened then
-		notifyMenuOpened = Instance.new("BindableEvent")
-		notifyMenuOpened.Name = "NotifyMenuOpened"
-		notifyMenuOpened.Parent = folder
-	end
-
-	local notifyMenuClosed = folder:FindFirstChild("NotifyMenuClosed")
-	if not notifyMenuClosed then
-		notifyMenuClosed = Instance.new("BindableEvent")
-		notifyMenuClosed.Name = "NotifyMenuClosed"
-		notifyMenuClosed.Parent = folder
-	end
+	-- Pre-create the shared events here so Start() never stalls waiting on WaitForChild
+	GetLocalEvent("ToggleSkills")
+	GetLocalEvent("NotifyMenuOpened")
+	GetLocalEvent("NotifyMenuClosed")
 end
 
 function SkillsController.Start(): ()

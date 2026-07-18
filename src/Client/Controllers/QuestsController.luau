@@ -48,10 +48,7 @@ local function FormatNumber(n: number): string
     return tostring(n)
 end
 
-local function GetLocalEvent(name: string): BindableEvent
-    local folder = ReplicatedStorage:WaitForChild("LocalEvents")
-    return folder:WaitForChild(name) :: BindableEvent
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function WaitForLeaderstats(player: Player, timeout: number?): Folder?
     local deadline = os.clock() + (timeout or 15)

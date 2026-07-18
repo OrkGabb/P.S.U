@@ -72,23 +72,7 @@ local currentOpenMenuId: string? = nil
 
 local tweenInfo: TweenInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
-local function GetLocalEvent(eventName: string): BindableEvent
-	local folder: Folder? = ReplicatedStorage:FindFirstChild("LocalEvents") :: Folder?
-	if not folder then
-		local newFolder = Instance.new("Folder")
-		newFolder.Name = "LocalEvents"
-		newFolder.Parent = ReplicatedStorage
-		folder = newFolder
-	end
-	local evt: BindableEvent? = (folder :: Folder):FindFirstChild(eventName) :: BindableEvent?
-	if not evt then
-		local newEvt = Instance.new("BindableEvent")
-		newEvt.Name = eventName
-		newEvt.Parent = folder :: Folder
-		evt = newEvt
-	end
-	return evt :: BindableEvent
-end
+local GetLocalEvent = require(script.Parent.Parent.UI.UIEvents).Get
 
 local function SetSidebarVisible(open: boolean, instant: boolean?): ()
 	if not sidebarFrame or not arrowBtn then return end
