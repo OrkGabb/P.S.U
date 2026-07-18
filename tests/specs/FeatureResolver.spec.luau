@@ -31,13 +31,13 @@ T.test("exactly one enabled genre resolves to that genre", function()
 	FR.AssertGenreExclusivity("test") -- must not raise
 end)
 
-T.test("no enabled genre falls back to the default genre when it is a key", function()
+T.test("no enabled genre boots core-only even when genre keys exist (DEFAULT_GENRE is nil)", function()
 	local FR = freshResolver({
 		Genres = { Clicker_Farm = { Enabled = false }, Aura_Collector = { Enabled = false } },
 		AllowMultipleGenres = false,
 		GlobalFlags = {},
 	})
-	T.eq(FR.GetActiveGenre(), "Clicker_Farm")
+	T.isNil(FR.GetActiveGenre())
 end)
 
 T.test("no enabled genre and no default key resolves to core-only (Global)", function()
