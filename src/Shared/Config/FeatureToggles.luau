@@ -1,7 +1,7 @@
 --!strict
 --@author OrkGabb
 --@module FeatureToggles.luau
---@version 1.0
+--@version 1.1
 -- Central configuration registry for active sub-genre frameworks and global feature flags.
 
 local RunService = game:GetService("RunService")
@@ -21,6 +21,10 @@ export type DebugConfigType = {
 export type DashConfigType = {
 	Enabled: boolean,
 	MobileEnabled: boolean,
+	-- true: the dash negates gravity — a perfectly flat horizontal line that
+	-- holds altitude mid-air (modern arcade feel). false: ballistic fallback
+	-- where gravity keeps its authority over the vertical axis.
+	NegateGravity: boolean,
 }
 
 export type BrandingConfigType = {
@@ -309,6 +313,7 @@ local FeatureToggles: FeatureTogglesType = {
 		Dash = {
 			Enabled = true,
 			MobileEnabled = true,
+			NegateGravity = true,
 		},
 		Forge = {
 			Enabled = false,

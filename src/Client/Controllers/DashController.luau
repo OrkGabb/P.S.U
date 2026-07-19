@@ -1,7 +1,7 @@
 --!strict
 --@author OrkGabb
 --@module DashController.luau
---@version 3.1
+--@version 3.2
 -- Dash backend (client side): input bindings, charge/cooldown prediction,
 -- the DashRequest remote, and the dash impulse itself — a LinearVelocity
 -- constraint whose speed eases down smoothly toward the end of the duration
@@ -12,7 +12,7 @@
 -- to change the dash's look without touching this logic. Every tunable
 -- (speed, duration, easing, cooldown, keybinds) comes from
 -- Shared/Config/MovementRegistry (SSoT); FeatureToggles only carries the
--- executive Enabled/MobileEnabled switches.
+-- executive Enabled/MobileEnabled/NegateGravity switches.
 --
 -- Interruption safety: death, seating, ragdoll/physics states, platform-stand
 -- stuns, and character removal all tear the constraint down instantly and
@@ -153,21 +153,37 @@ local function beginDash(character: Model, rootPart: BasePart, humanoid: Humanoi
 	attachment.Name = "DashAttachment"
 	attachment.Parent = rootPart
 
-	-- Vector mode owns all three axes at once with the Y component locked to
-	-- zero: gravity cannot induce a downward acceleration while the
-	-- constraint lives, so an air dash is a perfectly flat horizontal line.
-	-- Altitude holds for the full duration (including the speed ramp-down);
-	-- falling resumes only when the constraint is destroyed. Force is capped
-	-- per axis (registry MaxForce on each) so the vertical hold is as strong
-	-- as the horizontal drive.
+	-- Physics behavior mode: executive switch in FeatureToggles
+	-- (GlobalFlags.Dash.NegateGravity); every tunable number stays in
+	-- MovementRegistry. Read per dash so the toggle can be flipped live.
+	local negateGravityRaw: any = FeatureResolver.GetConfigField("Dash", "NegateGravity", true)
+	local negateGravity: boolean = if type(negateGravityRaw) == "boolean" then negateGravityRaw else true
+
 	local velocity = Instance.new("LinearVelocity")
 	velocity.Name = "DashVelocity"
 	velocity.Attachment0 = attachment
 	velocity.RelativeTo = Enum.ActuatorRelativeTo.World
-	velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
-	velocity.VectorVelocity = Vector3.new(direction.X * PHYSICS_CONFIG.Speed, 0, direction.Z * PHYSICS_CONFIG.Speed)
-	velocity.ForceLimitMode = Enum.ForceLimitMode.PerAxis
-	velocity.MaxAxesForce = Vector3.one * PHYSICS_CONFIG.MaxForce
+	if negateGravity then
+		-- Vector mode owns all three axes at once with the Y component
+		-- locked to zero: gravity cannot induce a downward acceleration
+		-- while the constraint lives, so an air dash is a perfectly flat
+		-- horizontal line. Altitude holds for the full duration (including
+		-- the speed ramp-down); falling resumes only when the constraint is
+		-- destroyed. Force is capped per axis (registry MaxForce on each) so
+		-- the vertical hold is as strong as the horizontal drive.
+		velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+		velocity.VectorVelocity = Vector3.new(direction.X * PHYSICS_CONFIG.Speed, 0, direction.Z * PHYSICS_CONFIG.Speed)
+		velocity.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+		velocity.MaxAxesForce = Vector3.one * PHYSICS_CONFIG.MaxForce
+	else
+		-- Ballistic fallback: Line mode drives speed along the dash axis
+		-- only, leaving the remaining axes to the humanoid and gravity —
+		-- air dashes arc downward naturally.
+		velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Line
+		velocity.LineDirection = direction
+		velocity.LineVelocity = PHYSICS_CONFIG.Speed
+		velocity.MaxForce = PHYSICS_CONFIG.MaxForce
+	end
 	velocity.Parent = rootPart
 
 	local dash: ActiveDash = {
@@ -191,7 +207,10 @@ local function beginDash(character: Model, rootPart: BasePart, humanoid: Humanoi
 			return
 		end
 		local easeInfo = TweenInfo.new(PHYSICS_CONFIG.EaseOutSeconds, PHYSICS_CONFIG.EasingStyle, PHYSICS_CONFIG.EasingDirection)
-		local easeTween = TweenService:Create(velocity, easeInfo, { VectorVelocity = Vector3.zero })
+		local easeGoal: { [string]: any } = if negateGravity
+			then { VectorVelocity = Vector3.zero }
+			else { LineVelocity = 0 }
+		local easeTween = TweenService:Create(velocity, easeInfo, easeGoal)
 		easeTween:Play()
 		if DashFX then
 			DashFX.Release(character)
