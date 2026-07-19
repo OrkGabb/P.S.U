@@ -1,7 +1,7 @@
 --!strict
 --@author OrkGabb
 --@module MovementRegistry.luau
---@version 1.6
+--@version 2.6
 -- Static movement-tuning registry: the single source of truth for every
 -- tunable number behind locomotion abilities. FeatureToggles stays purely
 -- executive (high-level on/off switches); designers retune movement feel
@@ -11,6 +11,10 @@
 --   * Client/Controllers/DashController — input, charges, physics timing
 --   * Client/UI/DashFX                  — procedural glide pose, wind trail + camera juice
 --   * Server/Services/DashService       — server-side validation numbers
+--   * Client/Controllers/DoubleJumpController — air-jump budget, impulse scale
+--   * Client/UI/DoubleJumpFX             — shockwave burst pacing + ring scales
+--   * Client/UI/AirSpreadFX              — escaping-air burst (Dash.AirSpread
+--     and DoubleJump.AirSpread; invalid values fall back to native defaults)
 
 export type DashPhysicsConfig = {
 	-- Peak speed along the dash direction (studs/second).
@@ -91,6 +95,21 @@ export type DashTrailConfig = {
 	SpreadAngleDegrees: number,
 }
 
+-- Secondary "air spread" burst shared by dash and double jump: a flat radial
+-- blast of air escaping horizontally outward from the effect boundary,
+-- braked hard by drag. Values are sanitized at runtime by
+-- Client/UI/AirSpreadFX — an invalid texture id or mangled number degrades
+-- to a native default with a once-per-field warning; gameplay never breaks.
+export type AirSpreadConfig = {
+	-- Particle texture (rbxassetid:// or rbxasset:// path).
+	ParticleTextureId: string,
+	-- Peak initial radial speed of the escaping air (studs/second).
+	SpreadVelocity: number,
+	-- Per-particle lifetime ceiling (seconds). Keep low (0.15-0.25) so the
+	-- burst reads as a violent puff, not lingering smoke.
+	Lifetime: number,
+}
+
 export type DashMovementConfig = {
 	-- Seconds a spent charge takes to refill (server-authoritative).
 	Cooldown: number,
@@ -102,10 +121,35 @@ export type DashMovementConfig = {
 	Lean: DashLeanConfig,
 	Camera: DashCameraConfig,
 	Trail: DashTrailConfig,
+	AirSpread: AirSpreadConfig,
+}
+
+export type DoubleJumpMovementConfig = {
+	-- Multiplier applied to the character's base jump velocity for the mid-air
+	-- jump (1.0 = identical strength to a ground jump).
+	ForceMultiplier: number,
+	-- Total jumps per airtime including the ground jump (2 = one extra mid-air).
+	MaxJumps: number,
+	-- Seconds the whole burst takes: ring expansion + micro-twist (Quad/Out)
+	-- and the linear transparency dissolve all share this one duration.
+	VFXFadeSeconds: number,
+	-- SpecialMesh.Scale of the OUTER shockwave ring at burst start and end,
+	-- in MESH-LOCAL axes: the legacy ring mesh imports standing vertical with
+	-- its diameter spanning X/Y and its thickness along Z. DoubleJumpFX rolls
+	-- each ring part 90° to lay it flat, so keep the diameter in X/Y here —
+	-- putting the thin value in Y squashes the ring into an invisible sliver.
+	-- The Z thickness also drives refraction strength: paper-thin Glass
+	-- barely bends the screen, so keep it substantial (~0.9) for a visible
+	-- distortion band. The inner ring runs the same curve times its fixed
+	-- ratio in the module.
+	VFXStartScale: Vector3,
+	VFXMaxScale: Vector3,
+	AirSpread: AirSpreadConfig,
 }
 
 export type MovementRegistryType = {
 	Dash: DashMovementConfig,
+	DoubleJump: DoubleJumpMovementConfig,
 }
 
 local MovementRegistry: MovementRegistryType = {
@@ -160,6 +204,33 @@ local MovementRegistry: MovementRegistryType = {
 			SpeedMin           = 10,
 			SpeedMax           = 16,
 			SpreadAngleDegrees = 15,
+		},
+
+		-- Exit burst: the displaced-air cloud left at the point the dash
+		-- finished or was cancelled.
+		AirSpread = {
+			ParticleTextureId = "rbxasset://textures/particles/smoke_main.dds",
+			SpreadVelocity    = 38,
+			Lifetime          = 0.22,
+		},
+	},
+
+	DoubleJump = {
+		ForceMultiplier = 1.2,
+		MaxJumps        = 2,
+		VFXFadeSeconds  = 0.25,
+		VFXStartScale   = Vector3.new(1, 1, 0.9),
+		VFXMaxScale     = Vector3.new(12, 12, 0.9),
+
+		-- Jump-frame burst: the escaping-air blast fired underneath the
+		-- concentric rings. Smoke texture on purpose: the shockwave ring
+		-- sprite (6034141151) smeared along velocity by the burst's Squash
+		-- stretch rendered as a near-invisible sliver in play — soft smoke
+		-- is what makes the dash exit puff readable.
+		AirSpread = {
+			ParticleTextureId = "rbxasset://textures/particles/smoke_main.dds",
+			SpreadVelocity    = 45,
+			Lifetime          = 0.2,
 		},
 	},
 }

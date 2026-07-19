@@ -1,7 +1,7 @@
 --!strict
 --@author OrkGabb
 --@module DashController.luau
---@version 3.4
+--@version 3.5
 -- Dash backend (client side): input bindings, charge/cooldown prediction,
 -- the DashRequest remote, and the dash impulse itself — a LinearVelocity
 -- constraint whose speed eases down smoothly toward the end of the duration
@@ -59,6 +59,26 @@ do
 	end
 end
 
+--- Runs one optional DashFX surface call with the presentation layer fully
+--- isolated from the dash backend: a missing module, a missing method, or a
+--- runtime error inside FX degrades to a warning — the physics constraint,
+--- charges, and networking are never affected.
+local function callDashFX(methodName: string, ...: any): ()
+	local fx = DashFX
+	if not fx then
+		return
+	end
+	local method = fx[methodName]
+	if type(method) ~= "function" then
+		warn(("[DashController] DashFX.%s is not a function — skipping."):format(methodName))
+		return
+	end
+	local ok, err = pcall(method, ...)
+	if not ok then
+		warn(("[DashController] DashFX.%s failed — dash unaffected: %s"):format(methodName, tostring(err)))
+	end
+end
+
 local DashController = {}
 
 type ActiveDash = {
@@ -108,9 +128,7 @@ end
 local function cancelDash(dash: ActiveDash): ()
 	dashGeneration += 1
 	teardownDash(dash)
-	if DashFX then
-		DashFX.Cancel(dash.character)
-	end
+	callDashFX("Cancel", dash.character)
 end
 
 --- Wires every interruption source to the cancel path for this dash.
@@ -216,9 +234,7 @@ local function beginDash(character: Model, rootPart: BasePart, humanoid: Humanoi
 
 	watchForInterruption(dash, generation)
 
-	if DashFX then
-		DashFX.Begin(character, direction)
-	end
+	callDashFX("Begin", character, direction)
 
 	local sustainSeconds = math.max(PHYSICS_CONFIG.Duration - PHYSICS_CONFIG.EaseOutSeconds, 0)
 	task.delay(sustainSeconds, function()
@@ -231,9 +247,7 @@ local function beginDash(character: Model, rootPart: BasePart, humanoid: Humanoi
 			else { LineVelocity = 0 }
 		local easeTween = TweenService:Create(velocity, easeInfo, easeGoal)
 		easeTween:Play()
-		if DashFX then
-			DashFX.Release(character)
-		end
+		callDashFX("Release", character)
 	end)
 
 	task.delay(PHYSICS_CONFIG.Duration, function()
@@ -300,7 +314,7 @@ local function performDash(): ()
 	if DashFX then
 		local debugRaw: any = FeatureResolver.GetConfigField("DebugConfig", "DrawPhysicsVectors", false)
 		if type(debugRaw) == "boolean" and debugRaw then
-			DashFX.DrawPhysicsVectors(humanoidRootPart.Position, dashDirection * PHYSICS_CONFIG.Speed)
+			callDashFX("DrawPhysicsVectors", humanoidRootPart.Position, dashDirection * PHYSICS_CONFIG.Speed)
 		end
 	end
 end
@@ -318,7 +332,7 @@ local function setupMobileUI(): ()
 	end
 
 	local playerGui = LocalPlayer:WaitForChild("PlayerGui") :: PlayerGui
-	DashFX.BuildMobileButton(playerGui, performDash)
+	callDashFX("BuildMobileButton", playerGui, performDash)
 	DebugUtility.Log("DashController", "Mobile Dash UI Generated via DashFX.")
 end
 

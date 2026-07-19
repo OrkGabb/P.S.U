@@ -85,6 +85,7 @@ local function start(): ()
 	local isMonetizationActive: boolean = FeatureResolver.IsCategoryActive("Monetization")
 	local isDailyActive: boolean = FeatureResolver.IsCategoryActive("Retention") or FeatureResolver.IsCategoryActive("Daily")
 	local isDashActive: boolean = FeatureResolver.IsCategoryActive("Dash") or FeatureResolver.IsCategoryActive("DashConfig")
+	local isDoubleJumpActive: boolean = FeatureResolver.IsCategoryActive("DoubleJump")
 
 	if not isClickerActive then
 		SKIP_CONTROLLERS["ClickController"] = true
@@ -125,6 +126,10 @@ local function start(): ()
 
 	if not isDashActive then
 		SKIP_CONTROLLERS["DashController"] = true
+	end
+
+	if not isDoubleJumpActive then
+		SKIP_CONTROLLERS["DoubleJumpController"] = true
 	end
 
 	if not (isClickerActive or isRPGActive or isAuraActive) then

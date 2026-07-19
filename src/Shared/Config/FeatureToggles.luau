@@ -1,7 +1,7 @@
 --!strict
 --@author OrkGabb
 --@module FeatureToggles.luau
---@version 1.1
+--@version 1.6
 -- Central configuration registry for active sub-genre frameworks and global feature flags.
 
 local RunService = game:GetService("RunService")
@@ -25,6 +25,19 @@ export type DashConfigType = {
 	-- holds altitude mid-air (modern arcade feel). false: ballistic fallback
 	-- where gravity keeps its authority over the vertical axis.
 	NegateGravity: boolean,
+}
+
+-- Executive switches only — every double-jump tunable (force multiplier,
+-- jump budget, VFX pacing/scale) lives in Shared/Config/MovementRegistry.
+export type DoubleJumpConfigType = {
+	Enabled: boolean,
+	MobileEnabled: boolean,
+	-- false: the mid-air jump still works but skips the BespokeJumpFX glass
+	-- assembly (counter-rotating ring pair + condensation cloud, built
+	-- procedurally by Client/UI/DoubleJumpFX) — kill switch for low-end
+	-- targets. The shared air-spread burst still fires: it is particle-only
+	-- and mirrors the dash exit burst, which has never been gated.
+	AllowMeshVFX: boolean,
 }
 
 export type BrandingConfigType = {
@@ -217,6 +230,7 @@ export type LeaderboardsConfigType = {
 
 export type GlobalFlagsType = {
 	Dash: DashConfigType,
+	DoubleJump: DoubleJumpConfigType,
 	Forge: {
 		Enabled: boolean,
 	},
@@ -314,6 +328,13 @@ local FeatureToggles: FeatureTogglesType = {
 			Enabled = true,
 			MobileEnabled = true,
 			NegateGravity = true,
+		},
+		-- Purely executive: tunables (force multiplier, jump budget, VFX
+		-- pacing/scale) live in Shared/Config/MovementRegistry.
+		DoubleJump = {
+			Enabled = true,
+			MobileEnabled = true,
+			AllowMeshVFX = true,
 		},
 		Forge = {
 			Enabled = false,

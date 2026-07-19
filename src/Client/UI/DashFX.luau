@@ -1,7 +1,7 @@
 --!strict
 --@author OrkGabb
 --@module DashFX.luau
---@version 3.6
+--@version 3.7
 -- Default dash presentation layer, fully procedural — no keyframe assets.
 -- Drives four effects:
 --   * Glide pose: a RunService.PreSimulation loop that runs after the default
@@ -24,6 +24,10 @@
 --     wisps stream along the sides of the torso — the wind-cutting effect.
 --   * Camera juice: expands Camera.FieldOfView at the peak of the impulse and
 --     eases it back to the original FOV as the velocity attenuates.
+--   * Exit air spread: the displaced-air cloud left at the evacuation point
+--     when the dash finishes or cancels, delegated to the shared
+--     Client/UI/AirSpreadFX module (optional — missing/broken module or
+--     config degrades to a dash without the exit puff, never an error).
 --   * Mobile dash button + physics debug vectors (utility surface).
 --
 -- DashController owns input/charges/networking/physics and resolves this
@@ -66,6 +70,25 @@ local MovementRegistry = require(ReplicatedStorage.Shared.Config.MovementRegistr
 local LEAN_CONFIG = MovementRegistry.Dash.Lean
 local CAMERA_CONFIG = MovementRegistry.Dash.Camera
 local TRAIL_CONFIG = MovementRegistry.Dash.Trail
+local AIR_SPREAD_CONFIG = MovementRegistry.Dash.AirSpread
+
+-- Optional shared burst layer, resolved with the same defensive contract
+-- DashController uses for this module: FindFirstChild + pcall so a deleted
+-- or broken AirSpreadFX degrades to a dash without the exit air puff.
+local AirSpreadFX: any = nil
+do
+	local airSpreadModule = script.Parent:FindFirstChild("AirSpreadFX")
+	if airSpreadModule and airSpreadModule:IsA("ModuleScript") then
+		local ok, result = pcall(require, airSpreadModule)
+		if ok then
+			AirSpreadFX = result
+		else
+			warn("[DashFX] AirSpreadFX failed to load — dashing without the exit air burst: " .. tostring(result))
+		end
+	else
+		warn("[DashFX] AirSpreadFX module not found — dashing without the exit air burst.")
+	end
+end
 
 local IDENTITY = CFrame.identity
 
@@ -275,6 +298,22 @@ local function enableAnimate(state: FXState): ()
 	state.animateScript = nil
 end
 
+-- Fail-safe for the registry-driven trail texture: a typoed or mangled
+-- value degrades to the native smoke texture with a single warning instead
+-- of throwing inside emitter construction.
+local warnedTrailTexture = false
+local function resolveTrailTexture(): string
+	local textureRaw: any = TRAIL_CONFIG.Texture
+	if type(textureRaw) == "string" and textureRaw ~= "" then
+		return textureRaw
+	end
+	if not warnedTrailTexture then
+		warnedTrailTexture = true
+		warn("[DashFX] Dash.Trail.Texture is not a non-empty string — using the native smoke texture.")
+	end
+	return "rbxasset://textures/particles/smoke_main.dds"
+end
+
 --- Smoothstep-sampled fade from TransparencyStart to TransparencyEnd: the
 --- wisp stays visible early, then eases out and lands on full fade with zero
 --- slope — no pop-out at the end of its lifetime.
@@ -298,7 +337,7 @@ local function createTrailPoint(parent: BasePart): TrailPoint
 
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Name = "DashWindEmitter"
-	emitter.Texture = TRAIL_CONFIG.Texture
+	emitter.Texture = resolveTrailTexture()
 	emitter.Rate = TRAIL_CONFIG.EmitRate
 	-- Explicit white + self-illumination: reads as clean bright wind rather
 	-- than scene-lit gray smoke.
@@ -488,6 +527,23 @@ end
 --- (graceful end) and Cancel (interruption) — both exits blend; nothing ever
 --- snaps.
 local function beginOutPhase(state: FXState): ()
+	-- Exit air spread fires only on the FIRST entry into Out: a Cancel
+	-- arriving after a Release re-runs this function and must not
+	-- double-burst. pcall-isolated so the shared layer can never break the
+	-- pose blend-out.
+	if state.phase ~= "Out" and AirSpreadFX then
+		local rootPart = state.character:FindFirstChild("HumanoidRootPart")
+		if rootPart and rootPart:IsA("BasePart") then
+			local humanoid = state.character:FindFirstChildOfClass("Humanoid")
+			local hipHeight = if humanoid then humanoid.HipHeight else 0
+			local baseCFrame = rootPart.CFrame * CFrame.new(0, -(hipHeight + rootPart.Size.Y / 2), 0)
+			local ok, err = pcall(AirSpreadFX.Burst, baseCFrame, AIR_SPREAD_CONFIG)
+			if not ok then
+				warn("[DashFX] AirSpreadFX.Burst failed — dash exit unaffected: " .. tostring(err))
+			end
+		end
+	end
+
 	state.phase = "Out"
 	state.phaseElapsed = 0
 	state.fromWeight = state.weight
