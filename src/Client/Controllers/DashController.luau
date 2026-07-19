@@ -1,7 +1,7 @@
 --!strict
 --@author OrkGabb
 --@module DashController.luau
---@version 3.3
+--@version 3.4
 -- Dash backend (client side): input bindings, charge/cooldown prediction,
 -- the DashRequest remote, and the dash impulse itself — a LinearVelocity
 -- constraint whose speed eases down smoothly toward the end of the duration
@@ -15,8 +15,11 @@
 -- executive Enabled/MobileEnabled/NegateGravity switches.
 --
 -- Interruption safety: death, seating, ragdoll/physics states, platform-stand
--- stuns, and character removal all tear the constraint down instantly and
--- tell DashFX to snap joints and camera back to their recorded baselines.
+-- stuns, character removal, and a jump input (dash-cancel into jump) all tear
+-- the constraint down instantly and send DashFX into its graceful blend back
+-- to the recorded baselines. The jump cancel destroys the Y-locked constraint
+-- the exact frame the jump intent registers, so the native jump impulse fires
+-- cleanly and inherits the dash's horizontal momentum — a fluid long jump.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -73,8 +76,8 @@ local dashGeneration: number = 0
 local lastDashTime: number = 0
 local currentCharges: number = DASH_CONFIG.MaxCharges
 
---- Disconnects watchers, restores the native jump state, and destroys the
---- physics constraint of a dash. Every exit path (finish, cancel, all
+--- Disconnects watchers (including the jump-cancel listener) and destroys
+--- the physics constraint of a dash. Every exit path (finish, cancel, all
 --- interruption sources) funnels through here.
 local function teardownDash(dash: ActiveDash): ()
 	for _, connection in dash.connections do
@@ -83,10 +86,6 @@ local function teardownDash(dash: ActiveDash): ()
 		end
 	end
 	table.clear(dash.connections)
-	-- Re-enable jumping disabled for the dash window (see beginDash) so
-	-- normal locomotion returns the instant the constraint is gone. Harmless
-	-- on dead or destroyed humanoids.
-	dash.humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 	if dash.velocity.Parent then
 		dash.velocity:Destroy()
 	end
@@ -147,6 +146,20 @@ local function watchForInterruption(dash: ActiveDash, generation: number): ()
 			onInterrupted()
 		end
 	end))
+
+	-- Dash-cancel into jump: a jump input terminates the dash the exact frame
+	-- the intent registers, through the same cancel path as every other
+	-- interruption — the generation is bumped, the Y-locked constraint dies
+	-- before the native jump impulse applies (no torque fight), and DashFX
+	-- blends out while the jump inherits the dash's horizontal momentum for a
+	-- physics-backed long jump. Routing through onInterrupted (never bare
+	-- teardown) is what keeps DashFX's lifecycle intact: a bare teardown
+	-- would void the pending Release and strand the pose mid-hold.
+	table.insert(dash.connections, dash.humanoid:GetPropertyChangedSignal("Jump"):Connect(function()
+		if dash.humanoid.Jump then
+			onInterrupted()
+		end
+	end))
 end
 
 --- Creates the eased LinearVelocity impulse and schedules its two phases:
@@ -154,12 +167,6 @@ end
 local function beginDash(character: Model, rootPart: BasePart, humanoid: Humanoid, direction: Vector3): ()
 	dashGeneration += 1
 	local generation = dashGeneration
-
-	-- A native jump impulse and the dash constraint's Y-lock fight each other
-	-- with enormous opposing forces (the assembly picks up wild angular
-	-- torque and flips), so jumping is disabled for the dash window.
-	-- teardownDash re-enables it on every exit path.
-	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
 
 	local attachment = Instance.new("Attachment")
 	attachment.Name = "DashAttachment"
