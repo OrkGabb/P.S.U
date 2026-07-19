@@ -4,6 +4,7 @@ sourcemap.json
 *.rbxl
 *.rbxlx
 *.rbxl.lock
+*.rbxlx.lock
 CLAUDE.md
 build/
 out/

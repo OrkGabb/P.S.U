@@ -322,7 +322,7 @@ function StoreController.RenderCategory(categoryName: string)
 			if item.Type == "Gamepass" or item.Type == "Product" then
 				local success, productInfo = pcall(function()
 					local infoType = (item.Type == "Gamepass") and Enum.InfoType.GamePass or Enum.InfoType.Product
-					return MarketplaceService:GetProductInfo(item.Id, infoType)
+					return MarketplaceService:GetProductInfoAsync(item.Id, infoType)
 				end)
 
 				if success and productInfo and productInfo.PriceInRobux then

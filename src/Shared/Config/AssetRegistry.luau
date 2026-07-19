@@ -121,7 +121,8 @@ local AssetRegistry: AssetRegistryType = {
 	},
 
 	-- Legacy dash animation assets. The dash is now fully procedural (DashFX
-	-- tweens Motor6D C0s using Shared/Config/MovementRegistry tunables), so
+	-- drives Motor6D C0s from a PreSimulation pose loop using
+	-- Shared/Config/MovementRegistry tunables), so
 	-- nothing in the framework resolves these entries anymore — they remain
 	-- for consumers that still want keyframe clips for other systems.
 	Animations = {

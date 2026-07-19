@@ -1,7 +1,7 @@
 --!strict
 --@author OrkGabb
 --@module DashController.luau
---@version 3.0
+--@version 3.1
 -- Dash backend (client side): input bindings, charge/cooldown prediction,
 -- the DashRequest remote, and the dash impulse itself — a LinearVelocity
 -- constraint whose speed eases down smoothly toward the end of the duration
@@ -153,16 +153,21 @@ local function beginDash(character: Model, rootPart: BasePart, humanoid: Humanoi
 	attachment.Name = "DashAttachment"
 	attachment.Parent = rootPart
 
-	-- Line mode drives speed along the dash axis only, leaving the remaining
-	-- axes to the humanoid and gravity — no floating, no fighting strafe input.
+	-- Vector mode owns all three axes at once with the Y component locked to
+	-- zero: gravity cannot induce a downward acceleration while the
+	-- constraint lives, so an air dash is a perfectly flat horizontal line.
+	-- Altitude holds for the full duration (including the speed ramp-down);
+	-- falling resumes only when the constraint is destroyed. Force is capped
+	-- per axis (registry MaxForce on each) so the vertical hold is as strong
+	-- as the horizontal drive.
 	local velocity = Instance.new("LinearVelocity")
 	velocity.Name = "DashVelocity"
 	velocity.Attachment0 = attachment
 	velocity.RelativeTo = Enum.ActuatorRelativeTo.World
-	velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Line
-	velocity.LineDirection = direction
-	velocity.LineVelocity = PHYSICS_CONFIG.Speed
-	velocity.MaxForce = PHYSICS_CONFIG.MaxForce
+	velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	velocity.VectorVelocity = Vector3.new(direction.X * PHYSICS_CONFIG.Speed, 0, direction.Z * PHYSICS_CONFIG.Speed)
+	velocity.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+	velocity.MaxAxesForce = Vector3.one * PHYSICS_CONFIG.MaxForce
 	velocity.Parent = rootPart
 
 	local dash: ActiveDash = {
@@ -186,7 +191,7 @@ local function beginDash(character: Model, rootPart: BasePart, humanoid: Humanoi
 			return
 		end
 		local easeInfo = TweenInfo.new(PHYSICS_CONFIG.EaseOutSeconds, PHYSICS_CONFIG.EasingStyle, PHYSICS_CONFIG.EasingDirection)
-		local easeTween = TweenService:Create(velocity, easeInfo, { LineVelocity = 0 })
+		local easeTween = TweenService:Create(velocity, easeInfo, { VectorVelocity = Vector3.zero })
 		easeTween:Play()
 		if DashFX then
 			DashFX.Release(character)
